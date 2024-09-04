@@ -14,8 +14,11 @@ class CtmAlg:
     """
     Class for the Corner Transfer Matrix (CTM) algorithm.
 
-    `a` (np.ndarray): The a tensor
-    `chi` (int): bond dimension of the edge and corner tensors.
+    Args:
+        a (np.ndarray): a tensor.
+        C (np.ndarray): Initial corner tensor.
+        T (np.ndarray): Initial edge tensor
+        chi (int): bond dimension of the edge and corner tensors.
     """
 
     def __init__(
@@ -125,8 +128,6 @@ class CtmAlg:
         values in descending order.
 
         `M` (np.array): The new contracted corner tensor of shape (chi, d, chi, d).
-        `trunc` (bool): If trunc is True, the `U` and `s` matrices are truncated,
-        keeping only the singular values with the chi largest magnitude.
 
         Returns `s` and the renormalization tensor of shape (chi, d, chi) if
         `trunc` = True, else with shape (chi, d, 2*chi), which is obtained by reshaping
