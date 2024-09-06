@@ -4,7 +4,7 @@ import scipy.linalg
 from ncon import ncon
 import time
 
-from tensors import Tensors, Methods
+from models.tensors import Tensors, Methods
 
 norm = Methods.normalize
 symm = Methods.symmetrize

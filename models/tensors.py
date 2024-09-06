@@ -22,19 +22,15 @@ class Tensors:
         return np.tensordot(A, A, axes=(4, 4)).reshape(4, 4, 4, 4)
 
     @staticmethod
-    def H() -> np.ndarray:
+    def H(lam) -> np.ndarray:
         """
         Returns the Hamiltonian operator of the Ising model
         """
-        sigma_z = np.array([[1, 0], [0, -1]])
-        sigma_x = np.array([[0, 1], [1, 0]])
+        sz = np.array([[1, 0], [0, -1]])
+        sx = np.array([[0, 1], [1, 0]])
         I = np.eye(2)
 
-        return (
-            -np.kron(sigma_z, sigma_z)
-            - 0.25 * np.kron(sigma_x, I)
-            - 0.25 * np.kron(I, sigma_x)
-        ).reshape(2, 2, 2, 2)
+        return -np.kron(sz, sz) - 0.25 * lam * (np.kron(sx, I) + np.kron(I, sx))
 
     @staticmethod
     def random(shape: tuple) -> np.ndarray:
