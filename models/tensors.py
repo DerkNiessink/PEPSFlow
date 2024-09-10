@@ -1,61 +1,68 @@
 import numpy as np
 from dataclasses import dataclass
+import torch
 
 
 @dataclass
 class Tensors:
 
     @staticmethod
-    def A_solution() -> np.ndarray:
+    def A_solution() -> torch.Tensor:
         """
         Returns the solution state of the Ising model. The legs correspond
         to (down, left, top, right, physical)
         """
-        return np.loadtxt("solution_state.txt").reshape(2, 2, 2, 2, 2)
+        return torch.from_numpy(
+            np.loadtxt("solution_state.txt").reshape(2, 2, 2, 2, 2)
+        ).double()
 
     @staticmethod
-    def a_solution() -> np.ndarray:
+    def a_solution() -> torch.Tensor:
         """
         Returns contraction of the solution state of the Ising model.
         """
-        A = np.loadtxt("solution_state.txt").reshape(2, 2, 2, 2, 2)
-        return np.tensordot(A, A, axes=(4, 4)).reshape(4, 4, 4, 4)
+        A = torch.from_numpy(
+            np.loadtxt("solution_state.txt").reshape(2, 2, 2, 2, 2)
+        ).double()
+        return torch.tensordot(A, A, dims=([4], [4])).reshape(4, 4, 4, 4)
 
-    def a(A) -> np.ndarray:
+    def a(A: torch.Tensor) -> torch.Tensor:
         """
         Returns the contraction of the given rank 5 tensor A.
         """
-        return np.tensordot(A, A, axes=(4, 4)).reshape(4, 4, 4, 4)
+        return torch.tensordot(A, A, dims=([4], [4])).reshape(4, 4, 4, 4)
 
     @staticmethod
-    def H(lam) -> np.ndarray:
+    def H(lam: float) -> torch.Tensor:
         """
         Returns the Hamiltonian operator of the Ising model
         """
-        sz = np.array([[1, 0], [0, -1]])
-        sx = np.array([[0, 1], [1, 0]])
-        I = np.eye(2)
+        sz = torch.Tensor([[1, 0], [0, -1]]).double()
+        sx = torch.Tensor([[0, 1], [1, 0]]).double()
+        I = torch.eye(2).double()
 
-        return -np.kron(sz, sz) - 0.25 * lam * (np.kron(sx, I) + np.kron(I, sx))
+        return -torch.kron(sz, sz) - 0.25 * lam * (
+            torch.kron(sx, I) + torch.kron(I, sx)
+        )
 
     @staticmethod
-    def A_random_symmetric(d=2) -> np.ndarray:
+    def A_random_symmetric(d=2) -> torch.Tensor:
         """
         Returns a random rank 5 tensor with legs of size d, which has left-right,
         up-down and diagonal symmetry. The legs are ordered as follows:
         A(phy, up, left, down, right)
         """
-        A = np.random.uniform(size=(d, d, d, d, d)) - 0.5
+        A = torch.rand(size=(d, d, d, d, d), dtype=torch.float64) - 0.5
         return Methods.symmetrize_rank5(A)
 
     @staticmethod
-    def random(shape: tuple) -> np.ndarray:
+    def random(shape: tuple) -> torch.Tensor:
         """
         Returns a random tensor of specific shape, which can be either rank 2
         or rank 3. The tensor is symmetric under the exchange of the first two
         indices and the values are normalized.
         """
-        c = np.random.uniform(size=shape)
+        c = torch.rand(size=shape, dtype=torch.float64)
         return Methods.symmetrize(c)
 
 
@@ -64,7 +71,7 @@ class Methods:
     """This class contains methods for np.arrays, required for the CTM algorithm."""
 
     @staticmethod
-    def symmetrize(M: np.ndarray) -> np.ndarray:
+    def symmetrize(M: torch.Tensor) -> torch.Tensor:
         """
         Symmetrize the array about the first two axes. Only works for 2 or 3
         dimensional arrays.
@@ -74,23 +81,28 @@ class Methods:
             raise Exception("M has to be a 2 or 3 dimensional array.")
 
         axes = (1, 0) if rank == 2 else (1, 0, 2)
-        return np.array(M + np.transpose(M, axes)) / 2
+        return (M + M.permute(*axes)) / 2
 
     @staticmethod
-    def symmetrize_rank5(A: np.ndarray) -> np.ndarray:
+    def symmetrize_rank5(A: torch.Tensor) -> torch.Tensor:
         """
-        Symmetrize the rank 5 tensor A about the all axes, except the physical.
+        Symmetrize the rank 5 tensor A about all axes, except the physical.
         Legs are ordered as follows: A(phy, up, left, down, right).
         """
-        Asymm = (A + A.transpose(0, 1, 4, 3, 2)) / 2.0  # left-right symmetry
-        Asymm = (Asymm + Asymm.transpose(0, 3, 2, 1, 4)) / 2.0  # up-down symmetry
-        Asymm = (Asymm + Asymm.transpose(0, 4, 3, 2, 1)) / 2.0  # skew-diagonal symmetry
-        Asymm = (Asymm + Asymm.transpose(0, 2, 1, 4, 3)) / 2.0  # diagonal symmetry
-        return Asymm / np.linalg.norm(Asymm)
+        # left-right symmetry
+        Asymm = (A + A.permute(0, 1, 4, 3, 2)) / 2.0
+        # up-down symmetry
+        Asymm = (Asymm + Asymm.permute(0, 3, 2, 1, 4)) / 2.0
+        # skew-diagonal symmetry
+        Asymm = (Asymm + Asymm.permute(0, 4, 3, 2, 1)) / 2.0
+        # diagonal symmetry
+        Asymm = (Asymm + Asymm.permute(0, 2, 1, 4, 3)) / 2.0
+
+        return Asymm / torch.norm(Asymm)
 
     @staticmethod
-    def normalize(M: np.ndarray) -> np.ndarray:
+    def normalize(M: torch.Tensor) -> torch.Tensor:
         """
         Divide all elements in the given array by its largest value.
         """
-        return np.array(M / np.amax(M))
+        return M / torch.amax(M)

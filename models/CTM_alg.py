@@ -1,8 +1,5 @@
-import numpy as np
-import scipy.sparse.linalg
-import scipy.linalg
-from ncon import ncon
 import time
+import torch
 
 from models.tensors import Tensors, Methods
 
@@ -15,15 +12,15 @@ class CtmAlg:
     Class for the Corner Transfer Matrix (CTM) algorithm.
 
     Args:
-        a (np.ndarray): a tensor.
-        C (np.ndarray): Initial corner tensor.
-        T (np.ndarray): Initial edge tensor
+        a (torch.Tensor): a tensor.
+        C (torch.Tensor): Initial corner tensor.
+        T (torch.Tensor): Initial edge tensor
         chi (int): bond dimension of the edge and corner tensors.
     """
 
     def __init__(
         self,
-        a: np.ndarray,
+        a: torch.Tensor,
         chi=2,
         d=2,
     ):
@@ -61,7 +58,7 @@ class CtmAlg:
             self.T = symm(norm(self.new_T(U)))
 
             # Save sum of singular values
-            self.sv_sums.append(np.sum(s))
+            self.sv_sums.append(torch.sum(s).item())
 
             tol_counter += 1 if abs(self.sv_sums[-1] - self.sv_sums[-2]) < tol else 0
 
@@ -72,54 +69,39 @@ class CtmAlg:
         self.n_iter = len(self.sv_sums)
         self.exe_time = time.time() - start
 
-    def new_C(self, U: np.ndarray) -> np.ndarray:
+    def new_C(self, U: torch.Tensor) -> torch.Tensor:
         """
         Insert an `a` tensor and evaluate a corner matrix `new_M` by contracting
-        the new corner. Renormalized the new corner with the given `U` matrix.
+        the new corner. Renormalize the new corner with the given `U` matrix.
 
-        `U` (np.ndarray): The renormalization tensor of shape (chi, d, chi).
+        `U` (torch.Tensor): The renormalization tensor of shape (chi, d, chi).
 
-        Returns an array of the new corner tensor of shape (chi, chi)
+        Returns a tensor of the new corner of shape (chi, chi)
         """
-        return np.array(
-            ncon(
-                [U, self.new_M(), U],
-                ([-1, 2, 1], [1, 2, 3, 4], [-2, 4, 3]),
-            )
-        )
+        return torch.einsum("abc,cbde,fed->af", U, self.new_M(), U)
 
-    def new_M(self) -> np.ndarray:
+    def new_M(self) -> torch.Tensor:
         """
         evaluate the `M`, i.e. the new contracted corner with the inserted `a`
         tensor.
 
-        Returns a array of the contracted corner of shape (chi, d, chi, d).
+        Returns a tensor of the contracted corner of shape (chi, d, chi, d).
         """
-        return np.array(
-            ncon(
-                [self.C, self.T, self.T, self.a],
-                ([1, 2], [-1, 1, 3], [2, -3, 4], [-2, 3, 4, -4]),
-            )
-        )
+        return torch.einsum("ab,cad,bef,gdfh->cgeh", self.C, self.T, self.T, self.a)
 
-    def new_T(self, U: np.ndarray) -> np.ndarray:
+    def new_T(self, U: torch.Tensor) -> torch.Tensor:
         """
         Insert an `a` tensor and evaluate a new edge tensor. Renormalize
         the edge tensor by contracting with the given truncated `U` tensor.
 
-        `U` (ndarray): The renormalization tensor of shape (chi, d, chi).
+        `U` (torch.Tensor): The renormalization tensor of shape (chi, d, chi).
 
-        Returns an array of the new edge tensor of shape (chi, chi, d).
+        Returns a tensor of the new edge tensor of shape (chi, chi, d).
         """
-        M = ncon([self.T, self.a], ([-1, -2, 1], [1, -3, -4, -5]))
-        return np.array(
-            ncon(
-                [U, M, U],
-                ([-1, 3, 1], [1, 2, 3, 4, -3], [-2, 4, 2]),
-            )
-        )
+        M = torch.einsum("abc,cdef->abdef", self.T, self.a)
+        return torch.einsum("abc,cdbef,ged->agf", U, M, U)
 
-    def new_U(self, M: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def new_U(self, M: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Return a tuple of the truncated `U` tensor and `s` matrix, by conducting a
         singular value decomposition (svd) on the given corner tensor `M`. Using
@@ -127,20 +109,19 @@ class CtmAlg:
         is used for renormalization and the `s` matrix contains the singular
         values in descending order.
 
-        `M` (np.array): The new contracted corner tensor of shape (chi, d, chi, d).
+        `M` (torch.Tensor): The new contracted corner tensor of shape (chi, d, chi, d).
 
-        Returns `s` and the renormalization tensor of shape (chi, d, chi) if
-        `trunc` = True, else with shape (chi, d, 2*chi), which is obtained by reshaping
-        `U` in a rank-3 tensor and transposing.
+        Returns `s` and the renormalization tensor of shape (chi, d, chi) which is
+        obtained by reshaping `U` in a rank-3 tensor and transposing.
         """
 
         # Reshape M in a matrix
-        M = np.reshape(M, (self.chi * self.d, self.chi * self.d))
+        M = M.reshape(self.chi * self.d, self.chi * self.d)
         k = self.chi
 
-        # Get the chi largest singular values and corresponding singular vector matrix.
-        # Truncate down to the desired chi value, if not yet reached.
-        U, s, _ = scipy.sparse.linalg.svds(M, k=self.chi, which="LM")
+        # Perform SVD and truncate to the desired chi values
+        U, s, Vh = torch.svd(M, some=True)
+        U = U[:, :k]
 
         # Reshape U back in a three legged tensor and transpose. Normalize the singular values.
-        return np.reshape(U, (k, self.d, self.chi)).T, norm(s)
+        return U.view(k, self.d, self.chi).permute(2, 1, 0), norm(s[:k])

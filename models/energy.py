@@ -1,27 +1,24 @@
 import torch
-import numpy as np
 
 
-def get_energy(Asymm: np.ndarray, H: np.ndarray, C: np.ndarray, E: np.ndarray) -> float:
+def get_energy(
+    Asymm: torch.Tensor, H: torch.Tensor, C: torch.Tensor, E: torch.Tensor
+) -> torch.Tensor:
     """
     Get the energy of a PEPS state.
 
     Args:
-        Asymm (np.ndarray): Symmetric A tensor of the PEPS state.
-        H (np.ndarray): Hamiltonian operator (l -> d^2, r -> d^2).
-        C (np.ndarray): Corner tensor obtained in CTMRG algorithm (d -> chi, r -> chi).
-        E (np.ndarray): Edge tensor obtained in CTMRG algorithm (u -> chi, d -> chi, r -> d).
+        Asymm (torch.Tensor): Symmetric A tensor of the PEPS state.
+        H (torch.Tensor): Hamiltonian operator (l -> d^2, r -> d^2).
+        C (torch.Tensor): Corner tensor obtained in CTMRG algorithm (d -> chi, r -> chi).
+        E (torch.Tensor): Edge tensor obtained in CTMRG algorithm (u -> chi, d -> chi, r -> d).
 
     Returns:
         float: Energy of the PEPS state
     """
-
     # Convert to torch tensors and to the right leg order:
     # A(phy,u,l,d,r), C(d,r), E(u,r,d)
-    Asymm = torch.from_numpy(Asymm)
-    E = torch.from_numpy(E.transpose(0, 2, 1))
-    C = torch.from_numpy(C)
-    H = torch.from_numpy(H)
+    E = E.permute(1, 2, 0)
 
     Da = Asymm.size()
     Td = (
@@ -51,4 +48,4 @@ def get_energy(Asymm: np.ndarray, H: np.ndarray, C: np.ndarray, E: np.ndarray) -
     Tnorm = Rho.trace()
     Energy = torch.mm(Rho, H).trace() / Tnorm
 
-    return float(Energy)
+    return Energy
