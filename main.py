@@ -1,39 +1,68 @@
 from models.tensors import Tensors
-from models.CTM_alg import CtmAlg
-from models.energy import get_energy
-from models.map import map_to_A_tensor
 from iPEPS import iPEPS
 
+import pickle
 import torch
 import numpy as np
+import os
 
 
-def energy():
-    A = Tensors.A_solution()
-    a = Tensors.a(A)
-    H = Tensors.H(lam=4)
-    alg = CtmAlg(a, chi=10, d=2)
-    alg.exe(count=10, tol=1e-10)
-    return get_energy(A, H, alg.C, alg.T)
+# Run the model on the GPU if available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu")
+
+lambdas = [lam for lam in np.arange(0.1, 4.5, 0.25)]
+data = {"lambdas": lambdas, "energies": [], "Mx": [], "My": [], "Mz": [], "Mg": []}
+
+Mpx = Tensors.Mpx().to(device)
+Mpy = Tensors.Mpy().to(device)
+Mpz = Tensors.Mpz().to(device)
+
+for lam in lambdas:
+    success = False
+    while not success:
+        try:
+            print("\nlambda:", lam)
+            H = Tensors.H(lam=lam).to(device)
+
+            model = iPEPS(chi=16, d=2, H=H, Mpx=Mpx, Mpy=Mpy, Mpz=Mpz).to(device)
+
+            optimizer = torch.optim.LBFGS(model.parameters())
+
+            def train():
+                """
+                Train the parameters of the iPEPS model.
+                """
+                optimizer.zero_grad()
+                loss, Mx, My, Mz = model.forward()
+                loss.backward()
+                return loss
+
+            for epoch in range(50):
+                loss = optimizer.step(train)
+                print("epoch:", epoch, "energy:", loss.item())
+
+            with torch.no_grad():
+                E, Mx, My, Mz = model.forward()
+                data["energies"].append(E)
+                data["Mx"].append(Mx)
+                data["My"].append(My)
+                data["Mz"].append(Mz)
+                data["Mg"].append(torch.sqrt(Mx**2 + My**2 + Mz**2))
+            success = True
+
+        except torch._C._LinAlgError:
+            print("LinAlgError occurred. Retrying...")
 
 
-if __name__ == "__main__":
-    model = iPEPS(chi=6, d=2, H=Tensors.H(lam=3))
-    optimizer = torch.optim.LBFGS(model.parameters(), max_iter=50)
-    params = list(model.parameters())
-    params = list(filter(lambda p: p.requires_grad, params))
-    nparams = sum([np.prod(p.size()) for p in params])
-    print("total number of trainable parameters:", nparams)
+# Check if the file already exists and modify the filename if necessary
+filename = "data/data.pkl"
+if os.path.exists(filename):
+    base, ext = os.path.splitext(filename)
+    counter = 1
+    while os.path.exists(f"{base}_{counter}{ext}"):
+        counter += 1
+    filename = f"{base}_{counter}{ext}"
 
-    def train():
-        """
-        Train the parameters of the iPEPS model.
-        """
-        optimizer.zero_grad()
-        loss = model.forward()
-        loss.backward()
-        return loss
-
-    for epoch in range(100):
-        loss = optimizer.step(train)
-        print("epoch:", epoch, "loss:", loss.item())
+with open(filename, "wb") as f:
+    pickle.dump(data, f)

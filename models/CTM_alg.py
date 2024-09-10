@@ -27,8 +27,8 @@ class CtmAlg:
         self.a = a
         self.chi = chi
         self.d = d**2
-        self.C = Tensors.random((chi, chi))
-        self.T = Tensors.random((chi, chi, self.d))
+        self.C = Tensors.random((chi, chi)).to(a.device)
+        self.T = Tensors.random((chi, chi, self.d)).to(a.device)
         self.sv_sums = [0]
         self.exe_time = None
 

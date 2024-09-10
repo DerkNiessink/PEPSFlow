@@ -46,6 +46,27 @@ class Tensors:
         )
 
     @staticmethod
+    def Mpx() -> torch.Tensor:
+        """
+        Return the operator to measure the magnetization in the x-direction.
+        """
+        return torch.kron(torch.Tensor([[0, 1], [1, 0]]), torch.eye(2)).double()
+
+    @staticmethod
+    def Mpy() -> torch.Tensor:
+        """
+        Returns the operator to measure the magnetization in the y-direction.
+        """
+        return torch.kron(torch.Tensor([[0, -1], [1, 0]]), torch.eye(2)).double()
+
+    @staticmethod
+    def Mpz() -> torch.Tensor:
+        """
+        Returns the operator to measure the magnetization in the z-direction.
+        """
+        return torch.kron(torch.Tensor([[1, 0], [0, -1]]), torch.eye(2)).double()
+
+    @staticmethod
     def A_random_symmetric(d=2) -> torch.Tensor:
         """
         Returns a random rank 5 tensor with legs of size d, which has left-right,

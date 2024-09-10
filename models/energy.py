@@ -2,7 +2,13 @@ import torch
 
 
 def get_energy(
-    Asymm: torch.Tensor, H: torch.Tensor, C: torch.Tensor, E: torch.Tensor
+    Asymm: torch.Tensor,
+    H: torch.Tensor,
+    C: torch.Tensor,
+    E: torch.Tensor,
+    Sx: torch.Tensor,
+    Sy: torch.Tensor,
+    Sz: torch.Tensor,
 ) -> torch.Tensor:
     """
     Get the energy of a PEPS state.
@@ -12,6 +18,9 @@ def get_energy(
         H (torch.Tensor): Hamiltonian operator (l -> d^2, r -> d^2).
         C (torch.Tensor): Corner tensor obtained in CTMRG algorithm (d -> chi, r -> chi).
         E (torch.Tensor): Edge tensor obtained in CTMRG algorithm (u -> chi, d -> chi, r -> d).
+        Sx (torch.Tensor): X Pauli operator (d, d).
+        Sy (torch.Tensor): Y Pauli operator (d, d).
+        Sz (torch.Tensor): Z Pauli operator (d, d).
 
     Returns:
         float: Energy of the PEPS state
@@ -47,5 +56,8 @@ def get_energy(
 
     Tnorm = Rho.trace()
     Energy = torch.mm(Rho, H).trace() / Tnorm
+    Mx = torch.mm(Rho, Sx).trace() / Tnorm
+    My = torch.mm(Rho, Sy).trace() / Tnorm
+    Mz = torch.mm(Rho, Sz).trace() / Tnorm
 
-    return Energy
+    return Energy, Mx, My, Mz
