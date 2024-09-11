@@ -1,7 +1,7 @@
 import time
 import torch
 
-from models.tensors import Tensors, Methods
+from pepsflow.models.tensors import Tensors, Methods
 
 norm = Methods.normalize
 symm = Methods.symmetrize

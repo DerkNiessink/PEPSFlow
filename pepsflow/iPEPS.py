@@ -1,8 +1,8 @@
 import torch
 
-from models.tensors import Methods
-from models.CTM_alg import CtmAlg
-from models.energy import get_energy
+from pepsflow.models.tensors import Methods
+from pepsflow.models.CTM_alg import CtmAlg
+from pepsflow.models.energy import get_energy
 
 
 class iPEPS(torch.nn.Module):
@@ -13,6 +13,12 @@ class iPEPS(torch.nn.Module):
         chi (int): Bond dimension of the edge and corner tensors.
         d (int): Physical dimension of the local Hilbert space.
         H (torch.Tensor): Hamiltonian operator for the system.
+        Mpx (torch.Tensor): X Pauli operator.
+        Mpy (torch.Tensor): Y Pauli operator.
+        Mpz (torch.Tensor): Z Pauli operator.
+        A (torch.Tensor): Rank-5 tensor A with legs of size d, which has left-right,
+            up-down, and diagonal symmetry. The legs are ordered as follows: A(phy, up, left, down, right).
+            If None, a random symmetric tensor is randomly generated.
     """
 
     def __init__(
@@ -23,6 +29,7 @@ class iPEPS(torch.nn.Module):
         Mpx: torch.Tensor,
         Mpy: torch.Tensor,
         Mpz: torch.Tensor,
+        A: torch.Tensor = None,
     ):
         super(iPEPS, self).__init__()
         self.chi = chi
@@ -34,8 +41,13 @@ class iPEPS(torch.nn.Module):
 
         # Initialize the rank-5 tensor A with random values and normalize it.
         # Tensor A is structured as A(phy, up, left, down, right).
-        A = torch.randn(d, d, d, d, d, device=H.device).double()
-        A = A / A.norm()
+        if A is None:
+            A = torch.rand(d, d, d, d, d, device=H.device).double()
+            A = A / A.norm()
+        # If A is provided, convert it to a torch tensor.
+        else:
+            self.A = A.to(H.device)
+
         self.A = torch.nn.Parameter(A)
 
     def forward(self):
