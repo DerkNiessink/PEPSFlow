@@ -16,9 +16,8 @@ class iPEPS(torch.nn.Module):
         Mpx (torch.Tensor): X Pauli operator.
         Mpy (torch.Tensor): Y Pauli operator.
         Mpz (torch.Tensor): Z Pauli operator.
-        A (torch.Tensor): Rank-5 tensor A with legs of size d, which has left-right,
-            up-down, and diagonal symmetry. The legs are ordered as follows: A(phy, up, left, down, right).
-            If None, a random symmetric tensor is randomly generated.
+        params (torch.Tensor): Parameters to optimize.
+        maps (torch.Tensor): indices of the parameters to map to the iPEPS tensor.
     """
 
     def __init__(
@@ -29,7 +28,8 @@ class iPEPS(torch.nn.Module):
         Mpx: torch.Tensor,
         Mpy: torch.Tensor,
         Mpz: torch.Tensor,
-        A: torch.Tensor = None,
+        params: torch.Tensor,
+        map: torch.Tensor,
     ):
         super(iPEPS, self).__init__()
         self.chi = chi
@@ -38,7 +38,10 @@ class iPEPS(torch.nn.Module):
         self.Mpx = Mpx
         self.Mpy = Mpy
         self.Mpz = Mpz
+        self.params = torch.nn.Parameter(params)
+        self.map = map
 
+        """
         # Initialize the rank-5 tensor A with random values and normalize it.
         # Tensor A is structured as A(phy, up, left, down, right).
         if A is None:
@@ -49,11 +52,12 @@ class iPEPS(torch.nn.Module):
             self.A = A.to(H.device)
 
         self.A = torch.nn.Parameter(A)
+        """
 
     def forward(self):
         """
         Compute the energy of the iPEPS tensor network by performing the following steps:
-        1. Symmetrize the rank-5 tensor A.
+        1. Map the parameters to a symmetric rank-5 iPEPS tensor.
         2. Construct the tensor network contraction a.
         3. Execute the CTM (Corner Transfer Matrix) algorithm to compute the new corner (C) and edge (T) tensors.
         4. Compute the loss as the energy expectation value using the Hamiltonian H, the symmetrized tensor,
@@ -62,8 +66,8 @@ class iPEPS(torch.nn.Module):
         Returns:
             torch.Tensor: The loss, representing the energy expectation value.
         """
-        # Symmetrize the rank-5 tensor A
-        Asymm = Methods.symmetrize_rank5(self.A)
+        # Map the parameters to a symmetric rank-5 iPEPS tensor
+        Asymm = self.params[self.map]
 
         d, chi = self.d, self.chi
 

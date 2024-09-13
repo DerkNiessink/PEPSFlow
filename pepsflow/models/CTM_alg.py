@@ -12,25 +12,26 @@ class CtmAlg:
     Class for the Corner Transfer Matrix (CTM) algorithm.
 
     Args:
-        a (torch.Tensor): a tensor.
-        C (torch.Tensor): Initial corner tensor.
-        T (torch.Tensor): Initial edge tensor
         chi (int): bond dimension of the edge and corner tensors.
+        d (int): physical dimension of the local Hilbert space.
+        A (torch.Tensor): initial tensor to insert in the CTM algorithm.
     """
 
     def __init__(
         self,
         a: torch.Tensor,
-        chi=2,
-        d=2,
+        chi: int = 2,
+        d: int = 2,
     ):
         self.a = a
-        self.chi = chi
-        self.d = d**2
-        self.C = Tensors.random((chi, chi)).to(a.device)
-        self.T = Tensors.random((chi, chi, self.d)).to(a.device)
+        self.max_chi = chi
+        self.d = self.chi = d**2
         self.sv_sums = [0]
-        self.exe_time = None
+
+        # Initialize the corner and edge tensors with an contraction of
+        # the given `a` tensor.
+        self.C = Tensors.C_init(a).to(a.device)
+        self.T = Tensors.T_init(a).to(a.device)
 
     def exe(self, tol=1e-3, count=10, max_steps=10000):
         """
@@ -118,10 +119,14 @@ class CtmAlg:
         # Reshape M in a matrix
         M = M.reshape(self.chi * self.d, self.chi * self.d)
         k = self.chi
+        # Let chi grow if the desired chi is not yet reached.
+        self.chi = (
+            self.chi * self.d if (self.chi * self.d) < self.max_chi else self.max_chi
+        )
 
         # Perform SVD and truncate to the desired chi values
         U, s, Vh = torch.svd(M, some=True)
-        U = U[:, :k]
+        U = U[:, : self.chi]
 
         # Reshape U back in a three legged tensor and transpose. Normalize the singular values.
-        return U.view(k, self.d, self.chi).permute(2, 1, 0), norm(s[:k])
+        return U.view(k, self.d, self.chi).permute(2, 1, 0), norm(s[: self.chi])

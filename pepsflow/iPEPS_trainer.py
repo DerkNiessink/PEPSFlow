@@ -18,9 +18,11 @@ class iPEPSTrainer:
         d (int): Physical dimension of the local Hilbert space.
         gpu (bool): Whether to run the model on the GPU if available. Default
             is False.
+        data (dict): Dictionary of previous data to use as initial state for the
+            training. Default is None.
     """
 
-    def __init__(self, chi: int, d: int, gpu: bool = False):
+    def __init__(self, chi: int, d: int, gpu: bool = False, data_prev: dict = None):
         self.chi = chi
         self.d = d
         self.device = torch.device(
@@ -29,19 +31,25 @@ class iPEPSTrainer:
         self.Mpx = Tensors.Mpx().to(self.device)
         self.Mpy = Tensors.Mpy().to(self.device)
         self.Mpz = Tensors.Mpz().to(self.device)
+        self.sx = torch.Tensor([[0, 1], [1, 0]]).double().to(self.device)
+        self.sz = torch.Tensor([[1, 0], [0, -1]]).double().to(self.device)
+        self.I = torch.eye(2).double().to(self.device)
         self.inf_tensor = torch.Tensor([float("inf")]).to(self.device)
         self.data = {
             "states": [],
             "energies": [],
+            "lambdas": [],
             "Mx": [],
             "My": [],
             "Mz": [],
             "Mg": [],
+            "train_time": [],
         }
+        self.data_prev = data_prev
 
     def exe(
         self,
-        lambdas: list,
+        lambdas: list = [0.5],
         tol: float = 1e-6,
         max_epochs: int = 100,
         use_prev: bool = False,
@@ -52,6 +60,7 @@ class iPEPSTrainer:
         Args:
             lambdas (list): List of values of lambda.
         """
+        lambdas = self.data_prev["lambdas"] if self.data_prev else lambdas
         for lam in tqdm(lambdas):
             success = False
             while not success:
@@ -72,16 +81,33 @@ class iPEPSTrainer:
             tol (float): Tolerance for the energy convergence.
             max_epochs (int): Maximum number of epochs to train the model.
         """
-        H = Tensors.H(lam=lam).to(self.device)
-        # Use the last state as the initial state for the next lambda
-        A = (
-            torch.from_numpy(self.data["states"][-1]).to(self.device)
-            if self.data["states"] and use_prev
-            else None
-        )
+        H = Tensors.H(lam=lam, sz=self.sz, sx=self.sx, I=self.I)
+        if self.data["states"] and use_prev:
+            # Use the last state as the initial state for the next lambda
+            A = torch.from_numpy(self.data["states"][-1]).to(self.device)
+        elif self.data_prev:
+            # Use the last state of the previous data as the initial state
+            i = self.data_prev["lambdas"].index(lam)
+            A = torch.from_numpy(self.data_prev["states"][i]).to(self.device)
+        else:
+            # Initialize a symmetric rank-5 tensor with random values
+            A = Tensors.A_random_symmetric(d=self.d).to(self.device)
+
+        params, map = torch.unique(A, return_inverse=True)
+        params_device = params.to(self.device)
+        map_device = map.to(self.device)
+
         model = iPEPS(
-            chi=self.chi, d=self.d, H=H, Mpx=self.Mpx, Mpy=self.Mpy, Mpz=self.Mpz, A=A
-        ).to(self.device)
+            self.chi,
+            self.d,
+            H,
+            self.Mpx,
+            self.Mpy,
+            self.Mpz,
+            params_device,
+            map_device,
+        )
+
         optimizer = torch.optim.LBFGS(model.parameters(), max_iter=50)
 
         def train() -> torch.Tensor:
@@ -93,6 +119,8 @@ class iPEPSTrainer:
             loss.backward()
             return loss
 
+        start_time = time.time()
+
         E_new = train()
         diff = torch.abs(E_new - self.inf_tensor)
         epoch = 0
@@ -103,30 +131,32 @@ class iPEPSTrainer:
             diff = torch.abs(E_new - E_old)
             epoch += 1
 
-        self.collect_data(model)
+        self.collect_data(model, training_time=time.time() - start_time, lam=lam)
 
-    def collect_data(self, model: iPEPS) -> None:
+    def collect_data(self, model: iPEPS, training_time: float, lam: float) -> None:
         """
         Collect the data from the trained model. The data includes the energy
         and the magnetization components.
 
         Args:
             model (iPEPS): Trained iPEPS model.
+            training_time (float): Time taken to train the model.
         """
         with torch.no_grad():
             E, Mx, My, Mz = model.forward()
-            self.data["states"].append(model.A.detach().cpu().numpy())
+            self.data["states"].append(model.params[model.map].detach().cpu().numpy())
             self.data["energies"].append(E)
+            self.data["lambdas"].append(lam)
             self.data["Mx"].append(Mx)
             self.data["My"].append(My)
             self.data["Mz"].append(Mz)
             self.data["Mg"].append(torch.sqrt(Mx**2 + My**2 + Mz**2))
+            self.data["train_time"].append(training_time)
 
     def save_data(self, fn: str = None) -> None:
         """
         Save the collected data to a pickle file. The data is saved in the
-        'data' directory. If the filename already exists, a new filename is
-        created with a counter appended to the original filename.
+        'data' directory.
 
         Args:
             fn (str): Filename to save the data to. Default is 'data.pkl'.
@@ -137,14 +167,6 @@ class iPEPSTrainer:
         # Ensure the directory structure exists
         full_path = os.path.join(directory, filename)
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
-
-        # Check if file exists, and modify filename if necessary
-        if os.path.exists(full_path):
-            base, ext = os.path.splitext(full_path)
-            counter = 1
-            while os.path.exists(f"{base}_{counter}{ext}"):
-                counter += 1
-            full_path = f"{base}_{counter}{ext}"
 
         # Save the data to the pickle file
         with open(full_path, "wb") as f:

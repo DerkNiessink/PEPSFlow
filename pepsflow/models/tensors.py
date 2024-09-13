@@ -32,15 +32,31 @@ class Tensors:
         """
         return torch.tensordot(A, A, dims=([4], [4])).reshape(4, 4, 4, 4)
 
+    def C_init(a: torch.Tensor) -> torch.Tensor:
+        """
+        Returns the initial corner tensor for the CTM algorithm.
+
+        Args:
+            a (torch.Tensor): Rank 4 tensor of the PEPS state (up, left, down, right).
+        """
+        return torch.einsum("abcd ->cd", a)
+
+    def T_init(a: torch.Tensor) -> torch.Tensor:
+        """
+        Returns the initial edge tensor for the CTM algorithm.
+
+        Args:
+            a (torch.Tensor): Rank 4 tensor of the PEPS state (up, left, down, right).
+        """
+        return torch.einsum("abcd -> acd", a)
+
     @staticmethod
-    def H(lam: float) -> torch.Tensor:
+    def H(
+        lam: float, sz: torch.Tensor, sx: torch.Tensor, I: torch.Tensor
+    ) -> torch.Tensor:
         """
         Returns the Hamiltonian operator of the Ising model
         """
-        sz = torch.Tensor([[1, 0], [0, -1]]).double()
-        sx = torch.Tensor([[0, 1], [1, 0]]).double()
-        I = torch.eye(2).double()
-
         return -torch.kron(sz, sz) - 0.25 * lam * (
             torch.kron(sx, I) + torch.kron(I, sx)
         )
@@ -71,10 +87,10 @@ class Tensors:
         """
         Returns a random rank 5 tensor with legs of size d, which has left-right,
         up-down and diagonal symmetry. The legs are ordered as follows:
-        A(phy, up, left, down, right)
+        A(phy, up, left, down, right).
         """
         A = torch.rand(size=(d, d, d, d, d), dtype=torch.float64) - 0.5
-        return Methods.symmetrize_rank5(A)
+        return Methods.symmetrize_rank5(A) / torch.norm(A)
 
     @staticmethod
     def random(shape: tuple) -> torch.Tensor:
@@ -84,7 +100,7 @@ class Tensors:
         indices and the values are normalized.
         """
         c = torch.rand(size=shape, dtype=torch.float64)
-        return Methods.symmetrize(c)
+        return Methods.symmetrize(c) / torch.norm(c)
 
 
 @dataclass
