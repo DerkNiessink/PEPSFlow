@@ -15,6 +15,8 @@ class CtmAlg:
         chi (int): bond dimension of the edge and corner tensors.
         d (int): physical dimension of the local Hilbert space.
         A (torch.Tensor): initial tensor to insert in the CTM algorithm.
+        C (torch.Tensor): initial corner tensor for the CTM algorithm.
+        T (torch.Tensor): initial edge tensor for the CTM algorithm.
     """
 
     def __init__(
@@ -22,16 +24,17 @@ class CtmAlg:
         a: torch.Tensor,
         chi: int = 2,
         d: int = 2,
+        C_init: torch.Tensor = None,
+        T_init: torch.Tensor = None,
     ):
         self.a = a
         self.max_chi = chi
-        self.d = self.chi = d**2
+        self.d = d**2
+        self.chi = d**2 if C_init is None else chi
         self.sv_sums = [0]
 
-        # Initialize the corner and edge tensors with an contraction of
-        # the given `a` tensor.
-        self.C = Tensors.C_init(a).to(a.device)
-        self.T = Tensors.T_init(a).to(a.device)
+        self.C = Tensors.C_init(a).to(a.device) if C_init is None else C_init
+        self.T = Tensors.T_init(a).to(a.device) if T_init is None else T_init
 
     def exe(self, tol=1e-3, count=10, max_steps=10000):
         """
@@ -119,14 +122,15 @@ class CtmAlg:
         # Reshape M in a matrix
         M = M.reshape(self.chi * self.d, self.chi * self.d)
         k = self.chi
-        # Let chi grow if the desired chi is not yet reached.
-        self.chi = (
-            self.chi * self.d if (self.chi * self.d) < self.max_chi else self.max_chi
-        )
-
-        # Perform SVD and truncate to the desired chi values
         U, s, Vh = torch.svd(M, some=True)
-        U = U[:, : self.chi]
+
+        # Let chi grow if the desired chi is not yet reached.
+        if self.chi >= self.max_chi:
+            self.chi = self.max_chi
+            U = U[:, : self.chi]
+            s = s[: self.chi]
+        else:
+            self.chi *= self.d
 
         # Reshape U back in a three legged tensor and transpose. Normalize the singular values.
-        return U.view(k, self.d, self.chi).permute(2, 1, 0), norm(s[: self.chi])
+        return U.view(k, self.d, self.chi).permute(2, 1, 0), norm(s)

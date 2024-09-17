@@ -18,6 +18,8 @@ class iPEPS(torch.nn.Module):
         Mpz (torch.Tensor): Z Pauli operator.
         params (torch.Tensor): Parameters to optimize.
         maps (torch.Tensor): indices of the parameters to map to the iPEPS tensor.
+        C (torch.Tensor): Initial corner tensor for the CTM algorithm.
+        T (torch.Tensor): Initial edge tensor for the CTM algorithm.
     """
 
     def __init__(
@@ -30,6 +32,8 @@ class iPEPS(torch.nn.Module):
         Mpz: torch.Tensor,
         params: torch.Tensor,
         map: torch.Tensor,
+        C: torch.Tensor,
+        T: torch.Tensor,
     ):
         super(iPEPS, self).__init__()
         self.chi = chi
@@ -40,19 +44,9 @@ class iPEPS(torch.nn.Module):
         self.Mpz = Mpz
         self.params = torch.nn.Parameter(params)
         self.map = map
-
-        """
-        # Initialize the rank-5 tensor A with random values and normalize it.
-        # Tensor A is structured as A(phy, up, left, down, right).
-        if A is None:
-            A = torch.rand(d, d, d, d, d, device=H.device).double()
-            A = A / A.norm()
-        # If A is provided, convert it to a torch tensor.
-        else:
-            self.A = A.to(H.device)
-
-        self.A = torch.nn.Parameter(A)
-        """
+        self.C = C
+        self.T = T
+        self.loss = None
 
     def forward(self):
         """
@@ -68,7 +62,6 @@ class iPEPS(torch.nn.Module):
         """
         # Map the parameters to a symmetric rank-5 iPEPS tensor
         Asymm = self.params[self.map]
-
         d, chi = self.d, self.chi
 
         # Construct the tensor network contraction a
@@ -81,12 +74,15 @@ class iPEPS(torch.nn.Module):
         a = a / a.norm()
 
         # Execute the CTM algorithm to compute corner (C) and edge (T) tensors
-        alg = CtmAlg(a, chi, d)
+        alg = CtmAlg(a, chi, d, self.C, self.T)
         alg.exe()
+
+        if torch.isnan(a).any():
+            raise ValueError("NaNs in the tensor network contraction a")
 
         # Compute the energy (loss) using the Hamiltonian, corner, and edge tensors
         loss, Mx, My, Mz = get_energy(
             Asymm, self.H, alg.C, alg.T, self.Mpx, self.Mpy, self.Mpz
         )
-
-        return loss, Mx, My, Mz
+        self.loss = loss
+        return loss, Mx, My, Mz, alg.C, alg.T

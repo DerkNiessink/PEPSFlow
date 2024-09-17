@@ -90,7 +90,8 @@ class Tensors:
         A(phy, up, left, down, right).
         """
         A = torch.rand(size=(d, d, d, d, d), dtype=torch.float64) - 0.5
-        return Methods.symmetrize_rank5(A) / torch.norm(A)
+        A = Methods.symmetrize_rank5(A)
+        return A / torch.norm(A)
 
     @staticmethod
     def random(shape: tuple) -> torch.Tensor:
@@ -100,7 +101,8 @@ class Tensors:
         indices and the values are normalized.
         """
         c = torch.rand(size=shape, dtype=torch.float64)
-        return Methods.symmetrize(c) / torch.norm(c)
+        c = Methods.symmetrize(c)
+        return c / torch.norm(c)
 
 
 @dataclass
@@ -143,3 +145,14 @@ class Methods:
         Divide all elements in the given array by its largest value.
         """
         return M / torch.amax(M)
+
+    @staticmethod
+    def perturb(T: torch.Tensor, eps: float = 1e-2) -> torch.Tensor:
+        """
+        Add a small perturbation to the given tensor T.
+
+        Args:
+            T (torch.Tensor): Tensor to perturb.
+            eps (float): Perturbation strength.
+        """
+        return T + eps * torch.randn_like(T)
