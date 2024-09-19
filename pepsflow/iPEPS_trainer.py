@@ -28,9 +28,6 @@ class iPEPSTrainer:
         self.device = torch.device(
             "cuda" if gpu and torch.cuda.is_available() else "cpu"
         )
-        self.Mpx = Tensors.Mpx().to(self.device)
-        self.Mpy = Tensors.Mpy().to(self.device)
-        self.Mpz = Tensors.Mpz().to(self.device)
         self.sx = torch.Tensor([[0, 1], [1, 0]]).double().to(self.device)
         self.sz = torch.Tensor([[1, 0], [0, -1]]).double().to(self.device)
         self.I = torch.eye(2).double().to(self.device)
@@ -113,8 +110,7 @@ class iPEPSTrainer:
         map_device = map.to(self.device)
 
         # Initialize the iPEPS model and optimizer
-        chi, d, Mpx, Mpy, Mpz = self.chi, self.d, self.Mpx, self.Mpy, self.Mpz
-        model = iPEPS(chi, d, H, Mpx, Mpy, Mpz, params_device, map_device, C, T)
+        model = iPEPS(self.chi, self.d, H, params_device, map_device, C, T)
         optimizer = torch.optim.LBFGS(model.parameters(), max_iter=max_iter, lr=lr)
 
         def train() -> torch.Tensor:
@@ -122,7 +118,7 @@ class iPEPSTrainer:
             Train the parameters of the iPEPS model.
             """
             optimizer.zero_grad()
-            loss, _, _, _, _, _ = model.forward()
+            loss, _, _ = model.forward()
             loss.backward()
             return loss
 
@@ -163,14 +159,10 @@ class iPEPSTrainer:
             training_time (float): Time taken to train the model.
         """
         with torch.no_grad():
-            E, Mx, My, Mz, C, T = model.forward()
+            E, C, T = model.forward()
             self.data["states"].append(model.params[model.map].detach().cpu().numpy())
             self.data["energies"].append(E)
             self.data["lambdas"].append(lam)
-            self.data["Mx"].append(Mx)
-            self.data["My"].append(My)
-            self.data["Mz"].append(Mz)
-            self.data["Mg"].append(torch.sqrt(Mx**2 + My**2 + Mz**2))
             self.data["train_time"].append(training_time)
             self.data["C"].append(C.detach().cpu().numpy())
             self.data["T"].append(T.detach().cpu().numpy())
@@ -204,10 +196,6 @@ class iPEPSTrainer:
             "states": [],
             "energies": [],
             "lambdas": [],
-            "Mx": [],
-            "My": [],
-            "Mz": [],
-            "Mg": [],
             "train_time": [],
             "C": [],
             "T": [],

@@ -1,8 +1,7 @@
 import torch
 
-from pepsflow.models.tensors import Methods
 from pepsflow.models.CTM_alg import CtmAlg
-from pepsflow.models.energy import get_energy
+from pepsflow.models.observables import Observables
 
 
 class iPEPS(torch.nn.Module):
@@ -27,9 +26,6 @@ class iPEPS(torch.nn.Module):
         chi: int,
         d: int,
         H: torch.Tensor,
-        Mpx: torch.Tensor,
-        Mpy: torch.Tensor,
-        Mpz: torch.Tensor,
         params: torch.Tensor,
         map: torch.Tensor,
         C: torch.Tensor,
@@ -39,16 +35,13 @@ class iPEPS(torch.nn.Module):
         self.chi = chi
         self.d = d
         self.H = H
-        self.Mpx = Mpx
-        self.Mpy = Mpy
-        self.Mpz = Mpz
         self.params = torch.nn.Parameter(params)
         self.map = map
         self.C = C
         self.T = T
         self.loss = None
 
-    def forward(self):
+    def forward(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Compute the energy of the iPEPS tensor network by performing the following steps:
         1. Map the parameters to a symmetric rank-5 iPEPS tensor.
@@ -58,7 +51,7 @@ class iPEPS(torch.nn.Module):
            and the corner and edge tensors from the CTM algorithm.
 
         Returns:
-            torch.Tensor: The loss, representing the energy expectation value.
+            torch.Tensor: The loss, representing the energy expectation value, and the corner and edge tensors.
         """
         # Map the parameters to a symmetric rank-5 iPEPS tensor
         Asymm = self.params[self.map]
@@ -81,8 +74,6 @@ class iPEPS(torch.nn.Module):
             raise ValueError("NaNs in the tensor network contraction a")
 
         # Compute the energy (loss) using the Hamiltonian, corner, and edge tensors
-        loss, Mx, My, Mz = get_energy(
-            Asymm, self.H, alg.C, alg.T, self.Mpx, self.Mpy, self.Mpz
-        )
-        self.loss = loss
-        return loss, Mx, My, Mz, alg.C, alg.T
+        self.loss = Observables.E(Asymm, self.H, alg.C, alg.T)
+
+        return self.loss, alg.C, alg.T
