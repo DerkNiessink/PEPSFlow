@@ -1,9 +1,6 @@
 import torch
-import numpy as np
-from ncon import ncon
-import scipy
 
-from pepsflow.models.tensors import Tensors, Methods
+from pepsflow.models.tensors import Tensors
 
 
 class Observables:
@@ -13,7 +10,7 @@ class Observables:
 
     @staticmethod
     def E(
-        A: torch.Tensor, H: torch.Tensor, C: torch.Tensor, E: torch.Tensor
+        A: torch.Tensor, H: torch.Tensor, C: torch.Tensor, T: torch.Tensor
     ) -> torch.Tensor:
         """
         Compute the energy of a PEPS state.
@@ -24,49 +21,44 @@ class Observables:
             C (torch.Tensor): Corner tensor obtained in CTMRG algorithm (d -> chi, r -> chi).
             E (torch.Tensor): Edge tensor obtained in CTMRG algorithm (u -> chi, d -> chi, r -> d).
         """
-        Rho = Tensors.rho(A, C, E)
+        Rho = Tensors.rho(A, C, T)
         Tnorm = Rho.trace()
         return torch.mm(Rho, H).trace() / Tnorm
 
     @staticmethod
     def M(
-        A: list[torch.Tensor | np.ndarray],
-        C: list[torch.Tensor | np.ndarray],
-        E: list[torch.Tensor | np.ndarray],
-    ) -> tuple[list[torch.Tensor], list[torch.Tensor], list[torch.Tensor]]:
+        A: torch.Tensor, C: torch.Tensor, T: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Compute the magnetization of a PEPS state.
 
         Args:
-            A (list[torch.Tensor | np.ndarray]): Symmetric A tensors of the PEPS state.
-            C (list[torch.Tensor | np.ndarray]): Corner tensors obtained in CTMRG algorithm.
-            E (list[torch.Tensor | np.ndarray]): Edge tensors obtained in CTMRG algorithm.
+            A (torch.Tensor): Symmetric A tensor of the PEPS state.
+            C (torch.Tensor): Corner tensor obtained in CTMRG algorithm.
+            E (torch.Tensor): Edge tensor obtained in CTMRG algorithm.
         """
-        Sx, Sy, Sz = Tensors.Mpx(), Tensors.Mpy(), Tensors.Mpz()
-
-        Mx, My, Mz = [], [], []
-        for a, c, e in zip(A, C, E):
-            a, c, e = Methods.convert_to_tensor([a, c, e])
-            Rho = Tensors.rho(a, c, e)
-            Tnorm = Rho.trace()
-            Mx.append(torch.mm(Rho, Sx).trace() / Tnorm)
-            My.append(torch.mm(Rho, Sy).trace() / Tnorm)
-            Mz.append(torch.mm(Rho, Sz).trace() / Tnorm)
+        Sx, Sy, Sz = (
+            Tensors.Mpx().to(A.device),
+            Tensors.Mpy().to(A.device),
+            Tensors.Mpz().to(A.device),
+        )
+        Rho = Tensors.rho(A, C, T)
+        Tnorm = Rho.trace()
+        Mx = torch.mm(Rho, Sx).trace() / Tnorm
+        My = torch.mm(Rho, Sy).trace() / Tnorm
+        Mz = torch.mm(Rho, Sz).trace() / Tnorm
         return Mx, My, Mz
 
     @staticmethod
-    def xi(T: list[torch.Tensor | np.ndarray]) -> list[torch.Tensor]:
+    def xi(T: torch.Tensor) -> torch.Tensor:
         """
         Return the value of the correlation length of the system.
 
         Args:
-            T (torch.Tensor | np.ndarray): Transfer matrix of the system.
+            T (torch.Tensor): Edge tensor obtained in CTMRG algorithm.
         """
-        xi = []
-        T = list(Methods.convert_to_tensor(T))
-        for t in T:
-            M = torch.einsum("abc,dec->adbe", t, t)
-            M = M.reshape(t.size(0) ** 2, t.size(0) ** 2)
-            w = torch.linalg.eigvalsh(M)
-            xi.append(1 / torch.log(torch.abs(w[-1]) / torch.abs(w[-2])))
+        M = torch.einsum("abc,dec->adbe", T, T)
+        M = M.reshape(T.size(0) ** 2, T.size(0) ** 2)
+        w = torch.linalg.eigvalsh(M)
+        xi = 1 / torch.log(torch.abs(w[-1]) / torch.abs(w[-2]))
         return xi

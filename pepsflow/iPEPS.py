@@ -41,7 +41,7 @@ class iPEPS(torch.nn.Module):
         self.T = T
         self.loss = None
 
-    def forward(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self) -> torch.Tensor:
         """
         Compute the energy of the iPEPS tensor network by performing the following steps:
         1. Map the parameters to a symmetric rank-5 iPEPS tensor.

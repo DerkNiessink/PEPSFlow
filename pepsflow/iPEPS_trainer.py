@@ -1,11 +1,9 @@
 from pepsflow.models.tensors import Tensors, Methods
 from pepsflow.iPEPS import iPEPS
 
-import pickle
 import torch
 import os
 from tqdm import tqdm
-import time
 
 
 class iPEPSTrainer:
@@ -18,11 +16,10 @@ class iPEPSTrainer:
         d (int): Physical dimension of the local Hilbert space.
         gpu (bool): Whether to run the model on the GPU if available. Default
             is False.
-        data (dict): Dictionary of previous data to use as initial state for the
-            training. Default is None.
+        data_fn (str): Filename of the data to load. Default is None.
     """
 
-    def __init__(self, chi: int, d: int, gpu: bool = False, data_prev: dict = None):
+    def __init__(self, chi: int, d: int, gpu: bool = False, data_fn: str = None):
         self.chi = chi
         self.d = d
         self.device = torch.device(
@@ -32,7 +29,11 @@ class iPEPSTrainer:
         self.sz = torch.Tensor([[1, 0], [0, -1]]).double().to(self.device)
         self.I = torch.eye(2).double().to(self.device)
         self.clear_data()
-        self.data_prev = data_prev
+        self.data_prev = (
+            torch.load(data_fn, map_location=self.device, weights_only=False)
+            if data_fn
+            else None
+        )
 
     def exe(
         self,
@@ -58,7 +59,7 @@ class iPEPSTrainer:
             lr (float): Learning rate for the optimizer. Default is 1.
             max_iter (int): Maximum number of iterations for the optimizer. Default is 20.
         """
-        lambdas = self.data_prev["lambdas"] if self.data_prev else lambdas
+        lambdas = self.data_prev.keys() if self.data_prev else lambdas
         for lam in tqdm(lambdas):
 
             best_model = None
@@ -67,7 +68,7 @@ class iPEPSTrainer:
                 success = False
                 while not success:
                     try:
-                        model, training_time = self.train_model(
+                        model = self._train_model(
                             lam, epochs, use_prev, perturbation, lr, max_iter
                         )
                         success = True
@@ -77,9 +78,10 @@ class iPEPSTrainer:
                 if not best_model or model.loss < best_model.loss:
                     best_model = model
 
-            self.collect_data(best_model, training_time, lam)
+            # Save the best model for the given lambda
+            self.data[lam] = best_model
 
-    def train_model(
+    def _train_model(
         self,
         lam: float,
         epochs: int,
@@ -101,15 +103,10 @@ class iPEPSTrainer:
             max_iter (int): Maximum number of iterations for the optimizer.
         """
 
-        A, H, C, T = self.init_tensors(lam, use_prev, perturbation)
-
-        # Map the parameters to a symmetric rank-5 iPEPS tensor
-        params, map = torch.unique(A, return_inverse=True)
-        params_device = params.to(self.device)
-        map_device = map.to(self.device)
+        params, map, H, C, T = self._init_tensors(lam, use_prev, perturbation)
 
         # Initialize the iPEPS model and optimizer
-        model = iPEPS(self.chi, self.d, H, params_device, map_device, C, T)
+        model = iPEPS(self.chi, self.d, H, params, map, C, T)
         optimizer = torch.optim.LBFGS(model.parameters(), max_iter=max_iter, lr=lr)
 
         def train() -> torch.Tensor:
@@ -121,50 +118,47 @@ class iPEPSTrainer:
             loss.backward()
             return loss
 
-        start_time = time.time()
-
         for _ in range(epochs):
-            loss = optimizer.step(train)
+            optimizer.step(train)
 
-        return model, time.time() - start_time
-        # self.collect_data(model, training_time=time.time() - start_time, lam=lam)
+        return model
 
-    def init_tensors(self, lam: float, use_prev: bool, perturbation: float) -> None:
+    def _init_tensors(self, lam: float, use_prev: bool, perturbation: float) -> None:
+        """
+        Initialize the tensors for the iPEPS model.
+
+        Args:
+            lam (float): Value of lambda.
+            use_prev (bool): Whether to use the previous state as the initial
+                state for the training.
+            perturbation (float): Amount of perturbation to apply to the initial
+                state. Default is 0.0
+
+        Returns:
+            torch.Tensor: Parameters of the iPEPS model.
+            torch.Tensor: Mapping of the parameters to the iPEPS tensor.
+            torch.Tensor: Hamiltonian operator.
+            torch.Tensor: Corner tensor for the CTM algorithm.
+            torch.Tensor: Edge tensor for the CTM algorithm.
+        """
         H = Tensors.H(lam=lam, sz=self.sz, sx=self.sx, I=self.I)
         C = T = None
 
-        if self.data["states"] and use_prev:
-            # Use the last state as the initial state for the next lambda
-            A = torch.from_numpy(self.data["states"][-1]).to(self.device)
-            C = torch.from_numpy(self.data["C"][-1]).to(self.device)
-            T = torch.from_numpy(self.data["T"][-1]).to(self.device)
+        # Use the previous state as the initial state.
+        if self.data and use_prev:
+            prev_lam = list(self.data.keys())[-1]
+            params, map = self.data[prev_lam].params, self.data[prev_lam].map
+
+        # Use the corresponding state from the given data as the initial state.
         elif self.data_prev:
-            # Use the last state of the previous data as the initial state
-            i = self.data_prev["lambdas"].index(lam)
-            A = torch.from_numpy(self.data_prev["states"][i]).to(self.device)
-            A = Methods.perturb(A, perturbation)
+            params, map = self.data_prev[lam].params, self.data_prev[lam].map
+
+        # Generate a random symmetric A tensor.
         else:
-            # Initialize a symmetric rank-5 tensor with random values
             A = Tensors.A_random_symmetric(d=self.d).to(self.device)
-        return A, H, C, T
+            params, map = torch.unique(A, return_inverse=True)
 
-    def collect_data(self, model: iPEPS, training_time: float, lam: float) -> None:
-        """
-        Collect the data from the trained model. The data includes the energy
-        and the magnetization components.
-
-        Args:
-            model (iPEPS): Trained iPEPS model.
-            training_time (float): Time taken to train the model.
-        """
-        with torch.no_grad():
-            E, C, T = model.forward()
-            self.data["states"].append(model.params[model.map].detach().cpu().numpy())
-            self.data["energies"].append(E)
-            self.data["lambdas"].append(lam)
-            self.data["train_time"].append(training_time)
-            self.data["C"].append(C.detach().cpu().numpy())
-            self.data["T"].append(T.detach().cpu().numpy())
+        return Methods.perturb(params, perturbation), map, H, C, T
 
     def save_data(self, fn: str = None) -> None:
         """
@@ -172,30 +166,20 @@ class iPEPSTrainer:
         'data' directory.
 
         Args:
-            fn (str): Filename to save the data to. Default is 'data.pkl'.
+            fn (str): Filename to save the data to. Default is 'data.pth'.
         """
         directory = "data"
-        filename = f"{fn}.pkl" if fn else "data.pkl"
+        filename = f"{fn}.pth" if fn else "data.pth"
 
         # Ensure the directory structure exists
         full_path = os.path.join(directory, filename)
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
 
-        # Save the data to the pickle file
-        with open(full_path, "wb") as f:
-            pickle.dump(self.data, f)
-
+        torch.save(self.data, full_path)
         print(f"Data saved to {full_path}")
 
     def clear_data(self) -> None:
         """
         Clear the collected data.
         """
-        self.data = {
-            "states": [],
-            "energies": [],
-            "lambdas": [],
-            "train_time": [],
-            "C": [],
-            "T": [],
-        }
+        self.data = {}
