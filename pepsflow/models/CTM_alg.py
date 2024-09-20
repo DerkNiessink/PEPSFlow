@@ -27,6 +27,7 @@ class CtmAlg:
         C_init: torch.Tensor = None,
         T_init: torch.Tensor = None,
     ):
+
         self.a = a
         self.max_chi = chi
         self.d = d**2
@@ -122,7 +123,7 @@ class CtmAlg:
         # Reshape M in a matrix
         M = M.reshape(self.chi * self.d, self.chi * self.d)
         k = self.chi
-        U, s, Vh = torch.svd(M, some=True)
+        U, s, Vh = torch.linalg.svd(M, full_matrices=False)
 
         # Let chi grow if the desired chi is not yet reached.
         if self.chi >= self.max_chi:

@@ -1,6 +1,5 @@
 import cProfile
 import sys
-import subprocess
 
 sys.path.append("../..")
 from pepsflow.iPEPS_trainer import iPEPSTrainer
