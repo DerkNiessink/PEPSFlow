@@ -102,11 +102,12 @@ class iPEPSTrainer:
             lr (float): Learning rate for the optimizer.
             max_iter (int): Maximum number of iterations for the optimizer.
         """
-
         params, map, H, C, T = self._init_tensors(lam, use_prev, perturbation)
 
         # Initialize the iPEPS model and optimizer
+
         model = iPEPS(self.chi, self.d, H, params, map, C, T)
+
         optimizer = torch.optim.LBFGS(model.parameters(), max_iter=max_iter, lr=lr)
 
         def train() -> torch.Tensor:
