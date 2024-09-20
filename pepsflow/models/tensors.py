@@ -1,6 +1,7 @@
 import numpy as np
 from dataclasses import dataclass
 import torch
+from typing import Sequence
 
 
 @dataclass
@@ -199,3 +200,22 @@ class Methods:
             eps (float): Perturbation strength.
         """
         return T + eps * torch.randn_like(T)
+
+    @staticmethod
+    def convert_to_tensor(
+        tensors: Sequence[np.ndarray] | Sequence[torch.Tensor],
+    ) -> tuple[torch.Tensor]:
+        """
+        If the argument is a numpy array, convert it to a torch tensor.
+
+        Args:
+            tensors (Sequence[np.ndarray] | Sequence[torch.Tensor]): List of tensors to
+                convert to torch tensors.
+        """
+        converted_tensors = []
+        for tensor in tensors:
+            if isinstance(tensor, np.ndarray):
+                tensor = torch.from_numpy(tensor)
+            converted_tensors.append(tensor)
+
+        return tuple(converted_tensors)

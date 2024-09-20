@@ -72,7 +72,6 @@ class iPEPSTrainer:
                         )
                         success = True
                     except torch._C._LinAlgError:
-                        print("LinAlgError occurred. Retrying...")
                         continue
 
                 if not best_model or model.loss < best_model.loss:
@@ -125,7 +124,7 @@ class iPEPSTrainer:
         start_time = time.time()
 
         for _ in range(epochs):
-            optimizer.step(train)
+            loss = optimizer.step(train)
 
         return model, time.time() - start_time
         # self.collect_data(model, training_time=time.time() - start_time, lam=lam)
