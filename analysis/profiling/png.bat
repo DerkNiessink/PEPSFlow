@@ -1,1 +1,0 @@
-gprof2dot -f pstats profile.prof | dot -Tpng -o output.png
