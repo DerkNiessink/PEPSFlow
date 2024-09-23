@@ -3,6 +3,7 @@ import torch
 
 from pepsflow.models.tensors import Tensors, Methods
 
+
 norm = Methods.normalize
 symm = Methods.symmetrize
 
@@ -59,7 +60,7 @@ class CtmAlg:
             U, s = self.new_U(M)
 
             # Normalize and symmetrize the new corner and edge tensors
-            self.C = symm(norm(self.new_C(U)))
+            self.C = symm(norm(self.new_C(U, M)))
             self.T = symm(norm(self.new_T(U)))
 
             # Save sum of singular values
@@ -74,7 +75,7 @@ class CtmAlg:
         self.n_iter = len(self.sv_sums)
         self.exe_time = time.time() - start
 
-    def new_C(self, U: torch.Tensor) -> torch.Tensor:
+    def new_C(self, U: torch.Tensor, M: torch.Tensor) -> torch.Tensor:
         """
         Insert an `a` tensor and evaluate a corner matrix `new_M` by contracting
         the new corner. Renormalize the new corner with the given `U` matrix.
@@ -83,7 +84,7 @@ class CtmAlg:
 
         Returns a tensor of the new corner of shape (chi, chi)
         """
-        return torch.einsum("abc,cbde,fed->af", U, self.new_M(), U)
+        return torch.einsum("abc,cbde,fed->af", U, M, U)
 
     def new_M(self) -> torch.Tensor:
         """
@@ -103,8 +104,7 @@ class CtmAlg:
 
         Returns a tensor of the new edge tensor of shape (chi, chi, d).
         """
-        M = torch.einsum("abc,cdef->abdef", self.T, self.a)
-        return torch.einsum("abc,cdbef,ged->agf", U, M, U)
+        return torch.einsum("abc,cde,befg,hfd->ahg", U, self.T, self.a, U)
 
     def new_U(self, M: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
@@ -121,7 +121,8 @@ class CtmAlg:
         """
 
         # Reshape M in a matrix
-        M = M.reshape(self.chi * self.d, self.chi * self.d)
+        M = M.contiguous().view(self.chi * self.d, self.chi * self.d)
+
         k = self.chi
         U, s, Vh = torch.linalg.svd(M, full_matrices=False)
 
