@@ -23,7 +23,7 @@ class iPEPSTrainer:
         self.chi = chi
         self.d = d
         self.device = torch.device(
-            "cuda" if gpu and torch.cuda.is_available() else "cpu"
+            "cuda:0" if gpu and torch.cuda.is_available() else "cpu"
         )
         self.sx = torch.Tensor([[0, 1], [1, 0]]).double().to(self.device)
         self.sz = torch.Tensor([[1, 0], [0, -1]]).double().to(self.device)
@@ -106,7 +106,7 @@ class iPEPSTrainer:
         params, map, H, C, T = self._init_tensors(lam, use_prev, perturbation)
 
         # Initialize the iPEPS model and optimizer
-        model = iPEPS(self.chi, self.d, H, params, map, C, T)
+        model = iPEPS(self.chi, self.d, H, params, map, C, T).to(self.device)
         optimizer = torch.optim.LBFGS(model.parameters(), max_iter=max_iter, lr=lr)
 
         def train() -> torch.Tensor:

@@ -30,6 +30,12 @@ class Tensors:
     def a(A: torch.Tensor) -> torch.Tensor:
         """
         Returns the contraction of the given rank 5 tensor A.
+
+        Args:
+            A (torch.Tensor): Rank 5 tensor of the PEPS state (phy, up, left, down, right).
+
+        Returns:
+            torch.Tensor: Contraction of the rank 5 tensor A. (up, left, down, right)
         """
         return torch.tensordot(A, A, dims=([4], [4])).reshape(4, 4, 4, 4)
 
