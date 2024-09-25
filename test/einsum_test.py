@@ -2,23 +2,21 @@ import torch
 import time
 import matplotlib.pyplot as plt
 
-# Lists to store performance times
+
 gpu_times = []
 cpu_times = []
 
-# Define matrix sizes to test
 sizes = [size for size in range(10, 3000, 50)]
 
 for size in sizes:
     matrix_size = (size, size)
 
-    # Create two large random matrices
     A = torch.randn(matrix_size)
     B = torch.randn(matrix_size)
 
     # Measure CPU performance for einsum
     start_cpu = time.time()
-    C_cpu = torch.einsum("ij,jk->ik", A, B)  # Matrix multiplication using einsum
+    C_cpu = torch.einsum("ij,jk->ik", A, B)
     cpu_time = time.time() - start_cpu
 
     # Move the matrices to GPU
@@ -27,12 +25,9 @@ for size in sizes:
 
     # Measure GPU performance for einsum
     start_gpu = time.time()
-    C_gpu = torch.einsum(
-        "ij,jk->ik", A_gpu, B_gpu
-    )  # Matrix multiplication using einsum
+    C_gpu = torch.einsum("ij,jk->ik", A_gpu, B_gpu)
     gpu_time = time.time() - start_gpu
 
-    # Store times for analysis
     cpu_times.append(cpu_time)
     gpu_times.append(gpu_time)
 
