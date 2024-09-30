@@ -59,7 +59,7 @@ class iPEPS(torch.nn.Module):
 
         # Construct the tensor network contraction a
         a = (
-            (Asymm.view(d, -1).t() @ Asymm.view(d, -1))
+            (Asymm.view(2, -1).t() @ Asymm.view(2, -1))
             .contiguous()
             .view(d, d, d, d, d, d, d, d)
         )
@@ -67,7 +67,7 @@ class iPEPS(torch.nn.Module):
         a = a / a.norm()
 
         # Execute the CTM algorithm to compute corner (C) and edge (T) tensors
-        alg = CtmAlg(a, chi, d, self.C, self.T)
+        alg = CtmAlg(a, chi, self.C, self.T)
         alg.exe()
 
         if torch.isnan(a).any():

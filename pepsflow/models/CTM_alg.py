@@ -14,7 +14,6 @@ class CtmAlg:
 
     Args:
         chi (int): bond dimension of the edge and corner tensors.
-        d (int): physical dimension of the local Hilbert space.
         A (torch.Tensor): initial tensor to insert in the CTM algorithm.
         C (torch.Tensor): initial corner tensor for the CTM algorithm.
         T (torch.Tensor): initial edge tensor for the CTM algorithm.
@@ -24,15 +23,14 @@ class CtmAlg:
         self,
         a: torch.Tensor,
         chi: int = 2,
-        d: int = 2,
         C_init: torch.Tensor = None,
         T_init: torch.Tensor = None,
     ):
 
         self.a = a
         self.max_chi = chi
-        self.d = d**2
-        self.chi = d**2 if C_init is None else chi
+        self.d = a.size(0)
+        self.chi = self.d if C_init is None else chi
         self.sv_sums = [0]
 
         self.C = Tensors.C_init(a).to(a.device) if C_init is None else C_init
