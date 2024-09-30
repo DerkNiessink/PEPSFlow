@@ -69,6 +69,12 @@ class Tensors:
         )
 
     @staticmethod
+    def loss_operator(a: torch.Tensor):
+        """
+        Returns the loss operator for the iPEPS model.
+        """
+
+    @staticmethod
     def Mpx() -> torch.Tensor:
         """
         Return the operator to measure the magnetization in the x-direction.
@@ -96,7 +102,7 @@ class Tensors:
         up-down and diagonal symmetry. The legs are ordered as follows:
         A(phy, up, left, down, right).
         """
-        A = torch.rand(size=(d, d, d, d, d), dtype=torch.float64) - 0.5
+        A = torch.rand(size=(2, d, d, d, d), dtype=torch.float64) - 0.5
         A = Methods.symmetrize_rank5(A)
         return A / torch.norm(A)
 
