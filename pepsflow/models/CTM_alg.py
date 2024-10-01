@@ -2,6 +2,7 @@ import time
 import torch
 
 from pepsflow.models.tensors import Tensors, Methods
+from pepsflow.models.svd import CustomSVD
 
 
 norm = Methods.normalize
@@ -122,7 +123,7 @@ class CtmAlg:
         M = M.contiguous().view(self.chi * self.d, self.chi * self.d)
 
         k = self.chi
-        U, s, Vh = torch.linalg.svd(M, full_matrices=False)
+        U, s, Vh = CustomSVD.apply(M)
 
         # Let chi grow if the desired chi is not yet reached.
         if self.chi >= self.max_chi:
