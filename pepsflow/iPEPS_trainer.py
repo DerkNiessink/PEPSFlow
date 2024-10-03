@@ -106,7 +106,7 @@ class iPEPSTrainer:
         params, map, H, C, T = self._init_tensors(lam, use_prev, perturbation)
 
         # Initialize the iPEPS model and optimizer
-        model = iPEPS(self.chi, self.d, H, params, map, C, T).to(self.device)
+        model = iPEPS(self.chi, H, params, map, C, T).to(self.device)
         optimizer = torch.optim.LBFGS(model.parameters(), max_iter=max_iter, lr=lr)
 
         def train() -> torch.Tensor:

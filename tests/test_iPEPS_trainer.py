@@ -7,7 +7,7 @@ class TestiPEPSTrainer:
 
     @pytest.mark.parametrize("lam, E_exp", [(1, -1.06283), (4, -2.06688)])
     def test_exe(self, lam, E_exp):
-        trainer = iPEPSTrainer(chi=4, d=2, gpu=False, data_fn=None)
+        trainer = iPEPSTrainer(chi=8, d=2, gpu=False, data_fn=None)
         trainer.exe(
             lambdas=[lam],
             epochs=5,

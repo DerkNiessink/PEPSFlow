@@ -37,7 +37,14 @@ class Tensors:
         Returns:
             torch.Tensor: Contraction of the rank 5 tensor A. (up, left, down, right)
         """
-        return torch.tensordot(A, A, dims=([4], [4])).reshape(4, 4, 4, 4)
+        d = A.size(1)
+        a = (
+            (A.view(2, -1).t() @ A.view(2, -1))
+            .contiguous()
+            .view(d, d, d, d, d, d, d, d)
+        )
+        a = a.permute(0, 4, 1, 5, 2, 6, 3, 7).contiguous().view(d**2, d**2, d**2, d**2)
+        return a / a.norm()
 
     def C_init(a: torch.Tensor) -> torch.Tensor:
         """
@@ -67,12 +74,6 @@ class Tensors:
         return -torch.kron(sz, sz) - 0.25 * lam * (
             torch.kron(sx, I) + torch.kron(I, sx)
         )
-
-    @staticmethod
-    def loss_operator(a: torch.Tensor):
-        """
-        Returns the loss operator for the iPEPS model.
-        """
 
     @staticmethod
     def Mpx() -> torch.Tensor:

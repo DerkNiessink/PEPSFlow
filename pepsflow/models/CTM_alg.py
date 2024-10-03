@@ -1,9 +1,9 @@
 import time
 import torch
+from torch.nn.functional import normalize
 
 from pepsflow.models.tensors import Tensors, Methods
 from pepsflow.models.svd import CustomSVD
-
 
 norm = Methods.normalize
 symm = Methods.symmetrize
@@ -33,6 +33,7 @@ class CtmAlg:
         self.d = a.size(0)
         self.chi = self.d if C_init is None else chi
         self.sv_sums = [0]
+        self.trunc_errors = []
 
         self.C = Tensors.C_init(a).to(a.device) if C_init is None else C_init
         self.T = Tensors.T_init(a).to(a.device) if T_init is None else T_init
@@ -66,7 +67,6 @@ class CtmAlg:
             self.sv_sums.append(torch.sum(s).item())
 
             tol_counter += 1 if abs(self.sv_sums[-1] - self.sv_sums[-2]) < tol else 0
-
             if tol_counter == count:
                 break
 
@@ -124,6 +124,9 @@ class CtmAlg:
 
         k = self.chi
         U, s, Vh = CustomSVD.apply(M)
+        self.trunc_errors.append(
+            torch.sum(normalize(s, p=1, dim=0)[self.chi :]).float()
+        )
 
         # Let chi grow if the desired chi is not yet reached.
         if self.chi >= self.max_chi:

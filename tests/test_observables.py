@@ -13,7 +13,9 @@ class TestObservables:
         A = torch.from_numpy(
             np.loadtxt("tests/solution_state.txt").reshape(2, 2, 2, 2, 2)
         ).double()
-        alg = CtmAlg(a=Tensors.a(A), chi=8)
+        A = A.permute(4, 1, 2, 3, 0).contiguous()
+
+        alg = CtmAlg(a=Tensors.a(A), chi=16)
         alg.exe()
 
         sx = torch.Tensor([[0, 1], [1, 0]]).double()
