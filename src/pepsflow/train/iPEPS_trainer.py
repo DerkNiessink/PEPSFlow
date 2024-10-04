@@ -41,7 +41,7 @@ class iPEPSTrainer:
             while not succes:
                 try:
                     model = self._train_model()
-                except torch._C.LinAlgError:
+                except torch._C._LinAlgError:
                     continue
                 succes = True
 
