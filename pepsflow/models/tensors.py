@@ -97,13 +97,13 @@ class Tensors:
         return torch.kron(torch.Tensor([[1, 0], [0, -1]]), torch.eye(2)).double()
 
     @staticmethod
-    def A_random_symmetric(d=2) -> torch.Tensor:
+    def A_random_symmetric(D=2) -> torch.Tensor:
         """
         Returns a random rank 5 tensor with legs of size d, which has left-right,
         up-down and diagonal symmetry. The legs are ordered as follows:
         A(phy, up, left, down, right).
         """
-        A = torch.rand(size=(2, d, d, d, d), dtype=torch.float64) - 0.5
+        A = torch.rand(size=(2, D, D, D, D), dtype=torch.float64)
         A = Methods.symmetrize_rank5(A)
         return A / torch.norm(A)
 

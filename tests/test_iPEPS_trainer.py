@@ -16,7 +16,7 @@ class TestiPEPSTrainer:
             "max_iter": 30,
             "runs": 5,
             "lr": 1,
-            "epochs": 5,
+            "epochs": 10,
             "use_prev": False,
             "perturbation": 0.0,
         }

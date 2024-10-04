@@ -36,11 +36,18 @@ class iPEPSTrainer:
         """
         best_model = None
         for _ in range(self.args["runs"]):
-            model = self._train_model()
+            # Catch the linalg error and retry with other random tensors
+            succes = False
+            while not succes:
+                try:
+                    model = self._train_model()
+                except torch._C.LinAlgError:
+                    continue
+                succes = True
+
+            # Update the best model based on the lowest energy
             if not best_model or model.loss < best_model.loss:
                 best_model = model
-
-        # Save the best model for the given lambda
         self.data = best_model
 
     def _train_model(self) -> iPEPS:
@@ -90,7 +97,7 @@ class iPEPSTrainer:
             params, map = self.data_prev.params, self.data_prev.map
         # Generate a random symmetric A tensor.
         else:
-            A = Tensors.A_random_symmetric(d=self.args["D"]).to(self.device)
+            A = Tensors.A_random_symmetric(self.args["D"]).to(self.device)
             params, map = torch.unique(A, return_inverse=True)
 
         params = Methods.perturb(params, self.args["perturbation"])
