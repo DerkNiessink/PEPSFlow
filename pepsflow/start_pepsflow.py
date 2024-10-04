@@ -15,7 +15,6 @@ parser.add_argument("--max_iter", type=int, default=20, help="Maximum number of 
 parser.add_argument("--runs", type=int, default=1, help="Number of runs to train the model. Applies to random initialization. The program will choose the best model based on the lowest energy.")
 parser.add_argument("--lr", type=float, default=1, help="Learning rate for the optimizer")
 parser.add_argument("--epochs", type=int, default=10, help="Maximum number of epochs to train the model")
-parser.add_argument("--use_prev", action="store_true", help="Use the previous state as the initial state for the training")
 parser.add_argument("--perturbation", type=float, default=0.0, help="Amount of perturbation to apply to the initial state")
 parser.add_argument("--fn", type=str, default=None, help="Filename to save the iPEPS model in.")
 
