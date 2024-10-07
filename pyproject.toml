@@ -10,6 +10,12 @@ packages =[{include = "pepsflow", from = "src" }]
 python = "^3.11"
 pytest = "^8.3.3"
 tqdm = "^4.66.5"
+matplotlib = "^3.9.2"
+scienceplots = "^2.1.1"
+
+[tool.poetry.scripts]
+pepsflow = "pepsflow.run:main"
+plot = "pepsflow.plot:main"
 
 
 [build-system]

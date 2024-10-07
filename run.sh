@@ -1,30 +1,38 @@
 #!/bin/bash
 
+# PARAMETERS
+#==================================================================================================
+chi=5
+D=2
+lamValues=(2.8)
+max_iter=50
+runs=5
+learning_rate=0.01
+epochs=30
+perturbation=0.1
+save_folder="tests"
+input_folder="tests"
+#==================================================================================================
+
+
 echo "Running..."
 
-# Define the lam values
-lamValues=(2.65 2.7 2.75 2.8 2.85 2.9 2.95 3.0 3.05 3.1 3.15 3.2)
-
-# Create an array to hold job PIDs
 jobs=()
 
-# Iterate over each lam value
 for lam in "${lamValues[@]}"; do
     echo "Running for lam = $lam"
-    
-    # Activate the virtual environment and run the Python script in the background
-    ( 
-        python src/pepsflow/start_pepsflow.py \
-            --chi 6 \
-            --D 2 \
+ 
+    (   pepsflow \
+            --chi "$chi" \
+            --D "$D" \
             --lam "$lam" \
-            --max_iter 20 \
-            --runs 1 \
-            --lr 1 \
-            --epochs 10 \
-            --perturbation 0.0 \
-            --fn "tests/lam_$lam" \
-            > "output/output_$lam.txt" 2>&1
+            --max_iter "$max_iter" \
+            --runs "$runs" \
+            --lr "$learning_rate" \
+            --epochs "$epochs" \
+            --perturbation "$perturbation" \
+            --save_fn "data/$input_folder/lam_$lam.pth" \
+            #--data_fn "data/$input_folder/lam_$lam.pth" \
     ) &  # Run in the background
 
     # Store the PID of the job
