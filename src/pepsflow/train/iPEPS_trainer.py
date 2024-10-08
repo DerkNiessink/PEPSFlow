@@ -111,7 +111,10 @@ class iPEPSTrainer:
         Args:
             fn (str): Filename to save the data to. Default is 'data.pth'.
         """
+        folder = os.path.dirname(fn)
+        if folder and not os.path.exists(folder):
+            os.makedirs(folder)
+
         fn = f"{fn}" if fn else "data.pth"
-        # os.makedirs(fn, exist_ok=True)
         torch.save(self.data, fn)
         print(f"Data saved to {fn}")
