@@ -12,11 +12,10 @@ pytest = "^8.3.3"
 tqdm = "^4.66.5"
 matplotlib = "^3.9.2"
 scienceplots = "^2.1.1"
+click = "^8.1.7"
 
 [tool.poetry.scripts]
-pepsflow = "pepsflow.run:main"
-plot = "pepsflow.plot:main"
-
+pepsflow = "pepsflow.cli:cmd_group"
 
 [build-system]
 requires = ["poetry-core"]
