@@ -30,15 +30,15 @@ def optimize():
 @cmd_group.command()
 @click.option("--chi", type=int, help="Environment bond dimension in the CTMRG algorithm")
 @click.option("--d", type=int, help="Bulk bond dimension of the iPEPS")
-@click.option("--data_folder", type=str, help="Folder containing iPEPS models")
+@click.option("-df","--data_folder", type=str, help="Folder containing iPEPS models")
 @click.option("--gpu/--no-gpu", type=bool, help="Run the model on the GPU if available")
 @click.option("--lam", type=float, multiple=True, help="Value(s) of the parameter lambda in the tranverse-field Ising model")
 @click.option("--max_iter", type=int, help="Maximum number of iterations for the optimizer")
 @click.option("--runs", type=int, help="Number of runs to train the model. Applies to random initialization. The program will choose the best model based on the lowest energy.")
-@click.option("--lr", type=float, help="Learning rate for the optimizer")
+@click.option("-lr","--learning_rate", type=float, help="Learning rate for the optimizer")
 @click.option("--epochs", type=int, help="Maximum number of epochs to train the model")
-@click.option("--perturbation", type=float, help="Amount of perturbation to apply to the initial state")
-@click.option("--save_folder", type=str, help="Folder to save the iPEPS model in.")
+@click.option("-per", "--perturbation", type=float, help="Amount of perturbation to apply to the initial state")
+@click.option("-sf", "--save_folder", type=str, help="Folder to save the iPEPS model in.")
 def set(**args):
     """
     Set specific parameters for the optimization of the iPEPS tensor network.
@@ -88,10 +88,10 @@ def params():
 
 @cmd_group.command()
 @click.argument("folder", type=str)
-@click.option("--xi", "--correlation_length", is_flag=True, default=False, help="Plot the correlation length as a function of lambda")
 @click.option("-e", "--energy", is_flag=True, default=False, help="Plot the energy as a function of lambda")
 @click.option("-m", "--magnetization", is_flag=True, default=False, help="Plot the magnetization as a function of lambda")
-def plot(folder: str, xi: bool, energy: bool, magnetization: bool):
+@click.option("-xi", "--correlation_length", is_flag=True, default=False, help="Plot the correlation length as a function of lambda")
+def plot(folder: str, correlation_length: bool, energy: bool, magnetization: bool):
     """
     Plot the observables of the iPEPS models.
     """
@@ -104,17 +104,17 @@ def plot(folder: str, xi: bool, energy: bool, magnetization: bool):
         plt.ylabel(r"$\langle M_z \rangle$")
         plt.xlabel(r"$\lambda$")
         plt.show()
-    elif energy:    
+    if energy:    
         plt.figure(figsize=(6, 4))
         plt.plot(lambda_values, reader.get_energies(), "v-", markersize=4, linewidth=0.5)  
         plt.ylabel(r"$E$")
         plt.xlabel(r"$\lambda$")
         plt.show()
-    elif xi:
+    if correlation_length:
         plt.figure(figsize=(6, 4))
         plt.plot(lambda_values, reader.get_correlations(), "v-", markersize=4, linewidth=0.5)
         plt.ylabel(r"$\xi$")
         plt.xlabel(r"$\lambda$")
         plt.show()
-    else:
+    if not magnetization and not energy and not correlation_length:
         print("Please specify the observables to plot. See pepsflow plot --help for more information.")

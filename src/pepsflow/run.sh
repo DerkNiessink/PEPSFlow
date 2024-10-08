@@ -3,22 +3,19 @@
 # START PARAMS
 # CURRENT PARAMETERS   
 #===============================#
-chi=4
-d=2
-lam=(2.8)
-max_iter=50                     
+chi=8
+d=3
+lam=(2.75)
+max_iter=30
 runs=1
-learning_rate=0.01              
-epochs=30                       
-perturbation=0.0    
+learning_rate=0.01
+epochs=15
+perturbation=0.0
 gpu=false
-save_folder=tests2
-data_folder=None
+save_folder=d3
+data_folder=d3
 #===============================#
 # END PARAMS
-
-save_fn="data/$save_folder/lam_$lam.pth"
-data_fn="data/$data_folder/lam_$lam.pth"
 
 echo "Running..."
 
@@ -30,14 +27,17 @@ else
     gpu_flag="--no-gpu"
 fi
 
-if [ "$data_folder" = "None" ]; then
-    input_flag=""
-else
-    input_flag="--data_fn $data_fn"
-fi
-
 for l in "${lam[@]}"; do
     echo "Running for lam = $l"
+
+    save_fn="data/$save_folder/lam_$l.pth"
+    data_fn="data/$data_folder/lam_$l.pth"
+
+    if [ "$data_folder" = "None" ]; then
+        input_flag=""
+    else
+        input_flag="--data_fn $data_fn"
+    fi
  
     cmd="python src/pepsflow/run.py \
             --chi \"$chi\" \
