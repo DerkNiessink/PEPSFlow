@@ -27,6 +27,7 @@ def optimize():
 
     subprocess.run(["bash", run_file])
 
+
 @cmd_group.command()
 @click.option("--chi", type=int, help="Environment bond dimension in the CTMRG algorithm")
 @click.option("--d", type=int, help="Bulk bond dimension of the iPEPS")
@@ -85,6 +86,7 @@ def params():
         if in_param_section:
             print(stripped_line)
     print("")
+
 
 @cmd_group.command()
 @click.argument("folder", type=str)

@@ -3,14 +3,14 @@
 # START PARAMS
 # CURRENT PARAMETERS   
 #===============================#
-chi=8
+chi=30
 d=3
 lam=(2.75)
-max_iter=30
+max_iter=500
 runs=1
 learning_rate=0.01
-epochs=15
-perturbation=0.0
+epochs=50
+perturbation=0.1
 gpu=false
 save_folder=d3
 data_folder=d3
