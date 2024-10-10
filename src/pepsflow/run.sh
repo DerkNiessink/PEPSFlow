@@ -3,17 +3,17 @@
 # START PARAMS
 # CURRENT PARAMETERS   
 #===============================#
-chi=30
+chi=32
 d=3
-lam=(2.75)
-max_iter=500
+lam=(2.8 2.85 2.9)
+max_iter=10
 runs=1
-learning_rate=0.01
-epochs=50
+learning_rate=1.0
+epochs=10
 perturbation=0.1
 gpu=false
 save_folder=d3
-data_folder=d3
+data_folder=None
 #===============================#
 # END PARAMS
 
@@ -67,4 +67,4 @@ for job in "${jobs[@]}"; do
     wait "$job"  # Wait for each job to complete
 done
 
-echo -e "\nAll tasks completed and data saved to 'data/$save_folder'."
+echo -e "\nAll tasks completed and data saved to '$save_folder'."

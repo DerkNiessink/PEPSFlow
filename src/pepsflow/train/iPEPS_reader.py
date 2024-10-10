@@ -67,3 +67,15 @@ class iPEPSReader:
             E, C, T = iPEPS.forward()
             correlations.append(Observables.xi(T.detach()))
         return correlations
+
+    def get_losses(self, fn: str) -> list:
+        """
+        Get the losses of the iPEPS models.
+
+        Args:
+            fn (str): Filename of the iPEPS model file.
+
+        Returns:
+            list: List of losses.
+        """
+        return torch.load(os.path.join(self.folder, fn), weights_only=False).losses
