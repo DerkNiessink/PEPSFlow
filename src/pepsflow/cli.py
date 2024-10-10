@@ -93,30 +93,68 @@ def params():
 @click.option("-e", "--energy", is_flag=True, default=False, help="Plot the energy as a function of lambda")
 @click.option("-m", "--magnetization", is_flag=True, default=False, help="Plot the magnetization as a function of lambda")
 @click.option("-xi", "--correlation_length", is_flag=True, default=False, help="Plot the correlation length as a function of lambda")
-def plot(folder: str, correlation_length: bool, energy: bool, magnetization: bool):
+@click.option("-g", "--gradient", type=str, default=None, help="Plot the gradient as a function of epoch")
+def plot(folder: str, correlation_length: bool, energy: bool, magnetization: bool, gradient: str):
     """
     Plot the observables of the iPEPS models.
     """
     reader = iPEPSReader(os.path.join("data", folder))
     lambda_values = reader.get_lambdas()
-    
-    if magnetization:
+    all = True if not magnetization and not energy and not correlation_length and not gradient else False
+
+    if magnetization or all:
         plt.figure(figsize=(6, 4))
         plt.plot(lambda_values, reader.get_magnetizations(), "v-", markersize=4, linewidth=0.5)
         plt.ylabel(r"$\langle M_z \rangle$")
         plt.xlabel(r"$\lambda$")
         plt.show()
-    if energy:    
+    if energy or all:    
         plt.figure(figsize=(6, 4))
         plt.plot(lambda_values, reader.get_energies(), "v-", markersize=4, linewidth=0.5)  
         plt.ylabel(r"$E$")
         plt.xlabel(r"$\lambda$")
         plt.show()
-    if correlation_length:
+    if correlation_length or all:
         plt.figure(figsize=(6, 4))
         plt.plot(lambda_values, reader.get_correlations(), "v-", markersize=4, linewidth=0.5)
         plt.ylabel(r"$\xi$")
         plt.xlabel(r"$\lambda$")
         plt.show()
-    if not magnetization and not energy and not correlation_length:
-        print("Please specify the observables to plot. See pepsflow plot --help for more information.")
+    if gradient:
+        plt.figure(figsize=(6, 4))
+        losses = reader.get_losses(gradient)
+        plt.plot(range(len(losses)), losses, "v-", markersize=4, linewidth=0.5)
+        plt.ylabel("$E$")
+        plt.xlabel("Epoch")
+        plt.show()
+
+
+@cmd_group.command()
+@click.option("--folder", "-f", default = None, type=str, help="Show the data files in the folder.")
+@click.option("--show", "-s", is_flag=True, help="Show the data files in the folders.")
+def data(folder: str, show: bool):
+    """
+    List the data files in the data folder.
+    """
+    for dirpath, dirnames, filenames in os.walk("data"):
+        level = dirpath.replace("data", '').count(os.sep)
+        indent = ' ' * 2 * level
+        if folder is None or os.path.basename(dirpath) == folder:
+            print(f'{indent}/{os.path.basename(dirpath)}')
+            subindent = ' ' * 2 * (level + 1)
+            if show or folder is not None:
+                for filename in filenames:
+                    print(f'{subindent}{filename}')
+
+
+@cmd_group.command()
+@click.argument("old", type=str)
+@click.argument("new", type=str)
+def rename(old: str, new: str):
+    """
+    Rename a folder name to a new name.
+    """
+    for dirpath, dirnames, filenames in os.walk("data"):
+        if os.path.basename(dirpath) == old:
+            os.rename(dirpath, os.path.join("data", new))
+            break

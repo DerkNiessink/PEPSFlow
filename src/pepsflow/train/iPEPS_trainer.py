@@ -46,7 +46,7 @@ class iPEPSTrainer:
                 succes = True
 
             # Update the best model based on the lowest energy
-            if not best_model or model.loss < best_model.loss:
+            if not best_model or model.losses[-1] < best_model.losses[-1]:
                 best_model = model
         self.data = best_model
 
@@ -54,10 +54,10 @@ class iPEPSTrainer:
         """
         Train the iPEPS model for the given parameters.
         """
-        params, map, H, C, T = self._init_tensors()
+        params, map, H, losses = self._init_tensors()
 
         # Initialize the iPEPS model and optimizer
-        model = iPEPS(self.args["chi"], H, params, map, C, T).to(self.device)
+        model = iPEPS(self.args["chi"], H, params, map, losses).to(self.device)
         optimizer = torch.optim.LBFGS(
             model.parameters(), lr=self.args["lr"], max_iter=self.args["max_iter"]
         )
@@ -71,8 +71,13 @@ class iPEPSTrainer:
             loss.backward()
             return loss
 
+        # Append the initial loss to the losses list
+        with torch.no_grad():
+            model.losses.append(model.forward()[0].item())
+
         for _ in tqdm(range(self.args["epochs"])):
-            optimizer.step(train)
+            loss = optimizer.step(train)
+            model.losses.append(loss.item())
 
         return model
 
@@ -89,19 +94,22 @@ class iPEPSTrainer:
             torch.Tensor: Corner tensor for the CTM algorithm.
             torch.Tensor: Edge tensor for the CTM algorithm.
         """
-        H = Tensors.H(lam=self.args["lam"], sz=self.sz, sx=self.sx, I=self.I)
-        C = T = None
+        H = Tensors.H(lam=self.args["lam"], sz=self.sz, sx=self.sx, I=self.I).to(
+            self.device
+        )
+        losses = []
 
         # Use the corresponding state from the given data as the initial state.
         if self.data_prev:
             params, map = self.data_prev.params, self.data_prev.map
+            losses = self.data_prev.losses
         # Generate a random symmetric A tensor.
         else:
             A = Tensors.A_random_symmetric(self.args["D"]).to(self.device)
             params, map = torch.unique(A, return_inverse=True)
 
         params = Methods.perturb(params, self.args["perturbation"])
-        return params, map, H, C, T
+        return params, map, H, losses
 
     def save_data(self, fn: str = None) -> None:
         """

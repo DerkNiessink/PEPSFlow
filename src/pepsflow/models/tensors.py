@@ -212,7 +212,7 @@ class Methods:
             T (torch.Tensor): Tensor to perturb.
             eps (float): Perturbation strength.
         """
-        return T + eps * torch.randn_like(T)
+        return T + eps * torch.rand_like(T)
 
     @staticmethod
     def convert_to_tensor(
