@@ -15,7 +15,7 @@ scienceplots = "^2.1.1"
 click = "^8.1.7"
 
 [tool.poetry.scripts]
-pepsflow = "pepsflow.cli:cmd_group"
+pepsflow = "pepsflow.cli:cli"
 
 [build-system]
 requires = ["poetry-core"]

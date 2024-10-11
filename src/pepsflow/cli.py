@@ -9,11 +9,56 @@ from pepsflow.train.iPEPS_reader import iPEPSReader
 # fmt: off
 
 @click.group()
-def cmd_group():
+def cli():
     pass
 
 
-@cmd_group.command()
+@click.group(invoke_without_command=True)
+@click.pass_context
+@click.option("--folder", "-f", default = None, type=str, help="Show the data files in the folder.")
+@click.option("--concise", "-c", is_flag=True, default = False, help="Only show the folder names.")
+def data(ctx, folder: str, concise: bool):
+    """
+    List the data files in the data folder.
+    """
+    if ctx.invoked_subcommand is None:
+        for dirpath, dirnames, filenames in os.walk("data"):
+            level = dirpath.replace("data", '').count(os.sep)
+            indent = ' ' * 2 * level
+            if folder is None or os.path.basename(dirpath) == folder:
+                print(f'{indent}/{os.path.basename(dirpath)}')
+                subindent = ' ' * 2 * (level + 1)
+                if not concise or folder is not None:
+                    for filename in filenames:
+                        print(f'{subindent}{filename}')
+
+@click.group(invoke_without_command=True)
+@click.pass_context
+def params(ctx):
+    """
+    Show the current parameters for the optimization of the iPEPS tensor network.
+    """
+    if ctx.invoked_subcommand is None:
+        with open("src/pepsflow/run.sh", 'r') as file:
+            lines = file.readlines()
+        print("")
+        in_param_section = False
+        for line in lines:
+            stripped_line = line.strip()
+            if stripped_line.startswith("# START PARAMS"):
+                in_param_section = True
+                continue
+            elif stripped_line.startswith("# END PARAMS"):
+                if in_param_section:
+                    break
+            if in_param_section:
+                print(stripped_line)
+        print("")
+
+cli.add_command(data)
+cli.add_command(params)
+
+@params.command()
 def optimize():
     """
     Optimize the iPEPS tensor network with the specified parameters.
@@ -28,7 +73,7 @@ def optimize():
     subprocess.run(["bash", run_file])
 
 
-@cmd_group.command()
+@params.command()
 @click.option("--chi", type=int, help="Environment bond dimension in the CTMRG algorithm")
 @click.option("--d", type=int, help="Bulk bond dimension of the iPEPS")
 @click.option("-df","--data_folder", type=str, help="Folder containing iPEPS models")
@@ -66,88 +111,73 @@ def set(**args):
         f.write(script_content)
 
 
-@cmd_group.command()
-def params():
-    """
-    Show the current parameters for the optimization of the iPEPS tensor network.
-    """
-    with open("src/pepsflow/run.sh", 'r') as file:
-        lines = file.readlines()
-    print("")
-    in_param_section = False
-    for line in lines:
-        stripped_line = line.strip()
-        if stripped_line.startswith("# START PARAMS"):
-            in_param_section = True
-            continue
-        elif stripped_line.startswith("# END PARAMS"):
-            if in_param_section:
-                break
-        if in_param_section:
-            print(stripped_line)
-    print("")
 
-
-@cmd_group.command()
-@click.argument("folder", type=str)
+@data.command(context_settings={"ignore_unknown_options": True})
+@click.argument("folders", nargs=-1, type=click.Path())
 @click.option("-e", "--energy", is_flag=True, default=False, help="Plot the energy as a function of lambda")
 @click.option("-m", "--magnetization", is_flag=True, default=False, help="Plot the magnetization as a function of lambda")
 @click.option("-xi", "--correlation_length", is_flag=True, default=False, help="Plot the correlation length as a function of lambda")
-@click.option("-g", "--gradient", type=str, default=None, help="Plot the gradient as a function of epoch")
-def plot(folder: str, correlation_length: bool, energy: bool, magnetization: bool, gradient: str):
+@click.option("-g", "--gradient", type=click.Path(), default=None, help="Plot the gradient as a function of epoch")
+def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetization: bool, gradient: click.Path):
     """
     Plot the observables of the iPEPS models.
     """
-    reader = iPEPSReader(os.path.join("data", folder))
-    lambda_values = reader.get_lambdas()
-    all = True if not magnetization and not energy and not correlation_length and not gradient else False
+    plot_all = not any([magnetization, energy, correlation_length, gradient])
+   
+    if magnetization or plot_all:
+        mag_figure, mag_ax = plt.subplots(figsize=(6, 4))
+        mag_ax.set_ylabel(r"$\langle M_z \rangle$")
+        mag_ax.set_xlabel(r"$\lambda$")
 
-    if magnetization or all:
-        plt.figure(figsize=(6, 4))
-        plt.plot(lambda_values, reader.get_magnetizations(), "v-", markersize=4, linewidth=0.5)
-        plt.ylabel(r"$\langle M_z \rangle$")
-        plt.xlabel(r"$\lambda$")
+    if energy or plot_all:
+        en_figure, en_ax = plt.subplots(figsize=(6, 4))
+        en_ax.set_ylabel(r"$E$")
+        en_ax.set_xlabel(r"$\lambda$")
+
+    if correlation_length or plot_all:
+        xi_figure, xi_ax = plt.subplots(figsize=(6, 4))
+        xi_ax.set_ylabel(r"$\xi$")
+        xi_ax.set_xlabel(r"$\lambda$")
+
+    for folder in folders:
+        reader = iPEPSReader(os.path.join("data", folder))
+        lambda_values = reader.get_lambdas()
+
+        if magnetization or plot_all:
+            mag_ax.plot(lambda_values, reader.get_magnetizations(), "v-", markersize=4, linewidth=0.5, label=folder)
+
+        if energy or plot_all:
+            en_ax.plot(lambda_values, reader.get_energies(), "v-", markersize=4, linewidth=0.5, label=folder)
+
+        if correlation_length or plot_all:
+            xi_ax.plot(lambda_values, reader.get_correlations(), "v-", markersize=4, linewidth=0.5, label=folder)
+
+        if gradient:
+            grad_figure, grad_ax = plt.subplots(figsize=(6, 4))
+            losses = reader.get_losses(gradient)
+            grad_ax.plot(range(len(losses)), losses, "v-", markersize=4, linewidth=0.5, label=folder)
+            grad_ax.set_ylabel("$E$")
+            grad_ax.set_xlabel("Epoch")
+            grad_ax.legend()
+            plt.show()
+
+    if magnetization or plot_all:
+        mag_ax.legend()
+        plt.figure(mag_figure)
         plt.show()
-    if energy or all:    
-        plt.figure(figsize=(6, 4))
-        plt.plot(lambda_values, reader.get_energies(), "v-", markersize=4, linewidth=0.5)  
-        plt.ylabel(r"$E$")
-        plt.xlabel(r"$\lambda$")
+
+    if energy or plot_all:
+        en_ax.legend()
+        plt.figure(en_figure)
         plt.show()
-    if correlation_length or all:
-        plt.figure(figsize=(6, 4))
-        plt.plot(lambda_values, reader.get_correlations(), "v-", markersize=4, linewidth=0.5)
-        plt.ylabel(r"$\xi$")
-        plt.xlabel(r"$\lambda$")
-        plt.show()
-    if gradient:
-        plt.figure(figsize=(6, 4))
-        losses = reader.get_losses(gradient)
-        plt.plot(range(len(losses)), losses, "v-", markersize=4, linewidth=0.5)
-        plt.ylabel("$E$")
-        plt.xlabel("Epoch")
+
+    if correlation_length or plot_all:
+        xi_ax.legend()
+        plt.figure(xi_figure)
         plt.show()
 
 
-@cmd_group.command()
-@click.option("--folder", "-f", default = None, type=str, help="Show the data files in the folder.")
-@click.option("--show", "-s", is_flag=True, help="Show the data files in the folders.")
-def data(folder: str, show: bool):
-    """
-    List the data files in the data folder.
-    """
-    for dirpath, dirnames, filenames in os.walk("data"):
-        level = dirpath.replace("data", '').count(os.sep)
-        indent = ' ' * 2 * level
-        if folder is None or os.path.basename(dirpath) == folder:
-            print(f'{indent}/{os.path.basename(dirpath)}')
-            subindent = ' ' * 2 * (level + 1)
-            if show or folder is not None:
-                for filename in filenames:
-                    print(f'{subindent}{filename}')
-
-
-@cmd_group.command()
+@data.command()
 @click.argument("old", type=str)
 @click.argument("new", type=str)
 def rename(old: str, new: str):
@@ -158,3 +188,16 @@ def rename(old: str, new: str):
         if os.path.basename(dirpath) == old:
             os.rename(dirpath, os.path.join("data", new))
             break
+
+
+@data.command()
+@click.argument("folder", type=click.Path())
+@click.option("-f", "--file", default=None, type=click.Path(), help="File containing data, if not specified, all files in the folder are printed.")
+def state(folder: click.Path, file: click.Path):
+    """
+    Print the tensors of the iPEPS model in the specified folder.
+    """
+    reader = iPEPSReader(os.path.join("data", folder))
+    filenames = [file] if file else reader.filenames
+    for f in filenames:
+        print(reader.get_iPEPS_state(f))
