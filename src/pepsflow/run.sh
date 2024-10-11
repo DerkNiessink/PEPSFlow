@@ -5,15 +5,15 @@
 #===============================#
 chi=32
 d=3
-lam=(2.8 2.85 2.9)
+lam=(2.95 3.0 3.05)
 max_iter=10
 runs=1
 learning_rate=1.0
-epochs=10
-perturbation=0.1
+epochs=5
+perturbation=0.001
 gpu=false
-save_folder=d3
-data_folder=None
+save_folder='d=3'
+data_folder='d=3'
 #===============================#
 # END PARAMS
 

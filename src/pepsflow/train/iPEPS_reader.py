@@ -14,9 +14,10 @@ class iPEPSReader:
 
     def __init__(self, folder: str):
         self.folder = folder
+        self.filenames = os.listdir(folder)
         iPEPS_models = [
             torch.load(os.path.join(folder, fn), weights_only=False)
-            for fn in os.listdir(folder)
+            for fn in self.filenames
         ]
         self.iPEPS_models = {-iPEPS.H[0, 1] * 4: iPEPS for iPEPS in iPEPS_models}
 
@@ -70,7 +71,7 @@ class iPEPSReader:
 
     def get_losses(self, fn: str) -> list:
         """
-        Get the losses of the iPEPS models.
+        Get the losses of the iPEPS model.
 
         Args:
             fn (str): Filename of the iPEPS model file.
@@ -79,3 +80,16 @@ class iPEPSReader:
             list: List of losses.
         """
         return torch.load(os.path.join(self.folder, fn), weights_only=False).losses
+
+    def get_iPEPS_state(self, fn: str) -> torch.Tensor:
+        """
+        Get the iPEPS state from a file.
+
+        Args:
+            fn (str): Filename of the iPEPS model file.
+
+        Returns:
+            tuple[torch.Tensor, torch.Tensor]: Parameters and mapping of the iPEPS model.
+        """
+        iPEPS = torch.load(os.path.join(self.folder, fn), weights_only=False)
+        return iPEPS.params[iPEPS.map]
