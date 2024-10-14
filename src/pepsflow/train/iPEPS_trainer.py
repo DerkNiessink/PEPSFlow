@@ -17,6 +17,7 @@ class iPEPSTrainer:
 
     def __init__(self, args: dict):
         self.args = args
+        torch.set_num_threads(args["threads"])
         self.device = torch.device(
             "cuda:0" if args["gpu"] and torch.cuda.is_available() else "cpu"
         )
@@ -75,6 +76,7 @@ class iPEPSTrainer:
         with torch.no_grad():
             model.losses.append(model.forward()[0].item())
 
+        # Training loop
         for _ in tqdm(range(self.args["epochs"])):
             loss = optimizer.step(train)
             model.losses.append(loss.item())
@@ -94,7 +96,7 @@ class iPEPSTrainer:
             torch.Tensor: Corner tensor for the CTM algorithm.
             torch.Tensor: Edge tensor for the CTM algorithm.
         """
-        H = Tensors.H(lam=self.args["lam"], sz=self.sz, sx=self.sx, I=self.I).to(
+        H = Tensors.H_Ising(lam=self.args["lam"], sz=self.sz, sx=self.sx, I=self.I).to(
             self.device
         )
         losses = []

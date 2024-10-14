@@ -5,19 +5,19 @@
 #===============================#
 chi=32
 d=3
-lam=(2.95 3.0 3.05)
+lam=(3.0 3.05 3.1)
 max_iter=10
-runs=1
+runs=5
 learning_rate=1.0
-epochs=5
-perturbation=0.001
+epochs=10
+perturbation=0.0
 gpu=false
-save_folder='d=3'
-data_folder='d=3'
+threads=1
+save_folder=test
+data_folder=None
 #===============================#
 # END PARAMS
 
-echo "Running..."
 
 jobs=()
 
@@ -28,7 +28,7 @@ else
 fi
 
 for l in "${lam[@]}"; do
-    echo "Running for lam = $l"
+    echo "Optimizing for lam = $l"
 
     save_fn="data/$save_folder/lam_$l.pth"
     data_fn="data/$data_folder/lam_$l.pth"
@@ -49,7 +49,8 @@ for l in "${lam[@]}"; do
             --epochs \"$epochs\" \
             --perturbation \"$perturbation\" \
             --save_fn \"$save_fn\" \
-            $gpu_flag"  # Include the gpu_flag here
+            --nThreads \"$nThreads\" \
+            $gpu_flag"  
 
     # Only add input_flag if it is not empty
     if [ -n "$input_flag" ]; then
@@ -64,6 +65,7 @@ done
 
 # Wait for all jobs to complete
 for job in "${jobs[@]}"; do
+    echo "$job"
     wait "$job"  # Wait for each job to complete
 done
 

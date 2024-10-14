@@ -21,6 +21,6 @@ class TestObservables:
         sx = torch.Tensor([[0, 1], [1, 0]]).double()
         sz = torch.Tensor([[1, 0], [0, -1]]).double()
         I = torch.eye(2).double()
-        H = Tensors.H(lam=4, sz=sz, sx=sx, I=I)
+        H = Tensors.H_Ising(lam=4, sz=sz, sx=sx, I=I)
 
         assert Observables.E(A, H, alg.C, alg.T) == pytest.approx(-2.06688, abs=1e-3)

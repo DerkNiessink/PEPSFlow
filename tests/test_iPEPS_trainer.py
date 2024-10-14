@@ -19,6 +19,7 @@ class TestiPEPSTrainer:
             "epochs": 10,
             "use_prev": False,
             "perturbation": 0.0,
+            "threads": 1,
         }
         trainer = iPEPSTrainer(args)
         trainer.exe()
