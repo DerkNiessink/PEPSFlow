@@ -3,7 +3,7 @@ from pepsflow.train.iPEPS import iPEPS
 
 import torch
 import os
-from tqdm import tqdm
+from rich.progress import Progress
 
 
 class iPEPSTrainer:
@@ -36,22 +36,30 @@ class iPEPSTrainer:
         Execute the training of the iPEPS model for different values of lambda.
         """
         best_model = None
-        for _ in range(self.args["runs"]):
-            # Catch the linalg error and retry with other random tensors
-            succes = False
-            while not succes:
-                try:
-                    model = self._train_model()
-                except torch._C._LinAlgError:
-                    continue
-                succes = True
 
-            # Update the best model based on the lowest energy
-            if not best_model or model.losses[-1] < best_model.losses[-1]:
-                best_model = model
+        with Progress() as progress:
+            task = progress.add_task(
+                f"[red]Training iPEPS (λ = {self.args['lam']})",
+                total=self.args["runs"] * self.args["epochs"],
+            )
+
+            for _ in range(self.args["runs"]):
+                # Catch the linalg error and retry with other random tensors
+                succes = False
+                while not succes:
+                    try:
+                        model = self._train_model(progress, task)
+                    except torch._C._LinAlgError:
+                        continue
+                    succes = True
+
+                # Update the best model based on the lowest energy
+                if not best_model or model.losses[-1] < best_model.losses[-1]:
+                    best_model = model
+
         self.data = best_model
 
-    def _train_model(self) -> iPEPS:
+    def _train_model(self, progress: Progress, task) -> iPEPS:
         """
         Train the iPEPS model for the given parameters.
         """
@@ -76,10 +84,11 @@ class iPEPSTrainer:
         with torch.no_grad():
             model.losses.append(model.forward()[0].item())
 
-        # Training loop
-        for _ in tqdm(range(self.args["epochs"])):
+        for _ in range(self.args["epochs"]):
             loss = optimizer.step(train)
             model.losses.append(loss.item())
+            # Update the progress bar
+            progress.update(task, advance=1)
 
         return model
 

@@ -1,4 +1,4 @@
-from pepsflow.iPEPS_trainer import iPEPSTrainer
+from pepsflow.train.iPEPS_trainer import iPEPSTrainer
 
 from torch.profiler import ProfilerActivity, profiler
 import torch
