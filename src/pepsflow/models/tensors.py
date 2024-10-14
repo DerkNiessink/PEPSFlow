@@ -65,7 +65,7 @@ class Tensors:
         return torch.einsum("abcd -> acd", a)
 
     @staticmethod
-    def H(
+    def H_Ising(
         lam: float, sz: torch.Tensor, sx: torch.Tensor, I: torch.Tensor
     ) -> torch.Tensor:
         """
@@ -74,6 +74,20 @@ class Tensors:
         return -torch.kron(sz, sz) - 0.25 * lam * (
             torch.kron(sx, I) + torch.kron(I, sx)
         )
+
+    def H_Heisenberg(
+        lam: float,
+        sy: torch.Tensor,
+        sz: torch.Tensor,
+        sp: torch.Tensor,
+        sm: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Returns the Hamiltonian operator of the Heisenberg model.
+        """
+        rot = torch.matrix_exp(-1j * torch.pi / 2 * sy)
+        res = torch.kron(sz, sz) / 4 + torch.kron(sp, sm) / 2 + torch.kron(sm, sp) / 2
+        return rot @ res @ rot.t()
 
     @staticmethod
     def Mpx() -> torch.Tensor:

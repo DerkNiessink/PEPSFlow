@@ -144,13 +144,13 @@ def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetizat
         lambda_values = reader.get_lambdas()
 
         if magnetization or plot_all:
-            mag_ax.plot(lambda_values, reader.get_magnetizations(), "v-", markersize=4, linewidth=0.5, label=folder)
+            mag_ax.plot(lambda_values, reader.get_magnetizations(), "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
 
         if energy or plot_all:
-            en_ax.plot(lambda_values, reader.get_energies(), "v-", markersize=4, linewidth=0.5, label=folder)
+            en_ax.plot(lambda_values, reader.get_energies(), "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
 
         if correlation_length or plot_all:
-            xi_ax.plot(lambda_values, reader.get_correlations(), "v-", markersize=4, linewidth=0.5, label=folder)
+            xi_ax.plot(lambda_values, reader.get_correlations(), "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
 
         if gradient:
             grad_figure, grad_ax = plt.subplots(figsize=(6, 4))
@@ -163,17 +163,14 @@ def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetizat
 
     if magnetization or plot_all:
         mag_ax.legend()
-        plt.figure(mag_figure)
         plt.show()
 
     if energy or plot_all:
         en_ax.legend()
-        plt.figure(en_figure)
         plt.show()
 
     if correlation_length or plot_all:
         xi_ax.legend()
-        plt.figure(xi_figure)
         plt.show()
 
 

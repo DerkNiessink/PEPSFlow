@@ -19,6 +19,7 @@ parser.add_argument("--lr", type=float, default=1, help="Learning rate for the o
 parser.add_argument("--epochs", type=int, default=10, help="Maximum number of epochs to train the model")
 parser.add_argument("--perturbation", type=float, default=0.0, help="Amount of perturbation to apply to the initial state")
 parser.add_argument("--save_fn", type=str, default=None, help="Filename to save the iPEPS model in.")
+parser.add_argument("--threads", type=int, default=8, help="Number of threads to use for the optimization. Each thread runs on a separate CPU core.")
 
 args = vars(parser.parse_args())
 trainer = iPEPSTrainer(args)
