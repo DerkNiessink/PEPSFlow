@@ -85,6 +85,7 @@ def optimize():
 @click.option("--epochs", type=int, help="Maximum number of epochs to train the model")
 @click.option("-per", "--perturbation", type=float, help="Amount of perturbation to apply to the initial state")
 @click.option("-sf", "--save_folder", type=str, help="Folder to save the iPEPS model in.")
+@click.option("--threads", type=int, help="Number of threads to use for the optimization. Each thread runs on a separate CPU core.")
 def set(**args):
     """
     Set specific parameters for the optimization of the iPEPS tensor network.
