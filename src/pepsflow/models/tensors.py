@@ -93,7 +93,8 @@ class Tensors:
             + torch.kron(sm, sp) / 2
         )
         res = res.view(2, 2, 2, 2)
-        return torch.einsum("abcd,be,df->aefc", res, rot, torch.conj(rot)).real
+        res = torch.einsum("abcd,be,df->aefc", res, rot, torch.conj(rot)).real
+        return res.reshape(4, 4)
 
     @staticmethod
     def Mpx() -> torch.Tensor:

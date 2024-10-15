@@ -15,11 +15,10 @@ class iPEPSReader:
     def __init__(self, folder: str):
         self.folder = folder
         self.filenames = os.listdir(folder)
-        iPEPS_models = [
+        self.iPEPS_models = [
             torch.load(os.path.join(folder, fn), weights_only=False)
             for fn in self.filenames
         ]
-        self.iPEPS_models = {-iPEPS.H[0, 1] * 4: iPEPS for iPEPS in iPEPS_models}
 
     def get_lambdas(self) -> list:
         """
@@ -28,7 +27,7 @@ class iPEPSReader:
         Returns:
             list: List of lambda values.
         """
-        return list(self.iPEPS_models.keys())
+        return [iPEPS.lam for iPEPS in self.iPEPS_models]
 
     def get_energies(self) -> list:
         """
@@ -38,8 +37,7 @@ class iPEPSReader:
             list: List of energies.
         """
         return [
-            iPEPS.forward()[0].detach().cpu().numpy()
-            for iPEPS in self.iPEPS_models.values()
+            iPEPS.forward()[0].detach().cpu().numpy() for iPEPS in self.iPEPS_models
         ]
 
     def get_magnetizations(self) -> list:
@@ -50,7 +48,7 @@ class iPEPSReader:
             list: List of magnetizations.
         """
         magnetizations = []
-        for iPEPS in self.iPEPS_models.values():
+        for iPEPS in self.iPEPS_models:
             E, C, T = iPEPS.forward()
             A = iPEPS.params[iPEPS.map]
             magnetizations.append(abs(Observables.M(A, C, T)[2].detach().cpu().numpy()))
@@ -64,7 +62,7 @@ class iPEPSReader:
             list: List of correlations.
         """
         correlations = []
-        for iPEPS in self.iPEPS_models.values():
+        for iPEPS in self.iPEPS_models:
             E, C, T = iPEPS.forward()
             correlations.append(Observables.xi(T.detach()))
         return correlations

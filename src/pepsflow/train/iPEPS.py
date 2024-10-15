@@ -24,6 +24,7 @@ class iPEPS(torch.nn.Module):
     def __init__(
         self,
         chi: int,
+        lam: float,
         H: torch.Tensor,
         params: torch.Tensor,
         map: torch.Tensor,
@@ -31,6 +32,7 @@ class iPEPS(torch.nn.Module):
     ):
         super(iPEPS, self).__init__()
         self.chi = chi
+        self.lam = lam
         self.H = H
         self.params = torch.nn.Parameter(params)
         self.map = map

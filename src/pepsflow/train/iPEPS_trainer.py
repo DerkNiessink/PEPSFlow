@@ -32,7 +32,8 @@ class iPEPSTrainer:
     def init_pauli_operators(self):
         self.sx = torch.Tensor([[0, 1], [1, 0]]).double().to(self.device)
         self.sz = torch.Tensor([[1, 0], [0, -1]]).double().to(self.device)
-        self.sy = torch.tensor([[0, -1j], [1j, 0]]).to(self.device)
+        self.sy = torch.Tensor([[0, -1], [1, 0]]).double().to(self.device)
+        self.sy = torch.complex(torch.zeros_like(self.sz), self.sy).to(self.device)
         self.sp = torch.Tensor([[0, 1], [0, 0]]).double().to(self.device)
         self.sm = torch.Tensor([[0, 0], [1, 0]]).double().to(self.device)
         self.I = torch.eye(2).double().to(self.device)
@@ -72,7 +73,9 @@ class iPEPSTrainer:
         params, map, H, losses = self._init_tensors()
 
         # Initialize the iPEPS model and optimizer
-        model = iPEPS(self.args["chi"], H, params, map, losses).to(self.device)
+        model = iPEPS(self.args["chi"], self.args["lam"], H, params, map, losses).to(
+            self.device
+        )
         optimizer = torch.optim.LBFGS(
             model.parameters(),
             lr=self.args["learning_rate"],
@@ -121,10 +124,12 @@ class iPEPSTrainer:
                 sp=self.sp,
                 sm=self.sm,
             ).to(self.device)
-        else:
+        elif self.args["model"] == "Ising":
             H = Tensors.H_Ising(
                 lam=self.args["lam"], sz=self.sz, sx=self.sx, I=self.I
             ).to(self.device)
+        else:
+            raise ValueError("Invalid model type. Choose 'Heisenberg' or 'Ising'.")
 
         losses = []
         # Use the corresponding state from the given data as the initial state.
