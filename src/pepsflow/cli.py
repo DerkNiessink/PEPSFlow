@@ -98,6 +98,7 @@ def optimize():
 
 
 @params.command()
+@click.option("--model", type=str, help="Model to optimize. Options are 'Ising' and 'Heisenberg'")
 @click.option("--chi", type=int, help="Environment bond dimension in the CTMRG algorithm")
 @click.option("--d", type=int, help="Bulk bond dimension of the iPEPS")
 @click.option("-df","--data_folder", type=str, help="Folder containing iPEPS models")

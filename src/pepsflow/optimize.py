@@ -1,6 +1,7 @@
 import configparser
 import multiprocessing as mp
 import os
+import ast
 
 from pepsflow.train.iPEPS_trainer import iPEPSTrainer
 
@@ -35,10 +36,13 @@ def optimize():
     args = dict(parser["PARAMETERS"])
 
     # Convert the parameters to the correct data type
-    lambdas = eval(args["lam"])
+    lambdas = ast.literal_eval(args["lam"])
     for key, value in args.items():
-        if key not in ("save_folder", "data_folder"):
-            args[key] = eval(value)
+
+        # Skip the save_folder, data_folder, and model parameters.
+        # These already have the correct data type (str).
+        if key not in ("save_folder", "data_folder", "model"):
+            args[key] = ast.literal_eval(value)
 
     # Start multiprocessing for each value of λ
     with mp.Pool(processes=len(lambdas)) as pool:

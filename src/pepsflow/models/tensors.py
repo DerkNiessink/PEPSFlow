@@ -86,8 +86,14 @@ class Tensors:
         Returns the Hamiltonian operator of the Heisenberg model.
         """
         rot = torch.matrix_exp(-1j * torch.pi / 2 * sy)
-        res = torch.kron(sz, sz) / 4 + torch.kron(sp, sm) / 2 + torch.kron(sm, sp) / 2
-        return rot @ res @ rot.t()
+        sz = torch.complex(sz, torch.zeros_like(sz))
+        res = (
+            lam * torch.kron(sz, sz) / 4
+            + torch.kron(sp, sm) / 2
+            + torch.kron(sm, sp) / 2
+        )
+        res = res.view(2, 2, 2, 2)
+        return torch.einsum("abcd,be,df->aefc", res, rot, torch.conj(rot)).real
 
     @staticmethod
     def Mpx() -> torch.Tensor:
