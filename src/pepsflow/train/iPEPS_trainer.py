@@ -21,15 +21,21 @@ class iPEPSTrainer:
         self.device = torch.device(
             "cuda:0" if args["gpu"] and torch.cuda.is_available() else "cpu"
         )
-        self.sx = torch.Tensor([[0, 1], [1, 0]]).double().to(self.device)
-        self.sz = torch.Tensor([[1, 0], [0, -1]]).double().to(self.device)
-        self.I = torch.eye(2).double().to(self.device)
         self.data = None
         self.data_prev = (
             torch.load(args["data_fn"], map_location=self.device, weights_only=False)
             if args["data_fn"]
             else None
         )
+        self.init_pauli_operators()
+
+    def init_pauli_operators(self):
+        self.sx = torch.Tensor([[0, 1], [1, 0]]).double().to(self.device)
+        self.sz = torch.Tensor([[1, 0], [0, -1]]).double().to(self.device)
+        self.sy = torch.tensor([[0, -1j], [1j, 0]]).to(self.device)
+        self.sp = torch.Tensor([[0, 1], [0, 0]]).double().to(self.device)
+        self.sm = torch.Tensor([[0, 0], [1, 0]]).double().to(self.device)
+        self.I = torch.eye(2).double().to(self.device)
 
     def exe(self) -> None:
         """
@@ -107,11 +113,20 @@ class iPEPSTrainer:
             torch.Tensor: Corner tensor for the CTM algorithm.
             torch.Tensor: Edge tensor for the CTM algorithm.
         """
-        H = Tensors.H_Ising(lam=self.args["lam"], sz=self.sz, sx=self.sx, I=self.I).to(
-            self.device
-        )
-        losses = []
+        if self.args["model"] == "Heisenberg":
+            H = Tensors.H_Heisenberg(
+                lam=self.args["lam"],
+                sy=self.sy,
+                sz=self.sz,
+                sp=self.sp,
+                sm=self.sm,
+            ).to(self.device)
+        else:
+            H = Tensors.H_Ising(
+                lam=self.args["lam"], sz=self.sz, sx=self.sx, I=self.I
+            ).to(self.device)
 
+        losses = []
         # Use the corresponding state from the given data as the initial state.
         if self.data_prev:
             params, map = self.data_prev.params, self.data_prev.map

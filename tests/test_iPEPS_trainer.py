@@ -8,6 +8,7 @@ class TestiPEPSTrainer:
     @pytest.mark.parametrize("lam, E_exp", [(1, -1.06283), (4, -2.06688)])
     def test_exe(self, lam, E_exp):
         args = {
+            "model": "Ising",
             "chi": 8,
             "d": 2,
             "data_fn": None,
