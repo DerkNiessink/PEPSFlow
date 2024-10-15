@@ -73,7 +73,9 @@ class iPEPSTrainer:
         params, map, H, losses = self._init_tensors()
 
         # Initialize the iPEPS model and optimizer
-        model = iPEPS(self.args["chi"], H, params, map, losses).to(self.device)
+        model = iPEPS(self.args["chi"], self.args["lam"], H, params, map, losses).to(
+            self.device
+        )
         optimizer = torch.optim.LBFGS(
             model.parameters(),
             lr=self.args["learning_rate"],
