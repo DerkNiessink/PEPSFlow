@@ -68,7 +68,9 @@ class iPEPSTrainer:
         # Initialize the iPEPS model and optimizer
         model = iPEPS(self.args["chi"], H, params, map, losses).to(self.device)
         optimizer = torch.optim.LBFGS(
-            model.parameters(), lr=self.args["lr"], max_iter=self.args["max_iter"]
+            model.parameters(),
+            lr=self.args["learning_rate"],
+            max_iter=self.args["max_iter"],
         )
 
         def train() -> torch.Tensor:
@@ -116,7 +118,7 @@ class iPEPSTrainer:
             losses = self.data_prev.losses
         # Generate a random symmetric A tensor.
         else:
-            A = Tensors.A_random_symmetric(self.args["D"]).to(self.device)
+            A = Tensors.A_random_symmetric(self.args["d"]).to(self.device)
             params, map = torch.unique(A, return_inverse=True)
 
         params = Methods.perturb(params, self.args["perturbation"])

@@ -1,10 +1,19 @@
 import click
-import subprocess
-import re
 import matplotlib.pyplot as plt
 import os
+import configparser
+from rich.console import Console
+from rich.table import Table
+from rich import box
+from rich.tree import Tree
+from rich import print
+import pathlib
+from rich.text import Text
+from rich.filesize import decimal
+from rich.markup import escape
 
 from pepsflow.train.iPEPS_reader import iPEPSReader
+import pepsflow.optimize
 
 # fmt: off
 
@@ -22,15 +31,42 @@ def data(ctx, folder: str, concise: bool):
     List the data files in the data folder.
     """
     if ctx.invoked_subcommand is None:
-        for dirpath, dirnames, filenames in os.walk("data"):
-            level = dirpath.replace("data", '').count(os.sep)
-            indent = ' ' * 2 * level
-            if folder is None or os.path.basename(dirpath) == folder:
-                print(f'{indent}/{os.path.basename(dirpath)}')
-                subindent = ' ' * 2 * (level + 1)
-                if not concise or folder is not None:
-                    for filename in filenames:
-                        print(f'{subindent}{filename}')
+        directory = pathlib.Path("data", folder) if folder else pathlib.Path("data")
+        tree = Tree(
+        f":open_file_folder: {directory}",
+        )
+        walk_directory(pathlib.Path(directory), tree, concise)
+        print(tree)
+
+
+
+def walk_directory(directory: pathlib.Path, tree: Tree, concise) -> None:
+    """Recursively build a Tree with directory contents."""
+    # Sort dirs first then by filename
+    paths = sorted(
+        pathlib.Path(directory).iterdir(),
+        key=lambda path: (path.is_file(), path.name.lower()),
+    )
+    for path in paths:
+        # Remove hidden files
+        if path.name.startswith("."):
+            continue
+        if path.is_dir():
+            style = "dim" if path.name.startswith("__") else ""
+            branch = tree.add(
+                f"[bold]:open_file_folder: {escape(path.name)}",
+                style=style,
+                guide_style=style,
+            )
+            walk_directory(path, branch, concise)
+        elif not concise:
+            text_filename = Text(path.name)
+            file_size = path.stat().st_size
+            text_filename.append(f" ({decimal(file_size)})", "blue")
+            icon = "🐍 " if path.suffix == ".py" else "📄 "
+            tree.add(Text(icon) + text_filename)
+
+
 
 @click.group(invoke_without_command=True)
 @click.pass_context
@@ -39,21 +75,16 @@ def params(ctx):
     Show the current parameters for the optimization of the iPEPS tensor network.
     """
     if ctx.invoked_subcommand is None:
-        with open("src/pepsflow/run.sh", 'r') as file:
-            lines = file.readlines()
-        print("")
-        in_param_section = False
-        for line in lines:
-            stripped_line = line.strip()
-            if stripped_line.startswith("# START PARAMS"):
-                in_param_section = True
-                continue
-            elif stripped_line.startswith("# END PARAMS"):
-                if in_param_section:
-                    break
-            if in_param_section:
-                print(stripped_line)
-        print("")
+        config = configparser.ConfigParser()
+        config.read("src/pepsflow/optimize.cfg")
+        console = Console()
+        table = Table(title="Optimization parameters", title_justify="center", box=box.MINIMAL_DOUBLE_HEAD)
+        table.add_column("Parameter", no_wrap=True)
+        table.add_column("Value", style="green")
+        for key, value in config['PARAMETERS'].items():
+            table.add_row(key, value)
+        console.print(table)
+
 
 cli.add_command(data)
 cli.add_command(params)
@@ -61,16 +92,9 @@ cli.add_command(params)
 @params.command()
 def optimize():
     """
-    Optimize the iPEPS tensor network with the specified parameters.
+    Optimize the iPEPS tensor network with the specified parameters in the configuration file.
     """
-    # Fix the line endings in the run.sh file to Unix format
-    run_file = "src/pepsflow/run.sh"
-    with open(run_file, 'r', newline='') as f:
-        script_content = f.read().replace('\r\n', '\n') 
-    with open(run_file, 'w', newline='') as f:
-        f.write(script_content)
-
-    subprocess.run(["bash", run_file])
+    pepsflow.optimize.optimize()
 
 
 @params.command()
@@ -78,7 +102,7 @@ def optimize():
 @click.option("--d", type=int, help="Bulk bond dimension of the iPEPS")
 @click.option("-df","--data_folder", type=str, help="Folder containing iPEPS models")
 @click.option("--gpu/--no-gpu", type=bool, help="Run the model on the GPU if available")
-@click.option("--lam", type=float, multiple=True, help="Value(s) of the parameter lambda in the tranverse-field Ising model")
+@click.option("--lam", type=str, help="Comma separated list of values of the parameter lambda in the tranverse-field Ising model")
 @click.option("--max_iter", type=int, help="Maximum number of iterations for the optimizer")
 @click.option("--runs", type=int, help="Number of runs to train the model. Applies to random initialization. The program will choose the best model based on the lowest energy.")
 @click.option("-lr","--learning_rate", type=float, help="Learning rate for the optimizer")
@@ -90,27 +114,19 @@ def set(**args):
     """
     Set specific parameters for the optimization of the iPEPS tensor network.
     """
-    with open("src/pepsflow/run.sh", 'r') as f:
-        script_content = f.read()
+    config = configparser.ConfigParser()
+    file = "src/pepsflow/optimize.cfg"
+    config.read(file)    
 
     # Regular expression pattern to match parameters
     for param, value in args.items():
         if value is not None and value != ():
-            # Format for multiple values (like lam)
-            if param == 'lam' and isinstance(value, tuple):  # Check if 'lam' has multiple values
-                value_str = f"({ ' '.join(map(str, value)) })"
-            elif isinstance(value, bool):
-                value_str = 'true' if value else 'false'
-            else:
-                value_str = str(value)
-    
-            # Replace the existing parameter with the new value in the script content
-            script_content = re.sub(f"^{param}=[^\\n]*", f"{param}={value_str}", script_content, flags=re.MULTILINE)
+            if param == 'lam':
+                value = [float(x) for x in value.split(',')]
+            
+            config['PARAMETERS'][param] = str(value)
 
-
-    with open("src/pepsflow/run.sh", 'w') as f:
-        f.write(script_content)
-
+    config.write(open(file, 'w'))
 
 
 @data.command(context_settings={"ignore_unknown_options": True})
@@ -124,7 +140,7 @@ def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetizat
     Plot the observables of the iPEPS models.
     """
     plot_all = not any([magnetization, energy, correlation_length, gradient])
-   
+    
     if magnetization or plot_all:
         mag_figure, mag_ax = plt.subplots(figsize=(6, 4))
         mag_ax.set_ylabel(r"$\langle M_z \rangle$")
