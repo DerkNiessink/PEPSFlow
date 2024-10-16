@@ -16,7 +16,7 @@ click = "^8.1.7"
 rich = "^13.9.2"
 
 [tool.poetry.scripts]
-pepsflow = "pepsflow.cli:cli"
+pepsflow = "pepsflow.cli.main:cli"
 
 [build-system]
 requires = ["poetry-core"]
