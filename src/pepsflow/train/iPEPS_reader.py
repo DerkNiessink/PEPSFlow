@@ -6,88 +6,68 @@ from pepsflow.models.observables import Observables
 
 class iPEPSReader:
     """
-    Class to read iPEPS models from a folder.
+    Class to read an iPEPS model from a file.
 
     Args:
-        folder (str): Folder containing the iPEPS models.
+        file (str): File containing the iPEPS model.
     """
 
-    def __init__(self, folder: str):
-        self.folder = folder
-        self.filenames = os.listdir(folder)
-        self.iPEPS_models = [
-            torch.load(os.path.join(folder, fn), weights_only=False)
-            for fn in self.filenames
-        ]
+    def __init__(self, file: str):
+        self.iPEPS = torch.load(file, weights_only=False)
 
-    def get_lambdas(self) -> list:
+    def get_lam(self) -> float:
         """
-        Get the lambda values of the iPEPS models.
+        Get the lambda value of the iPEPS model.
 
         Returns:
-            list: List of lambda values.
+            float: Lambda value.
         """
-        return [iPEPS.lam for iPEPS in self.iPEPS_models]
+        return self.iPEPS.lam
 
-    def get_energies(self) -> list:
+    def get_energy(self) -> float:
         """
-        Get the energies of the iPEPS models.
-
-        Returns:
-            list: List of energies.
-        """
-        return [
-            iPEPS.forward()[0].detach().cpu().numpy() for iPEPS in self.iPEPS_models
-        ]
-
-    def get_magnetizations(self) -> list:
-        """
-        Get the magnetizations of the iPEPS models.
+        Get the energy of the iPEPS model.
 
         Returns:
-            list: List of magnetizations.
+            float: Energy of the iPEPS model.
         """
-        magnetizations = []
-        for iPEPS in self.iPEPS_models:
-            E, C, T = iPEPS.forward()
-            A = iPEPS.params[iPEPS.map]
-            magnetizations.append(abs(Observables.M(A, C, T)[2].detach().cpu().numpy()))
-        return magnetizations
+        return float(self.iPEPS.forward()[0].detach().cpu().numpy())
 
-    def get_correlations(self):
+    def get_magnetization(self) -> float:
         """
-        Get the correlations of the iPEPS models.
+        Get the magnetization of the iPEPS model.
 
         Returns:
-            list: List of correlations.
+            float: Magnetization of the iPEPS model.
         """
-        correlations = []
-        for iPEPS in self.iPEPS_models:
-            E, C, T = iPEPS.forward()
-            correlations.append(Observables.xi(T.detach()))
-        return correlations
+        E, C, T = self.iPEPS.forward()
+        A = self.iPEPS.params[self.iPEPS.map]
+        return float(abs(Observables.M(A, C, T)[2].detach().cpu().numpy()))
 
-    def get_losses(self, fn: str) -> list:
+    def get_correlation(self) -> float:
+        """
+        Get the correlation of the iPEPS model.
+
+        Returns:
+            float: Correlation of the iPEPS model.
+        """
+        E, C, T = self.iPEPS.forward()
+        return float(Observables.xi(T.detach()).cpu().numpy())
+
+    def get_losses(self) -> list[float]:
         """
         Get the losses of the iPEPS model.
-
-        Args:
-            fn (str): Filename of the iPEPS model file.
 
         Returns:
             list: List of losses.
         """
-        return torch.load(os.path.join(self.folder, fn), weights_only=False).losses
+        return self.iPEPS.losses
 
-    def get_iPEPS_state(self, fn: str) -> torch.Tensor:
+    def get_iPEPS_state(self) -> torch.Tensor:
         """
-        Get the iPEPS state from a file.
-
-        Args:
-            fn (str): Filename of the iPEPS model file.
+        Get the iPEPS state from the iPEPS model.
 
         Returns:
-            tuple[torch.Tensor, torch.Tensor]: Parameters and mapping of the iPEPS model.
+            torch.Tensor: iPEPS state
         """
-        iPEPS = torch.load(os.path.join(self.folder, fn), weights_only=False)
-        return iPEPS.params[iPEPS.map]
+        return self.iPEPS.params[self.iPEPS.map]

@@ -4,12 +4,12 @@ import os
 from rich.tree import Tree
 from rich import print
 import pathlib
-from rich.text import Text
-from rich.filesize import decimal
-from rich.markup import escape
 import shutil
+from rich.console import Console
+from rich.table import Table
 
 from pepsflow.train.iPEPS_reader import iPEPSReader
+from pepsflow.cli.utils import get_observables, walk_directory
 
 # fmt: off
 
@@ -29,33 +29,6 @@ def data(ctx, folder: str, concise: bool):
         )
         walk_directory(pathlib.Path(directory), tree, concise)
         print(tree)
-
-
-def walk_directory(directory: pathlib.Path, tree: Tree, concise) -> None:
-    """Recursively build a Tree with directory contents."""
-    # Sort dirs first then by filename
-    paths = sorted(
-        pathlib.Path(directory).iterdir(),
-        key=lambda path: (path.is_file(), path.name.lower()),
-    )
-    for path in paths:
-        # Remove hidden files
-        if path.name.startswith("."):
-            continue
-        if path.is_dir():
-            style = "dim" if path.name.startswith("__") else ""
-            branch = tree.add(
-                f"[bold]:open_file_folder: {escape(path.name)}",
-                style=style,
-                guide_style=style,
-            )
-            walk_directory(path, branch, concise)
-        elif not concise:
-            text_filename = Text(path.name)
-            file_size = path.stat().st_size
-            text_filename.append(f" ({decimal(file_size)})", "blue")
-            icon = "🐍 " if path.suffix == ".py" else "📄 "
-            tree.add(Text(icon) + text_filename)
 
 
 @data.command(context_settings={"ignore_unknown_options": True})
@@ -86,21 +59,19 @@ def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetizat
         xi_ax.set_xlabel(r"$\lambda$")
 
     for folder in folders:
-        reader = iPEPSReader(os.path.join("data", folder))
-        lambda_values = reader.get_lambdas()
+        lambdas, magnetizations, energies, correlations, losses = get_observables(folder, magnetization, energy, correlation_length, gradient)
 
         if magnetization or plot_all:
-            mag_ax.plot(lambda_values, reader.get_magnetizations(), "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
+            mag_ax.plot(lambdas, magnetizations, "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
 
         if energy or plot_all:
-            en_ax.plot(lambda_values, reader.get_energies(), "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
+            en_ax.plot(lambdas, energies, "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
 
         if correlation_length or plot_all:
-            xi_ax.plot(lambda_values, reader.get_correlations(), "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
+            xi_ax.plot(lambdas, correlations(), "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
 
         if gradient:
             grad_figure, grad_ax = plt.subplots(figsize=(6, 4))
-            losses = reader.get_losses(gradient)
             grad_ax.plot(range(len(losses)), losses, "v-", markersize=4, linewidth=0.5, label=folder)
             grad_ax.set_ylabel("$E$")
             grad_ax.set_xlabel("Epoch")
@@ -134,19 +105,6 @@ def rename(old: str, new: str):
 
 
 @data.command()
-@click.argument("folder", type=click.Path())
-@click.option("-f", "--file", default=None, type=click.Path(), help="File containing data, if not specified, all files in the folder are printed.")
-def state(folder: click.Path, file: click.Path):
-    """
-    Print the tensors of the iPEPS model in the specified folder.
-    """
-    reader = iPEPSReader(os.path.join("data", folder))
-    filenames = [file] if file else reader.filenames
-    for f in filenames:
-        print(reader.get_iPEPS_state(f))
-
-
-@data.command()
 @click.argument("path", type=click.Path())
 def remove(path: click.Path):
     """
@@ -166,3 +124,64 @@ def remove(path: click.Path):
         print(f"\nRemoved [red]{path}")
     else:
         print("\nCancelled") 
+
+
+
+@data.command()
+@click.argument("folder", type=click.Path())
+@click.option("-f", "--file", default=None, type=click.Path(), help="File containing data, if not specified, all files in the folder are printed.")
+@click.option("-s", "--state", is_flag=True, default=False, help="Print the iPEPS state.")
+@click.option("-l", "--lam", is_flag=True, default=False, help="Print the lambda value.")
+@click.option("-e", "--energy", is_flag=True, default=False, help="Print the energy.")
+@click.option("-m", "--magnetization", is_flag=True, default=False, help="Print the magnetization.")
+@click.option("-xi", "--correlation", is_flag=True, default=False, help="Print the correlation.")
+@click.option("-o", "--losses", is_flag=True, default=False, help="Print the losses.")
+def info(folder: click.Path, file: click.Path, state: bool, lam: bool, energy: bool, magnetization: bool, correlation: bool, losses: bool):
+    """
+    Print the tensors of the iPEPS model in the specified folder.
+    """
+    console = Console()
+    console.print("\n")
+    table = Table(title=f"iPEPS Information for Folder: {folder}")
+    
+    print_all = not any([lam, energy, magnetization, correlation, losses, state])
+
+    table.add_column("Filename", justify="center", no_wrap=True, style="blue bold")
+    if lam or print_all:
+        table.add_column("Lambda", justify="right")
+    if energy or print_all:
+        table.add_column("Energy", justify="right")
+    if magnetization or print_all:
+        table.add_column("Magnetization", justify="right")
+    if correlation or print_all:
+        table.add_column("Correlation", justify="right")
+    # Table becomes too wide if losses and state are printed
+    if losses:
+        table.add_column("Losses", justify="right", no_wrap=True)
+    if state:
+        table.add_column("State", justify="right", no_wrap=True)
+
+    filenames = [file] if file else os.listdir(os.path.join("data", folder))
+    
+    for file in filenames:
+        reader = iPEPSReader(os.path.join("data", folder, file))
+        row = [file]
+        
+        if lam or print_all:
+            row.append(f"{reader.get_lam()}")
+        if energy or print_all:
+            row.append(f"{reader.get_energy()}")
+        if magnetization or print_all:
+            row.append(f"{reader.get_magnetization()}")
+        if correlation or print_all:
+            row.append(f"{reader.get_correlation()}")
+        # Table becomes too wide if losses and state are printed
+        if losses:
+            row.append(f"{reader.get_losses()}")
+        if state:
+            row.append(f"{reader.get_iPEPS_state()}")
+
+        table.add_row(*row)
+
+    console.print(table)
+    console.print("\n")
