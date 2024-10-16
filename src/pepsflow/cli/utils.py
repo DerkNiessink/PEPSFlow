@@ -28,7 +28,7 @@ def get_observables(
     """
     magnetizations, energies, correlations, lambdas = [], [], [], []
     for file in os.listdir(os.path.join("data", folder)):
-        reader = iPEPSReader(file)
+        reader = iPEPSReader(os.path.join("data", folder, file))
         lambdas.append(reader.get_lam())
         if magnetization:
             magnetizations.append(reader.get_magnetization())
@@ -38,7 +38,7 @@ def get_observables(
             correlations.append(reader.get_correlation())
 
     if gradient:
-        reader = iPEPSReader(gradient)
+        reader = iPEPSReader(os.path.join("data", folder, gradient))
         losses = reader.get_losses()
 
     return lambdas, magnetizations, energies, correlations, losses
