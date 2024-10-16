@@ -7,6 +7,7 @@ import pathlib
 import shutil
 from rich.console import Console
 from rich.table import Table
+from rich.box import Box
 
 from pepsflow.train.iPEPS_reader import iPEPSReader
 from pepsflow.cli.utils import get_observables, walk_directory
