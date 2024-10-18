@@ -45,8 +45,9 @@ class iPEPSTrainer:
         best_model = None
 
         with Progress() as progress:
+            param = self.args["var_param"]
             task = progress.add_task(
-                f"[red]Training iPEPS (λ = {self.args['lam']})",
+                f"[red]Training iPEPS ({param} = {self.args[param]})",
                 total=self.args["runs"] * self.args["epochs"],
             )
 
@@ -76,10 +77,9 @@ class iPEPSTrainer:
         model = iPEPS(self.args["chi"], self.args["lam"], H, params, map, losses).to(
             self.device
         )
+        model.train()
         optimizer = torch.optim.LBFGS(
-            model.parameters(),
-            lr=self.args["learning_rate"],
-            max_iter=self.args["max_iter"],
+            model.parameters(), lr=self.args["learning_rate"], max_iter=1
         )
 
         def train() -> torch.Tensor:
@@ -91,15 +91,18 @@ class iPEPSTrainer:
             loss.backward()
             return loss
 
-        # Append the initial loss to the losses list
-        with torch.no_grad():
-            model.losses.append(model.forward()[0].item())
-
         for _ in range(self.args["epochs"]):
             loss = optimizer.step(train)
+            with torch.no_grad():
+                model.params.data.clamp_(min=-1, max=1)
+
             model.losses.append(loss.item())
             # Update the progress bar
             progress.update(task, advance=1)
+
+        # Save the final state of the model
+        with torch.no_grad():
+            model.losses.append(model.forward()[0].item())
 
         return model
 
