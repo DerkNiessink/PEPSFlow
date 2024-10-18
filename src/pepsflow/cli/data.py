@@ -7,7 +7,7 @@ import pathlib
 import shutil
 from rich.console import Console
 from rich.table import Table
-from rich.box import Box
+from rich import box
 
 from pepsflow.train.iPEPS_reader import iPEPSReader
 from pepsflow.cli.utils import get_observables, walk_directory
@@ -69,7 +69,7 @@ def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetizat
             en_ax.plot(lambdas, energies, "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
 
         if correlation_length or plot_all:
-            xi_ax.plot(lambdas, correlations(), "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
+            xi_ax.plot(lambdas, correlations, "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
 
         if gradient:
             grad_figure, grad_ax = plt.subplots(figsize=(6, 4))
@@ -127,7 +127,6 @@ def remove(path: click.Path):
         print("\nCancelled") 
 
 
-
 @data.command()
 @click.argument("folder", type=click.Path())
 @click.option("-f", "--file", default=None, type=click.Path(), help="File containing data, if not specified, all files in the folder are printed.")
@@ -139,49 +138,31 @@ def remove(path: click.Path):
 @click.option("-o", "--losses", is_flag=True, default=False, help="Print the losses.")
 def info(folder: click.Path, file: click.Path, state: bool, lam: bool, energy: bool, magnetization: bool, correlation: bool, losses: bool):
     """
-    Print the tensors of the iPEPS model in the specified folder.
+    Print the information of the iPEPS models in the specified folder.
     """
     console = Console()
     console.print("\n")
-    table = Table(title=f"iPEPS Information for Folder: {folder}")
+    table = Table(title=f"iPEPS Information for Folder: {folder}", box=box.MINIMAL_DOUBLE_HEAD, show_lines=True)
     
     print_all = not any([lam, energy, magnetization, correlation, losses, state])
 
-    table.add_column("Filename", justify="center", no_wrap=True, style="blue bold")
-    if lam or print_all:
-        table.add_column("Lambda", justify="right")
-    if energy or print_all:
-        table.add_column("Energy", justify="right")
-    if magnetization or print_all:
-        table.add_column("Magnetization", justify="right")
-    if correlation or print_all:
-        table.add_column("Correlation", justify="right")
-    # Table becomes too wide if losses and state are printed
-    if losses:
-        table.add_column("Losses", justify="right", no_wrap=True)
-    if state:
-        table.add_column("State", justify="right", no_wrap=True)
+    table.add_column("Filename", justify="right", no_wrap=True, style="blue bold")
+    if energy or print_all: table.add_column("Energy", justify="right")
+    if magnetization or print_all: table.add_column("Magnetization", justify="right")
+    if correlation or print_all: table.add_column("Correlation", justify="right")
+    if losses: table.add_column("Losses", justify="left")
+    if state: table.add_column("State", justify="left")
 
     filenames = [file] if file else os.listdir(os.path.join("data", folder))
     
-    for file in filenames:
-        reader = iPEPSReader(os.path.join("data", folder, file))
-        row = [file]
-        
-        if lam or print_all:
-            row.append(f"{reader.get_lam()}")
-        if energy or print_all:
-            row.append(f"{reader.get_energy()}")
-        if magnetization or print_all:
-            row.append(f"{reader.get_magnetization()}")
-        if correlation or print_all:
-            row.append(f"{reader.get_correlation()}")
-        # Table becomes too wide if losses and state are printed
-        if losses:
-            row.append(f"{reader.get_losses()}")
-        if state:
-            row.append(f"{reader.get_iPEPS_state()}")
-
+    for f in filenames:
+        reader = iPEPSReader(os.path.join("data", folder, f))
+        row = [f]
+        if energy or print_all: row.append(f"{reader.get_energy()}")
+        if magnetization or print_all: row.append(f"{reader.get_magnetization()}")
+        if correlation or print_all: row.append(f"{reader.get_correlation()}")
+        if losses: row.append(f"{reader.get_losses()}")
+        if state: row.append(f"{reader.get_iPEPS_state()}")
         table.add_row(*row)
 
     console.print(table)

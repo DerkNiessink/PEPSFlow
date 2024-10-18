@@ -20,7 +20,7 @@ def params(ctx):
         config.read("src/pepsflow/optimize.cfg")
         console = Console()
         table = Table(title="Optimization parameters", title_justify="center", box=box.MINIMAL_DOUBLE_HEAD)
-        table.add_column("Parameter", no_wrap=True)
+        table.add_column("Parameter", no_wrap=True, justify="right")
         table.add_column("Value", style="green")
         for key, value in config['PARAMETERS'].items():
             table.add_row(key, value)
@@ -29,8 +29,8 @@ def params(ctx):
 
 @params.command()
 @click.option("--model", type=str, help="Model to optimize. Options are 'Ising' and 'Heisenberg'")
-@click.option("--chi", type=int, help="Environment bond dimension in the CTMRG algorithm")
-@click.option("--d", type=int, help="Bulk bond dimension of the iPEPS")
+@click.option("--chi", type=str, help="Comma separated list of values of the bond dimension chi of the CTM algorithm")
+@click.option("--d", type=str, help="Comma separated list of values of the bulk dimension d of the iPEPS tensor")
 @click.option("-df","--data_folder", type=str, help="Folder containing iPEPS models")
 @click.option("--gpu/--no-gpu", type=bool, help="Run the model on the GPU if available")
 @click.option("--lam", type=str, help="Comma separated list of values of the parameter lambda in the tranverse-field Ising model")
@@ -52,8 +52,11 @@ def set(**args):
     # Regular expression pattern to match parameters
     for param, value in args.items():
         if value is not None and value != ():
-            if param == 'lam':
-                value = [float(x) for x in value.split(',')]
+            # Variational parameters
+            if param == 'lam' and ',' in value:
+                value = [float(x) for x in value.split(',') if x]
+            if (param == 'chi' or param == 'd') and ',' in value:
+                value = [int(x) for x in value.split(',') if x]
             
             config['PARAMETERS'][param] = str(value)
 

@@ -26,7 +26,7 @@ def get_observables(
         correlation_length (bool): Compute the correlation length.
         gradient (str): Desired file to plot the gradient.
     """
-    magnetizations, energies, correlations, lambdas = [], [], [], []
+    magnetizations, energies, correlations, lambdas, losses = [], [], [], [], []
     for file in os.listdir(os.path.join("data", folder)):
         reader = iPEPSReader(os.path.join("data", folder, file))
         lambdas.append(reader.get_lam())
