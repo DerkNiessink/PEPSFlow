@@ -14,13 +14,13 @@ class TestiPEPSTrainer:
             "data_fn": None,
             "gpu": False,
             "lam": lam,
-            "max_iter": 30,
             "runs": 5,
             "learning_rate": 1,
-            "epochs": 10,
+            "epochs": 20,
             "use_prev": False,
             "perturbation": 0.0,
             "threads": 1,
+            "var_param": "lam",
         }
         trainer = iPEPSTrainer(args)
         trainer.exe()

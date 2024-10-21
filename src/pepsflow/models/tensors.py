@@ -8,25 +8,6 @@ from typing import Sequence
 class Tensors:
 
     @staticmethod
-    def A_solution() -> torch.Tensor:
-        """
-        Returns the solution state of the Ising model. The legs correspond
-        to (down, left, top, right, physical)
-        """
-        return torch.from_numpy(
-            np.loadtxt("solution_state.txt").reshape(2, 2, 2, 2, 2)
-        ).double()
-
-    @staticmethod
-    def a_solution() -> torch.Tensor:
-        """
-        Returns contraction of the solution state of the Ising model.
-        """
-        A = torch.from_numpy(
-            np.loadtxt("solution_state.txt").reshape(2, 2, 2, 2, 2)
-        ).double()
-        return torch.tensordot(A, A, dims=([4], [4])).reshape(4, 4, 4, 4)
-
     def a(A: torch.Tensor) -> torch.Tensor:
         """
         Returns the contraction of the given rank 5 tensor A.
@@ -45,24 +26,6 @@ class Tensors:
         )
         a = a.permute(0, 4, 1, 5, 2, 6, 3, 7).contiguous().view(d**2, d**2, d**2, d**2)
         return a / a.norm()
-
-    def C_init(a: torch.Tensor) -> torch.Tensor:
-        """
-        Returns the initial corner tensor for the CTM algorithm.
-
-        Args:
-            a (torch.Tensor): Rank 4 tensor of the PEPS state (up, left, down, right).
-        """
-        return torch.einsum("abcd ->cd", a)
-
-    def T_init(a: torch.Tensor) -> torch.Tensor:
-        """
-        Returns the initial edge tensor for the CTM algorithm.
-
-        Args:
-            a (torch.Tensor): Rank 4 tensor of the PEPS state (up, left, down, right).
-        """
-        return torch.einsum("abcd -> acd", a)
 
     @staticmethod
     def H_Ising(
