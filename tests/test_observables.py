@@ -3,7 +3,7 @@ import torch
 import numpy as np
 
 from pepsflow.models.observables import Observables
-from pepsflow.models.CTM_alg_classic import CtmAlg
+from pepsflow.models.CTM_alg import CtmAlg
 from pepsflow.models.tensors import Tensors
 
 

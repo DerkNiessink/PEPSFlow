@@ -1,6 +1,8 @@
 import time
 import torch
+import torch.backends.opt_einsum
 from torch.nn.functional import normalize
+
 
 from pepsflow.models.tensors import Methods
 from pepsflow.models.svd import CustomSVD
@@ -35,7 +37,7 @@ class CtmAlg:
         self.sv_sums = [0]
         self.trunc_errors = []
 
-        self.C = torch.einsum("abcd ->cd", a).to(a.device) if C_init is None else C_init
+        self.C = torch.einsum("abcd->cd", a).to(a.device) if C_init is None else C_init
         self.T = torch.einsum("abcd->acd", a).to(a.device) if T_init is None else T_init
 
     def exe(self, tol=1e-3, count=10, max_steps=10000):

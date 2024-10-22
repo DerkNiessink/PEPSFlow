@@ -2,8 +2,9 @@ import time
 import torch
 from torch.nn.functional import normalize
 
-from pepsflow.models.tensors import Tensors, Methods
+from pepsflow.models.tensors import Methods
 from pepsflow.models.svd import CustomSVD
+import opt_einsum as oe
 
 norm = Methods.normalize
 symm = Methods.symmetrize
@@ -36,14 +37,14 @@ class CtmAlgSplit:
         self.sv_sums = [0]
         self.trunc_errors = []
 
-        # Initialize the corner tensor
+        # Initialize the corner tensor, shape: (chi, chi)
         if C_init is None:
             self.C = torch.einsum("abcde,bafge->cdfg", A, A).reshape(
                 self.d**2, self.d**2
             )
         else:
             self.C = C_init
-        # Initialize the edge tensor
+        # Initialize the edge tensor,
         if T_init is None:
             self.T = torch.einsum("abcde,dfghe->afbgch", A, A).reshape(
                 self.d**2, self.d, self.d, self.d**2
@@ -53,7 +54,7 @@ class CtmAlgSplit:
 
     def exe(self, tol=1e-3, count=10, max_steps=10000):
         """
-        Execute the CTM algorithm. For each step, an `a` tensor is inserted,
+        Execute the CTM algorithm. For each step, two `A` tensors are inserted,
         from which a new edge and corner tensor is evaluated. The new edge
         and corner tensors are normalized and symmetrized every step.
 
@@ -103,9 +104,17 @@ class CtmAlgSplit:
         evaluate the `M`, i.e. the new contracted corner with the inserted `a`
         tensor.
 
-        Returns a tensor of the contracted corner of shape (chi, d, chi, d).
+        Returns a tensor of the contracted corner of shape (chi, d, d, d, d, chi).
         """
-        return torch.einsum("ab,cad,bef,gdfh->cgeh", self.C, self.T, self.T, self.a)
+        einsum_string = "ab,acde,bfgh,ifcjk,igdlm->ejlkmh"
+        path_info = oe.contract_path(
+            einsum_string, self.C, self.T, self.T, self.A, self.A
+        )
+        print(path_info[1])
+
+        return torch.einsum(
+            "ab,acde,bfgh,ifcjk,igdlm->ejlkmh", self.C, self.T, self.T, self.A, self.A
+        )
 
     def new_T(self, U: torch.Tensor) -> torch.Tensor:
         """

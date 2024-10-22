@@ -14,15 +14,15 @@ class TestiPEPSTrainer:
             "data_fn": None,
             "gpu": False,
             "lam": lam,
-            "runs": 5,
-            "learning_rate": 1,
+            "runs": 3,
+            "learning_rate": 0.5,
             "epochs": 20,
-            "use_prev": False,
+            "warmup_steps": 200,
             "perturbation": 0.0,
             "threads": 1,
             "var_param": "lam",
         }
         trainer = iPEPSTrainer(args)
         trainer.exe()
-        E, _, _ = trainer.data.forward()
-        assert float(E.detach().numpy()) == pytest.approx(E_exp, abs=1e-3)
+        E = trainer.data.losses[-1]
+        assert E == pytest.approx(E_exp, abs=1e-3)

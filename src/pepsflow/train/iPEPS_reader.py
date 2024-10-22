@@ -41,22 +41,7 @@ class iPEPSReader:
         Returns:
             torch.Tensor: iPEPS state
         """
-        with torch.no_grad():
-            return self.iPEPS.params[self.iPEPS.map]
-
-    @property
-    def forward_results(self):
-        """
-        Cache the forward results of the iPEPS model. To avoid recomputing the
-        forward results.
-
-        Returns:
-            tuple: Forward results of the iPEPS model (energy, corner, edge).
-        """
-        if not hasattr(self, "_forward_results"):
-            with torch.no_grad():
-                self._forward_results = self.iPEPS.forward()
-        return self._forward_results
+        return self.iPEPS.params[self.iPEPS.map]
 
     def get_energy(self) -> float:
         """
@@ -65,8 +50,7 @@ class iPEPSReader:
         Returns:
             float: Energy of the iPEPS model.
         """
-        E, C, T = self.forward_results
-        return float(E)
+        return self.iPEPS.losses[-1]
 
     def get_magnetization(self) -> float:
         """
@@ -75,10 +59,8 @@ class iPEPSReader:
         Returns:
             float: Magnetization of the iPEPS model.
         """
-        E, C, T = self.forward_results
-        with torch.no_grad():
-            A = self.iPEPS.params[self.iPEPS.map]
-            return float(abs(Observables.M(A, C, T)[2]))
+        A = self.iPEPS.params[self.iPEPS.map]
+        return float(abs(Observables.M(A, self.iPEPS.C, self.iPEPS.T)[2]))
 
     def get_correlation(self) -> float:
         """
@@ -87,5 +69,4 @@ class iPEPSReader:
         Returns:
             float: Correlation of the iPEPS model.
         """
-        E, C, T = self.forward_results
-        return float(Observables.xi(T))
+        return float(Observables.xi(self.iPEPS.T))

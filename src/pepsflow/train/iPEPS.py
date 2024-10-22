@@ -1,6 +1,6 @@
 import torch
 
-from pepsflow.models.CTM_alg_classic import CtmAlg
+from pepsflow.models.CTM_alg import CtmAlg
 from pepsflow.models.tensors import Tensors
 from pepsflow.models.observables import Observables
 
@@ -12,13 +12,9 @@ class iPEPS(torch.nn.Module):
     Args:
         chi (int): Bond dimension of the edge and corner tensors.
         H (torch.Tensor): Hamiltonian operator for the system.
-        Mpx (torch.Tensor): X Pauli operator.
-        Mpy (torch.Tensor): Y Pauli operator.
-        Mpz (torch.Tensor): Z Pauli operator.
+        lam (float): Regularization parameter for the iPEPS tensor.
         params (torch.Tensor): Parameters to optimize.
-        maps (torch.Tensor): indices of the parameters to map to the iPEPS tensor.
-        C (torch.Tensor): Initial corner tensor for the CTM algorithm.
-        T (torch.Tensor): Initial edge tensor for the CTM algorithm.
+        map (torch.Tensor): indices of the parameters to map to the iPEPS tensor.
     """
 
     def __init__(
@@ -28,7 +24,6 @@ class iPEPS(torch.nn.Module):
         H: torch.Tensor,
         params: torch.Tensor,
         map: torch.Tensor,
-        losses: list[float],
     ):
         super(iPEPS, self).__init__()
         self.chi = chi
@@ -36,9 +31,13 @@ class iPEPS(torch.nn.Module):
         self.H = H
         self.params = torch.nn.Parameter(params)
         self.map = map
-        self.losses = losses
+        self.losses = []
+        self.C = None
+        self.T = None
 
-    def forward(self) -> torch.Tensor:
+    def forward(
+        self, C: torch.Tensor, T: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Compute the energy of the iPEPS tensor network by performing the following steps:
         1. Map the parameters to a symmetric rank-5 iPEPS tensor.
@@ -53,9 +52,9 @@ class iPEPS(torch.nn.Module):
         # Map the parameters to a symmetric rank-5 iPEPS tensor
         Asymm = self.params[self.map]
 
-        # Execute the CTM algorithm to compute corner (C) and edge (T) tensors
-        alg = CtmAlg(Tensors.a(Asymm), self.chi)
-        alg.exe()
+        # Do one step of the CTM algorithm
+        alg = CtmAlg(Tensors.a(Asymm), self.chi, C, T)
+        alg.exe(1)
 
         # Compute the energy (loss) using the Hamiltonian, corner, and edge tensors
         loss = Observables.E(Asymm, self.H, alg.C, alg.T)

@@ -1,5 +1,6 @@
 from pepsflow.models.tensors import Tensors, Methods
 from pepsflow.train.iPEPS import iPEPS
+from pepsflow.models.CTM_alg import CtmAlg
 
 import torch
 import os
@@ -71,38 +72,40 @@ class iPEPSTrainer:
         """
         Train the iPEPS model for the given parameters.
         """
-        params, map, H, losses = self._init_tensors()
+        params, map, H, losses, C, T = self._init_tensors()
+        chi, lam, lr = self.args["chi"], self.args["lam"], self.args["learning_rate"]
 
         # Initialize the iPEPS model and optimizer
-        model = iPEPS(self.args["chi"], self.args["lam"], H, params, map, losses).to(
-            self.device
-        )
-        model.train()
-        optimizer = torch.optim.LBFGS(
-            model.parameters(), lr=self.args["learning_rate"], max_iter=1
-        )
+        model = iPEPS(chi, lam, H, params, map).to(self.device)
+        model.losses = losses
+        optimizer = torch.optim.LBFGS(model.parameters(), lr, 1)
 
         def train() -> torch.Tensor:
             """
             Train the parameters of the iPEPS model.
             """
+            nonlocal C, T
             optimizer.zero_grad()
-            loss, _, _ = model.forward()
+            loss, C, T = model.forward(C, T)
             loss.backward()
+
+            C = C.detach()
+            T = T.detach()
+
             return loss
 
         for _ in range(self.args["epochs"]):
             loss = optimizer.step(train)
             with torch.no_grad():
                 model.params.data.clamp_(min=-1, max=1)
+                model.losses.append(loss.item())
 
-            model.losses.append(loss.item())
             # Update the progress bar
             progress.update(task, advance=1)
 
-        # Save the final state of the model
-        with torch.no_grad():
-            model.losses.append(model.forward()[0].item())
+        # Save final corner and edge tensors
+        model.C = C
+        model.T = T
 
         return model
 
@@ -139,13 +142,17 @@ class iPEPSTrainer:
         if self.data_prev:
             params, map = self.data_prev.params, self.data_prev.map
             losses = self.data_prev.losses
-        # Generate a random symmetric A tensor.
+            C, T = self.data_prev.C, self.data_prev.T
+        # Generate a random symmetric A tensor and do CTM warmup steps
         else:
             A = Tensors.A_random_symmetric(self.args["d"]).to(self.device)
             params, map = torch.unique(A, return_inverse=True)
+            alg = CtmAlg(a=Tensors.a(A), chi=self.args["chi"])
+            alg.exe(max_steps=self.args["warmup_steps"])
+            C, T = alg.C, alg.T
 
         params = Methods.perturb(params, self.args["perturbation"])
-        return params, map, H, losses
+        return params, map, H, losses, C, T
 
     def save_data(self, fn: str = None) -> None:
         """
