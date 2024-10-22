@@ -32,23 +32,20 @@ class CtmAlgSplit:
 
         self.A = A
         self.max_chi = chi
-        self.d = A.size(0)
+        d = A.size(0)
+        self.d = d
         self.chi = self.d if C_init is None else chi
         self.sv_sums = [0]
         self.trunc_errors = []
 
         # Initialize the corner tensor, shape: (chi, chi)
         if C_init is None:
-            self.C = torch.einsum("abcde,bafge->cdfg", A, A).reshape(
-                self.d**2, self.d**2
-            )
+            self.C = torch.einsum("aabbcdef->cdef", a).view(d**2, d**2)
         else:
             self.C = C_init
         # Initialize the edge tensor,
         if T_init is None:
-            self.T = torch.einsum("abcde,dfghe->afbgch", A, A).reshape(
-                self.d**2, self.d, self.d, self.d**2
-            )
+            self.T = torch.einsum("aabcdefg->bcdefg", a).view(d**2, d, d, d**2)
         else:
             self.T = T_init
 
@@ -94,6 +91,7 @@ class CtmAlgSplit:
         the new corner. Renormalize the new corner with the given `U` matrix.
 
         `U` (torch.Tensor): The renormalization tensor of shape (chi, d, chi).
+        `M` (torch.Tensor): The new corner tensor of shape (chi, d, chi, d).
 
         Returns a tensor of the new corner of shape (chi, chi)
         """
@@ -104,16 +102,10 @@ class CtmAlgSplit:
         evaluate the `M`, i.e. the new contracted corner with the inserted `a`
         tensor.
 
-        Returns a tensor of the contracted corner of shape (chi, d, d, d, d, chi).
+        Returns a tensor of the contracted corner of shape (chi x d, chi x d).
         """
-        einsum_string = "ab,acde,bfgh,ifcjk,igdlm->ejlkmh"
-        path_info = oe.contract_path(
-            einsum_string, self.C, self.T, self.T, self.A, self.A
-        )
-        print(path_info[1])
-
         return torch.einsum(
-            "ab,acde,bfgh,ifcjk,igdlm->ejlkmh", self.C, self.T, self.T, self.A, self.A
+            "ab,acde,bfgh,mfcij,mglkd->eikjlh", self.C, self.T, self.T, self.A, self.A
         )
 
     def new_T(self, U: torch.Tensor) -> torch.Tensor:
@@ -135,12 +127,11 @@ class CtmAlgSplit:
         is used for renormalization and the `s` matrix contains the singular
         values in descending order.
 
-        `M` (torch.Tensor): The new contracted corner tensor of shape (chi, d, chi, d).
+        `M` (torch.Tensor): The new contracted corner tensor of shape (chi x d, chi x d).
 
         Returns `s` and the renormalization tensor of shape (chi, d, chi) which is
         obtained by reshaping `U` in a rank-3 tensor and transposing.
         """
-
         # Reshape M in a matrix
         M = M.contiguous().view(self.chi * self.d, self.chi * self.d)
 
