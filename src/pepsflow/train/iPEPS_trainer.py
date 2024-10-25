@@ -28,9 +28,9 @@ class iPEPSTrainer:
             if args["data_fn"]
             else None
         )
-        self.init_pauli_operators()
+        self._init_pauli_operators()
 
-    def init_pauli_operators(self):
+    def _init_pauli_operators(self):
         self.sx = torch.Tensor([[0, 1], [1, 0]]).double().to(self.device)
         self.sz = torch.Tensor([[1, 0], [0, -1]]).double().to(self.device)
         self.sy = torch.Tensor([[0, -1], [1, 0]]).double().to(self.device)
@@ -51,16 +51,8 @@ class iPEPSTrainer:
                 f"[red]Training iPEPS ({param} = {self.args[param]})",
                 total=self.args["runs"] * self.args["epochs"],
             )
-
             for _ in range(self.args["runs"]):
-                # Catch the linalg error and retry with other random tensors
-                succes = False
-                while not succes:
-                    try:
-                        model = self._train_model(progress, task)
-                    except torch._C._LinAlgError:
-                        continue
-                    succes = True
+                model = self._train_model(progress, task)
 
                 # Update the best model based on the lowest energy
                 if not best_model or model.losses[-1] < best_model.losses[-1]:
@@ -72,77 +64,65 @@ class iPEPSTrainer:
         """
         Train the iPEPS model for the given parameters.
         """
-        params, map, H, losses, C, T = self._init_tensors()
+        checkpoint, map, losses = self._get_checkpoint()
+        H = self._get_hamiltonian()
         chi, lam, lr = self.args["chi"], self.args["lam"], self.args["learning_rate"]
+        epoch = self.args["start_epoch"] if self.data_prev else -1
 
-        # Initialize the iPEPS model and optimizer
+        # Perturb the parameters with the given perturbation
+        params = checkpoint["params"][epoch]
+        params = Methods.perturb(params, self.args["perturbation"])
+        checkpoint["params"][epoch] = params
+
         model = iPEPS(chi, lam, H, params, map).to(self.device)
-        model.losses = losses
-        optimizer = torch.optim.LBFGS(model.parameters(), lr, 1)
+
+        # If previous data was given, we start from the last checkpoint
+        model.checkpoints = checkpoint
+        model.losses = losses[: epoch + 1] if epoch != -1 else losses
+        C, T = model.checkpoints["C"][epoch], model.checkpoints["T"][epoch]
+
+        # Initialize the optimizer
+        ls = "strong_wolfe" if self.args["line_search"] else None
+        optimizer = torch.optim.LBFGS(model.parameters(), lr, 1, line_search_fn=ls)
 
         def train() -> torch.Tensor:
             """
-            Train the parameters of the iPEPS model.
+            Do one step in the CTM algorithm, compute the loss, and do the
+            backward pass where the gradients are computed.
             """
             nonlocal C, T
             optimizer.zero_grad()
             loss, C, T = model.forward(C, T)
             loss.backward()
-
-            C = C.detach()
-            T = T.detach()
-
+            C, T = C.detach(), T.detach()
             return loss
 
-        for _ in range(self.args["epochs"]):
+        for i in range(self.args["epochs"]):
             loss = optimizer.step(train)
-            with torch.no_grad():
-                model.params.data.clamp_(min=-1, max=1)
-                model.losses.append(loss.item())
-
+            model.losses.append(loss.item())
             # Update the progress bar
             progress.update(task, advance=1)
 
-        # Save final corner and edge tensors
+        # Save the final corner and edge tensors
         model.C = C
         model.T = T
 
         return model
 
-    def _init_tensors(
-        self,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def _get_checkpoint(self) -> dict:
         """
-        Initialize the tensors for the iPEPS model.
+        Get the checkpoint dictionary, the map of the parameters for the iPEPS model and the losses.
+        This is either initialized from the given data or generated randomly. The checkpoint
+        dictionary contains the corner and edge tensors and the parameters.
 
         Returns:
-            torch.Tensor: Parameters of the iPEPS model.
-            torch.Tensor: Mapping of the parameters to the iPEPS tensor.
-            torch.Tensor: Hamiltonian operator.
-            torch.Tensor: Corner tensor for the CTM algorithm.
-            torch.Tensor: Edge tensor for the CTM algorithm.
+            tuple: Checkpoint dictionary, the map of the parameters, and the losses.
         """
-        if self.args["model"] == "Heisenberg":
-            H = Tensors.H_Heisenberg(
-                lam=self.args["lam"],
-                sy=self.sy,
-                sz=self.sz,
-                sp=self.sp,
-                sm=self.sm,
-            ).to(self.device)
-        elif self.args["model"] == "Ising":
-            H = Tensors.H_Ising(
-                lam=self.args["lam"], sz=self.sz, sx=self.sx, I=self.I
-            ).to(self.device)
-        else:
-            raise ValueError("Invalid model type. Choose 'Heisenberg' or 'Ising'.")
-
-        losses = []
         # Use the corresponding state from the given data as the initial state.
         if self.data_prev:
-            params, map = self.data_prev.params, self.data_prev.map
+            checkpoint = self.data_prev.checkpoints
             losses = self.data_prev.losses
-            C, T = self.data_prev.C, self.data_prev.T
+            map = self.data_prev.map
         # Generate a random symmetric A tensor and do CTM warmup steps
         else:
             A = Tensors.A_random_symmetric(self.args["d"]).to(self.device)
@@ -150,9 +130,29 @@ class iPEPSTrainer:
             alg = CtmAlg(a=Tensors.a(A), chi=self.args["chi"])
             alg.exe(max_steps=self.args["warmup_steps"])
             C, T = alg.C, alg.T
+            losses = []
+            checkpoint = {"C": [C], "T": [T], "params": [params]}
 
-        params = Methods.perturb(params, self.args["perturbation"])
-        return params, map, H, losses, C, T
+        return checkpoint, map, losses
+
+    def _get_hamiltonian(self) -> torch.Tensor:
+        """
+        Get the Hamiltonian operator for the iPEPS model.
+
+        Returns:
+            torch.Tensor: Hamiltonian operator
+        """
+        if self.args["model"] == "Heisenberg":
+            H = Tensors.H_Heisenberg(
+                self.args["lam"], self.sy, self.sz, self.sp, self.sm
+            ).to(self.device)
+        elif self.args["model"] == "Ising":
+            H = Tensors.H_Ising(self.args["lam"], self.sz, self.sx, self.I).to(
+                self.device
+            )
+        else:
+            raise ValueError("Invalid model type. Choose 'Heisenberg' or 'Ising'.")
+        return H
 
     def save_data(self, fn: str = None) -> None:
         """
