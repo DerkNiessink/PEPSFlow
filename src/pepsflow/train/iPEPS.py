@@ -32,6 +32,7 @@ class iPEPS(torch.nn.Module):
         self.params = torch.nn.Parameter(params)
         self.map = map
         self.losses = []
+        self.checkpoints = {"C": [], "T": [], "params": []}
         self.C = None
         self.T = None
 
@@ -58,5 +59,10 @@ class iPEPS(torch.nn.Module):
 
         # Compute the energy (loss) using the Hamiltonian, corner, and edge tensors
         loss = Observables.E(Asymm, self.H, alg.C, alg.T)
+
+        # Save the intermediate tensors for restarts from a checkpoint
+        self.checkpoints["C"].append(alg.C.clone().detach())
+        self.checkpoints["T"].append(alg.T.clone().detach())
+        self.checkpoints["params"].append(self.params.clone().detach())
 
         return loss, alg.C, alg.T

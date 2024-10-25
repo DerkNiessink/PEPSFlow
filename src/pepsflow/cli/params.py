@@ -34,14 +34,15 @@ def params(ctx):
 @click.option("-df","--data_folder", type=str, help="Folder containing iPEPS models")
 @click.option("--gpu/--no-gpu", type=bool, help="Run the model on the GPU if available")
 @click.option("--lam", type=str, help="Comma separated list of values of the parameter lambda in the tranverse-field Ising model")
-@click.option("--max_iter", type=int, help="Maximum number of iterations for the optimizer")
 @click.option("--runs", type=int, help="Number of runs to train the model. Applies to random initialization. The program will choose the best model based on the lowest energy.")
 @click.option("-lr","--learning_rate", type=float, help="Learning rate for the optimizer")
 @click.option("--epochs", type=int, help="Maximum number of epochs to train the model")
 @click.option("-per", "--perturbation", type=float, help="Amount of perturbation to apply to the initial state")
 @click.option("-sf", "--save_folder", type=str, help="Folder to save the iPEPS model in.")
 @click.option("--threads", type=int, help="Number of threads to use for the optimization. Each thread runs on a separate CPU core.")
-@click.option("-gs", "--gradient_steps", type=int, help="The number of steps to perform in the CTM algorithm after which the gradient is computed each epoch.")
+@click.option("-ws", "--warmup_steps", type=int, help="Number of warmup steps to perform in the CTM algorithm before starting the optimization. This is only applicable if no previous data file is given.")
+@click.option("-ls/-no-ls", "--line_search/--no-line_search", type=bool, help="Use Wolfe line search in the LBFGS optimizer.")
+@click.option("-s", "--start_epoch", type=int, help="Epoch to start the optimization from. This is only applicable if a previous data file is given. If -1, the optimization starts from the last epoch.")
 def set(**args):
     """
     Set specific parameters for the optimization of the iPEPS tensor network.

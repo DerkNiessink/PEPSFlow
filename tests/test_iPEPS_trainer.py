@@ -21,6 +21,7 @@ class TestiPEPSTrainer:
             "perturbation": 0.0,
             "threads": 1,
             "var_param": "lam",
+            "line_search": False,
         }
         trainer = iPEPSTrainer(args)
         trainer.exe()
