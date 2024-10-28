@@ -2,6 +2,7 @@ import torch
 import os
 
 from pepsflow.models.observables import Observables
+from pepsflow.train.iPEPS import iPEPS
 
 
 class iPEPSReader:
@@ -13,10 +14,10 @@ class iPEPSReader:
     """
 
     def __init__(self, file: str):
-        self.iPEPS = torch.load(file, weights_only=False)
+        self.iPEPS: iPEPS = torch.load(file, weights_only=False)
         self.iPEPS.eval()
 
-    def get_lam(self) -> float:
+    def lam(self) -> float:
         """
         Get the lambda value of the iPEPS model.
 
@@ -25,7 +26,7 @@ class iPEPSReader:
         """
         return self.iPEPS.lam
 
-    def get_losses(self) -> list[float]:
+    def losses(self) -> list[float]:
         """
         Get the losses of the iPEPS model.
 
@@ -34,7 +35,16 @@ class iPEPSReader:
         """
         return self.iPEPS.losses
 
-    def get_iPEPS_state(self) -> torch.Tensor:
+    def gradient_norms(self) -> list[float]:
+        """
+        Get the gradient norms of the iPEPS model.
+
+        Returns:
+            list: List of gradient norms.
+        """
+        return self.iPEPS.gradient_norms
+
+    def iPEPS_state(self) -> torch.Tensor:
         """
         Get the iPEPS state from the iPEPS model.
 
@@ -43,7 +53,7 @@ class iPEPSReader:
         """
         return self.iPEPS.params[self.iPEPS.map]
 
-    def get_energy(self) -> float:
+    def energy(self) -> float:
         """
         Get the energy of the iPEPS model.
 
@@ -52,7 +62,7 @@ class iPEPSReader:
         """
         return self.iPEPS.losses[-1]
 
-    def get_magnetization(self) -> float:
+    def magnetization(self) -> float:
         """
         Get the magnetization of the iPEPS model.
 
@@ -62,7 +72,7 @@ class iPEPSReader:
         A = self.iPEPS.params[self.iPEPS.map]
         return float(abs(Observables.M(A, self.iPEPS.C, self.iPEPS.T)[2]))
 
-    def get_correlation(self) -> float:
+    def correlation(self) -> float:
         """
         Get the correlation of the iPEPS model.
 

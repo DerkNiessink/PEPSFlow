@@ -23,7 +23,7 @@ class iPEPSTrainer:
             "cuda:0" if args["gpu"] and torch.cuda.is_available() else "cpu"
         )
         self.data = None
-        self.data_prev = (
+        self.data_prev: iPEPS = (
             torch.load(args["data_fn"], map_location=self.device, weights_only=False)
             if args["data_fn"]
             else None
@@ -64,22 +64,16 @@ class iPEPSTrainer:
         """
         Train the iPEPS model for the given parameters.
         """
-        checkpoint, map, losses = self._get_checkpoint()
+
+        checkpoint, map, losses, epoch, norms = self._get_checkpoint()
         H = self._get_hamiltonian()
         chi, lam, lr = self.args["chi"], self.args["lam"], self.args["learning_rate"]
-        epoch = self.args["start_epoch"] if self.data_prev else -1
+        per = self.args["perturbation"]
 
-        # Perturb the parameters with the given perturbation
-        params = checkpoint["params"][epoch]
-        params = Methods.perturb(params, self.args["perturbation"])
-        checkpoint["params"][epoch] = params
-
-        model = iPEPS(chi, lam, H, params, map).to(self.device)
-
-        # If previous data was given, we start from the last checkpoint
-        model.checkpoints = checkpoint
-        model.losses = losses[: epoch + 1] if epoch != -1 else losses
-        C, T = model.checkpoints["C"][epoch], model.checkpoints["T"][epoch]
+        model = iPEPS(chi, lam, H, map, checkpoint, losses, epoch, per, norms).to(
+            self.device
+        )
+        C, T = model.get_edge_corner()
 
         # Initialize the optimizer
         ls = "strong_wolfe" if self.args["line_search"] else None
@@ -94,18 +88,21 @@ class iPEPSTrainer:
             optimizer.zero_grad()
             loss, C, T = model.forward(C, T)
             loss.backward()
-            C, T = C.detach(), T.detach()
             return loss
 
         for i in range(self.args["epochs"]):
             loss = optimizer.step(train)
-            model.losses.append(loss.item())
+
+            # Save intermediate results
+            model.add_checkpoint(C, T)
+            model.add_loss(loss)
+            model.add_gradient_norm()
+
             # Update the progress bar
             progress.update(task, advance=1)
 
         # Save the final corner and edge tensors
-        model.C = C
-        model.T = T
+        model.set_edge_corner(C, T)
 
         return model
 
@@ -116,13 +113,16 @@ class iPEPSTrainer:
         dictionary contains the corner and edge tensors and the parameters.
 
         Returns:
-            tuple: Checkpoint dictionary, the map of the parameters, and the losses.
+            tuple: Checkpoint dictionary, the map of the parameters, losses, the current epoch, and
+            the gradient norms.
         """
         # Use the corresponding state from the given data as the initial state.
         if self.data_prev:
             checkpoint = self.data_prev.checkpoints
             losses = self.data_prev.losses
+            gradient_norms = self.data_prev.gradient_norms
             map = self.data_prev.map
+            epoch = self.args["start_epoch"]
         # Generate a random symmetric A tensor and do CTM warmup steps
         else:
             A = Tensors.A_random_symmetric(self.args["d"]).to(self.device)
@@ -130,10 +130,11 @@ class iPEPSTrainer:
             alg = CtmAlg(a=Tensors.a(A), chi=self.args["chi"])
             alg.exe(max_steps=self.args["warmup_steps"])
             C, T = alg.C, alg.T
-            losses = []
             checkpoint = {"C": [C], "T": [T], "params": [params]}
+            losses, gradient_norms = [], []
+            epoch = -1
 
-        return checkpoint, map, losses
+        return checkpoint, map, losses, epoch, gradient_norms
 
     def _get_hamiltonian(self) -> torch.Tensor:
         """

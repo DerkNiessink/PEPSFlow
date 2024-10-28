@@ -15,6 +15,7 @@ def get_observables(
     energy: bool,
     correlation_length: bool,
     gradient: click.Path,
+    gradient_norm: click.Path,
 ) -> tuple[list, list, list, list, list]:
     """
     Get the observables of all iPEPS models in the specified folder.
@@ -25,23 +26,29 @@ def get_observables(
         energy (bool): Compute the energy.
         correlation_length (bool): Compute the correlation length.
         gradient (str): Desired file to plot the gradient.
+        gradient_norm: (str): Desired file to plot the gradient norm.
     """
-    magnetizations, energies, correlations, lambdas, losses = [], [], [], [], []
+    # fmt: off
+    magnetizations, energies, correlations, lambdas, losses, norms = [], [], [], [], [], []
     for file in os.listdir(os.path.join("data", folder)):
         reader = iPEPSReader(os.path.join("data", folder, file))
-        lambdas.append(reader.get_lam())
+        lambdas.append(reader.lam())
         if magnetization:
-            magnetizations.append(reader.get_magnetization())
+            magnetizations.append(reader.magnetization())
         if energy:
-            energies.append(reader.get_energy())
+            energies.append(reader.energy())
         if correlation_length:
-            correlations.append(reader.get_correlation())
+            correlations.append(reader.correlation())
 
     if gradient:
         reader = iPEPSReader(os.path.join("data", folder, gradient))
-        losses = reader.get_losses()
+        losses = reader.losses()
+        
+    if gradient_norm:
+        reader = iPEPSReader(os.path.join("data", folder, gradient_norm))
+        norms = reader.gradient_norms()
 
-    return lambdas, magnetizations, energies, correlations, losses
+    return lambdas, magnetizations, energies, correlations, losses, norms
 
 
 def walk_directory(directory: pathlib.Path, tree: Tree, concise: bool) -> None:

@@ -1,7 +1,7 @@
 import torch
 
 from pepsflow.models.CTM_alg import CtmAlg
-from pepsflow.models.tensors import Tensors
+from pepsflow.models.tensors import Tensors, Methods
 from pepsflow.models.observables import Observables
 
 
@@ -11,10 +11,13 @@ class iPEPS(torch.nn.Module):
 
     Args:
         chi (int): Bond dimension of the edge and corner tensors.
-        H (torch.Tensor): Hamiltonian operator for the system.
         lam (float): Regularization parameter for the iPEPS tensor.
-        params (torch.Tensor): Parameters to optimize.
+        H (torch.Tensor): Hamiltonian operator for the system.
         map (torch.Tensor): indices of the parameters to map to the iPEPS tensor.
+        checkpoints (dict): Dictionary containing the corner and edge tensors and the parameters.
+        losses (list): List of losses.
+        epoch (int): Current epoch.
+        perturbation (float): Perturbation value for the parameters.
     """
 
     def __init__(
@@ -22,19 +25,79 @@ class iPEPS(torch.nn.Module):
         chi: int,
         lam: float,
         H: torch.Tensor,
-        params: torch.Tensor,
         map: torch.Tensor,
+        checkpoints: dict[list, list, list],  # {"C": [], "T": [], "params": []}
+        losses: list,
+        epoch: int,
+        perturbation: float,
+        norms: list,
     ):
         super(iPEPS, self).__init__()
         self.chi = chi
         self.lam = lam
         self.H = H
-        self.params = torch.nn.Parameter(params)
         self.map = map
-        self.losses = []
-        self.checkpoints = {"C": [], "T": [], "params": []}
-        self.C = None
-        self.T = None
+        self.checkpoints = checkpoints
+        self.losses = losses[: epoch + 1] if epoch != -1 else losses
+        self.gradient_norms = norms
+        params = Methods.perturb(checkpoints["params"][epoch], perturbation)
+        self.params = torch.nn.Parameter(params)
+        self.C = checkpoints["C"][epoch]
+        self.T = checkpoints["T"][epoch]
+
+    def add_checkpoint(self, C: torch.Tensor, T: torch.Tensor) -> None:
+        """
+        Add a checkpoint to the dictionary of checkpoints.
+
+        Args:
+            C (torch.Tensor): Corner tensor.
+            T (torch.Tensor): Edge tensor.
+            params (torch.Tensor): Parameters.
+        """
+        self.checkpoints["C"].append(C.clone().detach())
+        self.checkpoints["T"].append(T.clone().detach())
+        self.checkpoints["params"].append(self.params.clone().detach())
+
+    def add_loss(self, loss: torch.Tensor) -> None:
+        """
+        Add the loss to the list of losses.
+
+        Args:
+            loss (torch.Tensor): Loss value.
+        """
+        self.losses.append(loss.item())
+
+    def add_gradient_norm(self) -> None:
+        """
+        Compute and add the gradient norm to the list of gradient norms.
+
+        Args:
+            norm (torch.Tensor): Gradient norm.
+        """
+        total_norm = torch.sqrt(
+            sum(p.grad.detach().data.norm(2) ** 2 for p in self.parameters())
+        )
+        self.gradient_norms.append(total_norm.item())
+
+    def set_edge_corner(self, C: torch.Tensor, T: torch.Tensor) -> None:
+        """
+        Set the corner and edge tensors of the iPEPS tensor network.
+
+        Args:
+            C (torch.Tensor): Corner tensor.
+            T (torch.Tensor): Edge tensor.
+        """
+        self.C = C.detach()
+        self.T = T.detach()
+
+    def get_edge_corner(self) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Get the corner and edge tensors of the iPEPS tensor network.
+
+        Returns:
+            tuple: Corner and edge tensors.
+        """
+        return self.C.clone().detach(), self.T.clone().detach()
 
     def forward(
         self, C: torch.Tensor, T: torch.Tensor
@@ -60,9 +123,4 @@ class iPEPS(torch.nn.Module):
         # Compute the energy (loss) using the Hamiltonian, corner, and edge tensors
         loss = Observables.E(Asymm, self.H, alg.C, alg.T)
 
-        # Save the intermediate tensors for restarts from a checkpoint
-        self.checkpoints["C"].append(alg.C.clone().detach())
-        self.checkpoints["T"].append(alg.T.clone().detach())
-        self.checkpoints["params"].append(self.params.clone().detach())
-
-        return loss, alg.C, alg.T
+        return loss, alg.C.detach(), alg.T.detach()
