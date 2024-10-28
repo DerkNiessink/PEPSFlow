@@ -38,11 +38,12 @@ def data(ctx, folder: str, concise: bool):
 @click.option("-m", "--magnetization", is_flag=True, default=False, help="Plot the magnetization as a function of lambda")
 @click.option("-xi", "--correlation_length", is_flag=True, default=False, help="Plot the correlation length as a function of lambda")
 @click.option("-g", "--gradient", type=click.Path(), default=None, help="Plot the gradient as a function of epoch")
-def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetization: bool, gradient: click.Path):
+@click.option("-n", "--gradient_norm", type=click.Path(), default=None, help="Plot the gradient norm as a function of epoch")
+def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetization: bool, gradient: click.Path, gradient_norm: click.Path):
     """
     Plot the observables of the iPEPS models.
     """
-    plot_all = not any([magnetization, energy, correlation_length, gradient])
+    plot_all = not any([magnetization, energy, correlation_length, gradient, gradient_norm])
     
     if magnetization or plot_all:
         mag_figure, mag_ax = plt.subplots(figsize=(6, 4))
@@ -60,7 +61,7 @@ def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetizat
         xi_ax.set_xlabel(r"$\lambda$")
 
     for folder in folders:
-        lambdas, magnetizations, energies, correlations, losses = get_observables(folder, magnetization, energy, correlation_length, gradient)
+        lambdas, magnetizations, energies, correlations, losses, norms = get_observables(folder, magnetization, energy, correlation_length, gradient, gradient_norm)
 
         if magnetization or plot_all:
             mag_ax.plot(lambdas, magnetizations, "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
@@ -77,6 +78,14 @@ def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetizat
             grad_ax.set_ylabel("$E$")
             grad_ax.set_xlabel("Epoch")
             grad_ax.legend()
+            plt.show()
+
+        if gradient_norm:
+            grad_norm_figure, grad_norm_ax = plt.subplots(figsize=(6, 4))
+            grad_norm_ax.plot(range(len(norms)), norms, "v-", markersize=4, linewidth=0.5, label=folder)
+            grad_norm_ax.set_ylabel("Gradient Norm")
+            grad_norm_ax.set_xlabel("Epoch")
+            grad_norm_ax.legend()
             plt.show()
 
     if magnetization or plot_all:
@@ -158,11 +167,11 @@ def info(folder: click.Path, file: click.Path, state: bool, lam: bool, energy: b
     for f in filenames:
         reader = iPEPSReader(os.path.join("data", folder, f))
         row = [f]
-        if energy or print_all: row.append(f"{reader.get_energy()}")
-        if magnetization or print_all: row.append(f"{reader.get_magnetization()}")
-        if correlation or print_all: row.append(f"{reader.get_correlation()}")
-        if losses: row.append(f"{reader.get_losses()}")
-        if state: row.append(f"{reader.get_iPEPS_state()}")
+        if energy or print_all: row.append(f"{reader.energy()}")
+        if magnetization or print_all: row.append(f"{reader.magnetization()}")
+        if correlation or print_all: row.append(f"{reader.correlation()}")
+        if losses: row.append(f"{reader.losses()}")
+        if state: row.append(f"{reader.iPEPS_state()}")
         table.add_row(*row)
 
     console.print(table)
