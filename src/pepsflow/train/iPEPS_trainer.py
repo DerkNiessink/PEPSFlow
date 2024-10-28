@@ -1,10 +1,11 @@
-from pepsflow.models.tensors import Tensors, Methods
+from pepsflow.models.tensors import Tensors
 from pepsflow.train.iPEPS import iPEPS
 from pepsflow.models.CTM_alg import CtmAlg
 
 import torch
 import os
-from rich.progress import Progress
+from rich.progress import Progress, TextColumn, BarColumn, MofNCompleteColumn, TimeElapsedColumn, Task
+from rich import print
 
 
 class iPEPSTrainer:
@@ -19,16 +20,31 @@ class iPEPSTrainer:
     def __init__(self, args: dict):
         self.args = args
         torch.set_num_threads(args["threads"])
-        self.device = torch.device(
-            "cuda:0" if args["gpu"] and torch.cuda.is_available() else "cpu"
-        )
+        self.device = torch.device("cuda:0" if args["gpu"] and torch.cuda.is_available() else "cpu")
         self.data = None
         self.data_prev: iPEPS = (
-            torch.load(args["data_fn"], map_location=self.device, weights_only=False)
-            if args["data_fn"]
-            else None
+            torch.load(args["data_fn"], map_location=self.device, weights_only=False) if args["data_fn"] else None
         )
         self._init_pauli_operators()
+
+        # Initialize the progress bar
+        self.progress = Progress(
+            TextColumn("[progress.description]{task.description}"),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            TextColumn("•"),
+            TimeElapsedColumn(),
+        )
+        param = self.args["var_param"]
+        self.warmup_task: Task = self.progress.add_task(
+            "[blue bold]CTM steps", total=self.args["warmup_steps"], start=False, visible=False
+        )
+        self.training_task: Task = self.progress.add_task(
+            f"[blue bold]Training iPEPS ({param} = {self.args[param]})",
+            total=self.args["runs"] * self.args["epochs"],
+            start=False,
+        )
 
     def _init_pauli_operators(self):
         self.sx = torch.Tensor([[0, 1], [1, 0]]).double().to(self.device)
@@ -45,14 +61,10 @@ class iPEPSTrainer:
         """
         best_model = None
 
-        with Progress() as progress:
-            param = self.args["var_param"]
-            task = progress.add_task(
-                f"[red]Training iPEPS ({param} = {self.args[param]})",
-                total=self.args["runs"] * self.args["epochs"],
-            )
+        with self.progress:
+
             for _ in range(self.args["runs"]):
-                model = self._train_model(progress, task)
+                model = self._train_model()
 
                 # Update the best model based on the lowest energy
                 if not best_model or model.losses[-1] < best_model.losses[-1]:
@@ -60,19 +72,17 @@ class iPEPSTrainer:
 
         self.data = best_model
 
-    def _train_model(self, progress: Progress, task) -> iPEPS:
+    def _train_model(self) -> iPEPS:
         """
         Train the iPEPS model for the given parameters.
         """
 
         checkpoint, map, losses, epoch, norms = self._get_checkpoint()
-        H = self._get_hamiltonian()
-        chi, lam, lr = self.args["chi"], self.args["lam"], self.args["learning_rate"]
-        per = self.args["perturbation"]
 
-        model = iPEPS(chi, lam, H, map, checkpoint, losses, epoch, per, norms).to(
-            self.device
-        )
+        H = self._get_hamiltonian()
+        chi, lam, lr, per = self.args["chi"], self.args["lam"], self.args["learning_rate"], self.args["perturbation"]
+
+        model = iPEPS(chi, lam, H, map, checkpoint, losses, epoch, per, norms).to(self.device)
         C, T = model.get_edge_corner()
 
         # Initialize the optimizer
@@ -90,6 +100,7 @@ class iPEPSTrainer:
             loss.backward()
             return loss
 
+        self.progress.start_task(self.training_task)
         for i in range(self.args["epochs"]):
             loss = optimizer.step(train)
 
@@ -99,7 +110,7 @@ class iPEPSTrainer:
             model.add_gradient_norm()
 
             # Update the progress bar
-            progress.update(task, advance=1)
+            self.progress.update(self.training_task, advance=1)
 
         # Save the final corner and edge tensors
         model.set_edge_corner(C, T)
@@ -128,7 +139,8 @@ class iPEPSTrainer:
             A = Tensors.A_random_symmetric(self.args["d"]).to(self.device)
             params, map = torch.unique(A, return_inverse=True)
             alg = CtmAlg(a=Tensors.a(A), chi=self.args["chi"])
-            alg.exe(max_steps=self.args["warmup_steps"])
+            self.warmup_task.visible = True
+            alg.exe(max_steps=self.args["warmup_steps"], progress=self.progress, task=self.warmup_task)
             C, T = alg.C, alg.T
             checkpoint = {"C": [C], "T": [T], "params": [params]}
             losses, gradient_norms = [], []
@@ -144,13 +156,9 @@ class iPEPSTrainer:
             torch.Tensor: Hamiltonian operator
         """
         if self.args["model"] == "Heisenberg":
-            H = Tensors.H_Heisenberg(
-                self.args["lam"], self.sy, self.sz, self.sp, self.sm
-            ).to(self.device)
+            H = Tensors.H_Heisenberg(self.args["lam"], self.sy, self.sz, self.sp, self.sm).to(self.device)
         elif self.args["model"] == "Ising":
-            H = Tensors.H_Ising(self.args["lam"], self.sz, self.sx, self.I).to(
-                self.device
-            )
+            H = Tensors.H_Ising(self.args["lam"], self.sz, self.sx, self.I).to(self.device)
         else:
             raise ValueError("Invalid model type. Choose 'Heisenberg' or 'Ising'.")
         return H
@@ -169,4 +177,4 @@ class iPEPSTrainer:
 
         fn = f"{fn}" if fn else "data.pth"
         torch.save(self.data, fn)
-        print(f"Data saved to {fn}")
+        print(f"[green bold] \nData saved to {fn}")

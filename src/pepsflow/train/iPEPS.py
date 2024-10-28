@@ -74,9 +74,7 @@ class iPEPS(torch.nn.Module):
         Args:
             norm (torch.Tensor): Gradient norm.
         """
-        total_norm = torch.sqrt(
-            sum(p.grad.detach().data.norm(2) ** 2 for p in self.parameters())
-        )
+        total_norm = torch.sqrt(sum(p.grad.detach().data.norm(2) ** 2 for p in self.parameters()))
         self.gradient_norms.append(total_norm.item())
 
     def set_edge_corner(self, C: torch.Tensor, T: torch.Tensor) -> None:
@@ -99,9 +97,7 @@ class iPEPS(torch.nn.Module):
         """
         return self.C.clone().detach(), self.T.clone().detach()
 
-    def forward(
-        self, C: torch.Tensor, T: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, C: torch.Tensor, T: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Compute the energy of the iPEPS tensor network by performing the following steps:
         1. Map the parameters to a symmetric rank-5 iPEPS tensor.
@@ -118,7 +114,7 @@ class iPEPS(torch.nn.Module):
 
         # Do one step of the CTM algorithm
         alg = CtmAlg(Tensors.a(Asymm), self.chi, C, T)
-        alg.exe(1)
+        alg.exe(max_steps=1)
 
         # Compute the energy (loss) using the Hamiltonian, corner, and edge tensors
         loss = Observables.E(Asymm, self.H, alg.C, alg.T)
