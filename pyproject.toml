@@ -22,3 +22,6 @@ pepsflow = "pepsflow.cli.main:cli"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 119

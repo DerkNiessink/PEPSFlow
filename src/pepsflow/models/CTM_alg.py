@@ -2,7 +2,7 @@ import time
 import torch
 import torch.backends.opt_einsum
 from torch.nn.functional import normalize
-
+from rich.progress import Progress, Task
 
 from pepsflow.models.tensors import Methods
 from pepsflow.models.svd import CustomSVD
@@ -40,7 +40,7 @@ class CtmAlg:
         self.C = torch.einsum("abcd->cd", a).to(a.device) if C_init is None else C_init
         self.T = torch.einsum("abcd->acd", a).to(a.device) if T_init is None else T_init
 
-    def exe(self, tol=1e-3, count=10, max_steps=10000):
+    def exe(self, max_steps=10000, progress: Progress = None, task: Task = None):
         """
         Execute the CTM algorithm. For each step, an `a` tensor is inserted,
         from which a new edge and corner tensor is evaluated. The new edge
@@ -53,8 +53,10 @@ class CtmAlg:
         algorithm when convergence has not yet been reached.
         """
         start = time.time()
-        tol_counter = 0
+        progress.start_task(task) if progress else None
+
         for _ in range(max_steps):
+
             # Compute the new contraction `M` of the corner by inserting an `a` tensor.
             M = self.new_M()
 
@@ -68,9 +70,7 @@ class CtmAlg:
             # Save sum of singular values
             self.sv_sums.append(torch.sum(s).item())
 
-            tol_counter += 1 if abs(self.sv_sums[-1] - self.sv_sums[-2]) < tol else 0
-            if tol_counter == count:
-                break
+            progress.update(task, advance=1) if progress else None
 
         # Save the computational time and number of iterations
         self.n_iter = len(self.sv_sums)
@@ -126,9 +126,7 @@ class CtmAlg:
 
         k = self.chi
         U, s, Vh = CustomSVD.apply(M)
-        self.trunc_errors.append(
-            torch.sum(normalize(s, p=1, dim=0)[self.chi :]).float()
-        )
+        self.trunc_errors.append(torch.sum(normalize(s, p=1, dim=0)[self.chi :]).float())
 
         # Let chi grow if the desired chi is not yet reached.
         if self.chi >= self.max_chi:
