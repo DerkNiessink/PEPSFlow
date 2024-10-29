@@ -37,10 +37,13 @@ class iPEPSTrainer:
             TimeElapsedColumn(),
         )
         param = self.args["var_param"]
-        self.warmup_task: Task = self.progress.add_task(
-            "[blue bold]CTM steps", total=self.args["warmup_steps"], start=False, visible=False
+        self.warmup_task = self.progress.add_task(
+            f"[blue bold]CTM steps ({param} = {self.args[param]})",
+            total=self.args["warmup_steps"] * self.args["runs"],
+            start=False,
+            visible=False,
         )
-        self.training_task: Task = self.progress.add_task(
+        self.training_task = self.progress.add_task(
             f"[blue bold]Training iPEPS ({param} = {self.args[param]})",
             total=self.args["runs"] * self.args["epochs"],
             start=False,
@@ -139,7 +142,7 @@ class iPEPSTrainer:
             A = Tensors.A_random_symmetric(self.args["d"]).to(self.device)
             params, map = torch.unique(A, return_inverse=True)
             alg = CtmAlg(a=Tensors.a(A), chi=self.args["chi"])
-            self.warmup_task.visible = True
+            self.progress.tasks[self.warmup_task].visible = True
             alg.exe(max_steps=self.args["warmup_steps"], progress=self.progress, task=self.warmup_task)
             C, T = alg.C, alg.T
             checkpoint = {"C": [C], "T": [T], "params": [params]}
