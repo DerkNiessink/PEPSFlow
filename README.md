@@ -4,6 +4,8 @@ PEPSFlow is a Python package for the simulation of PEPS (Projected Entangled Pai
 
 ## How to install PEPSFlow
 
+Requirements: [PyTorch 1.0+](https://pytorch.org/)
+
 1. Clone this repository.
 2. Create a virtual environment (e.g. [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html) or [venv](https://docs.python.org/3/library/venv.html)).
 3. Use the package manager [poetry](https://python-poetry.org/) to intstall the dependencies:
