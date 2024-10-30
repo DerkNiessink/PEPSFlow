@@ -13,7 +13,7 @@ Requirements: [PyTorch 1.0+](https://pytorch.org/)
    $\PEPSFlow> poetry install
    ```
 
-## Example usage
+## How to use PEPSFlow
 
 The pepsflow command interface (CLI) consists of two main subcommands:
 
@@ -27,7 +27,7 @@ $\PEPSFlow> pepsflow params --help
 $\PEPSFlow> pepsflow data --help
 ```
 
-## Program flow and structure
+## Program flow and structure of PEPSFlow
 
 <figure>
     <img src="assets/pepsflow.svg" width="700"/>
