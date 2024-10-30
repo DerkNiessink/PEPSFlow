@@ -4,9 +4,19 @@ PEPSFlow is a Python package for the simulation of PEPS (Projected Entangled Pai
 
 ## Program flow and structure
 
-<div style="display: flex; align-items: center;">
-  <img src="assets/pepsflow.svg" width="300" height="300"/>
-  <div style="margin-left: 20px;">
-    This is the text that will appear to the right of the image. You can add more details about the program flow and structure here.
-  </div>
-</div>
+<figure>
+    <img src="assets/pepsflow.svg" />
+    <figcaption><em>Figure 1: PEPSFlow program flow </em> </figcaption>
+</figure>
+
+<br>
+<br>
+<br>
+See Figure 1 for a dependency graph of PEPSFlow. The modules are explained below:
+
+#### `train.iPEPS`
+Contains the class `iPEPS` which is derived from the `torch.nn.Module` class. This class represents an iPEPS state, so it has the iPEPS tensor ("A tensor") as trainable parameters and attributes like the corner and edge tensor obtained from the CTM algorithm. The `forward` method of this class executes one CTM step and computes the energy using the new corner and edge tensors. After optimization of the parameters this class is saved in the `data` folder as a `.pth` file.
+#### `train.iPEPS_trainer`
+Contains the class `iPEPSTrainer`. This class is used for optimizing the parameters and saving the resulting `train.iPEPS` instance. This class takes a dictionary of optimization parameters as argument.
+#### `train.iPEPS_reader`
+Contains the class `iPEPSReader`, which is used for reading the `train.iPEPS` instances in `.pth` files.
