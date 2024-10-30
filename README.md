@@ -43,7 +43,7 @@ Contains the class `iPEPSReader`, which is used for reading the `train.iPEPS` in
 #### **`optimize`**
 Used for reading the parameters from the `optimize.cfg` file, translating it into a Python dictionary, and executing `train.iPEPS_trainer`.
 #### **`cli.*`**
-Contains the implementation of the command line interface for both parameter and data handling. Examples of how to use the command line interface are shown in the next section.
+Contains the implementation of the command line interface for both parameter and data handling.
 
 
 
