@@ -2,7 +2,7 @@
 
 PEPSFlow is a Python package for the simulation of PEPS (Projected Entangled Pair States) in 2D using automatic differentiation.
 
-## How to install PEPSFlow
+## How to install
 
 Requirements: [PyTorch 1.0+](https://pytorch.org/)
 
@@ -13,7 +13,7 @@ Requirements: [PyTorch 1.0+](https://pytorch.org/)
    $\PEPSFlow> poetry install
    ```
 
-## How to use PEPSFlow
+## How to use
 
 The pepsflow command interface (CLI) consists of two main subcommands:
 
@@ -27,7 +27,7 @@ $\PEPSFlow> pepsflow params --help
 $\PEPSFlow> pepsflow data --help
 ```
 
-## Program flow and structure of PEPSFlow
+## Program flow and structure
 
 <figure>
     <img src="assets/pepsflow.svg" width="700"/>
