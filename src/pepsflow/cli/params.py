@@ -19,11 +19,13 @@ def params(ctx):
         config = configparser.ConfigParser()
         config.read("src/pepsflow/optimize.cfg")
         console = Console()
-        table = Table(title="Optimization parameters", title_justify="center", box=box.MINIMAL_DOUBLE_HEAD)
-        table.add_column("Parameter", no_wrap=True, justify="right")
+        table = Table(title="Optimization parameters", title_justify="center", box=box.SIMPLE_HEAVY)
+        table.add_column("Parameter", no_wrap=True, justify="left")
         table.add_column("Value", style="green")
-        for key, value in config['PARAMETERS'].items():
-            table.add_row(key, value)
+        for i, (key, value) in enumerate(config['PARAMETERS'].items()):
+            style = "grey50" if i % 2 != 0 else "grey78"
+                
+            table.add_row(key, value, style = style)
         console.print(table)
 
 
@@ -32,7 +34,7 @@ def params(ctx):
 @click.option("--chi", type=str, help="Comma separated list of values of the bond dimension chi of the CTM algorithm")
 @click.option("--d", type=str, help="Comma separated list of values of the bulk dimension d of the iPEPS tensor")
 @click.option("-df","--data_folder", type=str, help="Folder containing iPEPS models")
-@click.option("--gpu/--no-gpu", type=bool, help="Run the model on the GPU if available")
+@click.option("--gpu/--no-gpu", default=None, type=bool, help="Run the model on the GPU if available")
 @click.option("--lam", type=str, help="Comma separated list of values of the parameter lambda in the tranverse-field Ising model")
 @click.option("--runs", type=int, help="Number of runs to train the model. Applies to random initialization. The program will choose the best model based on the lowest energy.")
 @click.option("-lr","--learning_rate", type=float, help="Learning rate for the optimizer")
@@ -41,7 +43,7 @@ def params(ctx):
 @click.option("-sf", "--save_folder", type=str, help="Folder to save the iPEPS model in.")
 @click.option("--threads", type=int, help="Number of threads to use for the optimization. Each thread runs on a separate CPU core.")
 @click.option("-ws", "--warmup_steps", type=int, help="Number of warmup steps to perform in the CTM algorithm before starting the optimization. This is only applicable if no previous data file is given.")
-@click.option("-ls/-no-ls", "--line_search/--no-line_search", type=bool, help="Use Wolfe line search in the LBFGS optimizer.")
+@click.option("-ls/-no-ls", "--line_search/--no-line_search", default=None, type=bool, help="Use Wolfe line search in the LBFGS optimizer.")
 @click.option("-s", "--start_epoch", type=int, help="Epoch to start the optimization from. This is only applicable if a previous data file is given. If -1, the optimization starts from the last epoch.")
 def set(**args):
     """
