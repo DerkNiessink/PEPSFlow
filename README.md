@@ -43,7 +43,7 @@ Contains the class `iPEPSTrainer`. This class is used for optimizing the paramet
 #### **`train.iPEPS_reader`**
 Contains the class `iPEPSReader`, which is used for reading the `train.iPEPS` instances in `.pth` files and computing observables.
 #### **`optimize`**
-Used for reading the parameters from the `optimize.cfg` file, translating it into a Python dictionary, and executing `train.iPEPS_trainer`.
+Used for reading the parameters from the `optimize.cfg` file, translating it into a Python dictionary, and executing `train.iPEPS_trainer` with these parameters.
 #### **`cli.*`**
 Contains the implementation of the command line interface for both parameter and data handling.
 
