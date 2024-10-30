@@ -24,6 +24,8 @@ Add `--help` to a command to show more information, e.g:
 
 ```
 $\PEPSFlow> pepsflow params --help
+```
+```
 $\PEPSFlow> pepsflow data --help
 ```
 
