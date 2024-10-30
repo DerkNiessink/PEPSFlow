@@ -28,7 +28,7 @@ $\PEPSFlow> pepsflow data --help
 ## Program flow and structure
 
 <figure>
-    <img src="assets/pepsflow.svg" />
+    <img src="assets/pepsflow.svg" width="700"/>
 </figure>
 
 
