@@ -18,17 +18,17 @@ jobs:
         with:
           python-version: 3.x
 
-      - name: Cache Poetry
-        uses: actions/cache@v4.1.2
-        with:
-          path: ~/.local/bin/poetry
-          key: ${{ runner.os }}-poetry-bin
-
       - name: Install Poetry
         if: steps.cache-poetry.outputs.cache-hit != 'true'
         run: |
           curl -sSL https://install.python-poetry.org | python -
           mv ~/.local/bin/poetry ~/.local/bin/poetry-bin
+    
+      - name: Cache Poetry
+        uses: actions/cache@v4.1.2
+        with:
+          path: ~/.local/bin/poetry
+          key: ${{ runner.os }}-poetry-bin
 
       - name: Cache Poetry virtualenv
         uses: actions/cache@v4.1.2
@@ -42,6 +42,14 @@ jobs:
         run: |
           ~/.local/bin/poetry-bin add torch
           ~/.local/bin/poetry-bin install
+
+      - name: Cache PyTorch
+        uses: actions/cache@v4.1.2
+        with:
+          path: ~/.cache/torch
+          key: ${{ runner.os }}-torch-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-torch-
 
       - name: Run tests
         run: |
