@@ -1,0 +1,48 @@
+name: Run Pytest
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5.3.0
+        with:
+          python-version: 3.x
+
+      - name: Cache Poetry
+        uses: actions/cache@v4.1.2
+        with:
+          path: ~/.local/bin/poetry
+          key: ${{ runner.os }}-poetry-bin
+
+      - name: Install Poetry
+        if: steps.cache-poetry.outputs.cache-hit != 'true'
+        run: |
+          curl -sSL https://install.python-poetry.org | python -
+          mv ~/.local/bin/poetry ~/.local/bin/poetry-bin
+
+      - name: Cache Poetry virtualenv
+        uses: actions/cache@v4.1.2
+        with:
+          path: ~/.cache/pypoetry/virtualenvs
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
+
+      - name: Install dependencies
+        run: |
+          ~/.local/bin/poetry-bin add torch
+          ~/.local/bin/poetry-bin install
+
+      - name: Run tests
+        run: |
+          ~/.local/bin/poetry-bin run pytest
