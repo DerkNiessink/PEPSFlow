@@ -9,7 +9,7 @@ class CustomSVD(torch.autograd.Function):
     """
 
     @staticmethod
-    def forward(self, A):
+    def forward(self, A: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Forward pass of the custom SVD function. Computes the singular value
         decomposition of the input tensor.
@@ -26,7 +26,7 @@ class CustomSVD(torch.autograd.Function):
         return U, S, V
 
     @staticmethod
-    def backward(self, dU, dS, dV):
+    def backward(self, dU: torch.Tensor, dS: torch.Tensor, dV: torch.Tensor) -> torch.Tensor:
         """
         Backward pass of the custom SVD function. Computes the gradient of the
         input tensor with respect to the output tensor. This function is save
@@ -41,6 +41,10 @@ class CustomSVD(torch.autograd.Function):
             torch.Tensor: Gradient of the loss with respect to the input tensor.
         """
         U, S, V = self.saved_tensors
+        U: torch.Tensor
+        S: torch.Tensor
+        V: torch.Tensor
+
         Vt = V.t()
         Ut = U.t()
         N_rows = U.size(0)
@@ -66,10 +70,9 @@ class CustomSVD(torch.autograd.Function):
 
         dA = U @ (Su + Sv + torch.diag(dS)) @ Vt
 
-        # fmt: off
         if N_rows > N_singular_values:
             dA += (torch.eye(N_rows, dtype=dU.dtype, device=dU.device) - U @ Ut) @ (dU / S) @ Vt
-            
+
         if N_columns > N_singular_values:
             dA += (U / S) @ dV.t() @ (torch.eye(N_columns, dtype=dU.dtype, device=dU.device) - V @ Vt)
 
