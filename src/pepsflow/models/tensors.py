@@ -8,35 +8,11 @@ from typing import Sequence
 class Tensors:
 
     @staticmethod
-    def a(A: torch.Tensor) -> torch.Tensor:
-        """
-        Returns the contraction of the given rank 5 tensor A.
-
-        Args:
-            A (torch.Tensor): Rank 5 tensor of the PEPS state (phy, up, left, down, right).
-
-        Returns:
-            torch.Tensor: Contraction of the rank 5 tensor A. (up, left, down, right)
-        """
-        d = A.size(1)
-        a = (
-            (A.view(2, -1).t() @ A.view(2, -1))
-            .contiguous()
-            .view(d, d, d, d, d, d, d, d)
-        )
-        a = a.permute(0, 4, 1, 5, 2, 6, 3, 7).contiguous().view(d**2, d**2, d**2, d**2)
-        return a / a.norm()
-
-    @staticmethod
-    def H_Ising(
-        lam: float, sz: torch.Tensor, sx: torch.Tensor, I: torch.Tensor
-    ) -> torch.Tensor:
+    def H_Ising(lam: float, sz: torch.Tensor, sx: torch.Tensor, I: torch.Tensor) -> torch.Tensor:
         """
         Returns the Hamiltonian operator of the Ising model
         """
-        return -torch.kron(sz, sz) - 0.25 * lam * (
-            torch.kron(sx, I) + torch.kron(I, sx)
-        )
+        return -torch.kron(sz, sz) - 0.25 * lam * (torch.kron(sx, I) + torch.kron(I, sx))
 
     def H_Heisenberg(
         lam: float,
@@ -50,11 +26,7 @@ class Tensors:
         """
         rot = torch.matrix_exp(1j * torch.pi * sy / 2)
         sz = torch.complex(sz, torch.zeros_like(sz))
-        res = (
-            2
-            * lam
-            * (torch.kron(sz, sz) / 4 + torch.kron(sp, sm) / 2 + torch.kron(sm, sp) / 2)
-        )
+        res = 2 * lam * (torch.kron(sz, sz) / 4 + torch.kron(sp, sm) / 2 + torch.kron(sm, sp) / 2)
         res = res.view(2, 2, 2, 2)
         res = torch.einsum("abcd,be,df->aecf", res, rot, torch.conj(rot)).real
         return res.reshape(4, 4)
@@ -89,7 +61,7 @@ class Tensors:
         """
         A = torch.rand(size=(2, D, D, D, D), dtype=torch.float64)
         A = Methods.symmetrize_rank5(A)
-        return A / torch.norm(A)
+        return A / A.norm()
 
     @staticmethod
     def random(shape: tuple) -> torch.Tensor:
@@ -100,7 +72,7 @@ class Tensors:
         """
         c = torch.rand(size=shape, dtype=torch.float64)
         c = Methods.symmetrize(c)
-        return c / torch.norm(c)
+        return c / c.norm()
 
     @staticmethod
     def rho(A: torch.Tensor, C: torch.Tensor, E: torch.Tensor) -> torch.Tensor:
@@ -110,16 +82,11 @@ class Tensors:
         Args:
             A (torch.Tensor): Symmetric A tensor of the PEPS state.
             C (torch.Tensor): Corner tensor obtained in CTMRG algorithm (d -> chi, r -> chi).
-            E (torch.Tensor): Edge tensor obtained in CTMRG algorithm (u -> chi, d -> chi, r -> d).
+            E (torch.Tensor): Edge tensor obtained in CTMRG algorithm (u -> chi, d -> d, r -> chi).
 
         Returns:
             torch.Tensor: Reduced density matrix of the PEPS state.
         """
-
-        # Convert to torch tensors and to the right leg order:
-        # A(phy,u,l,d,r), C(d,r), E(u,r,d)
-        E = E.permute(1, 2, 0)
-
         Da = A.size()
         Td = (
             torch.einsum("mefgh,nabcd->eafbgchdmn", (A, A))
@@ -128,13 +95,9 @@ class Tensors:
         )
 
         CE = torch.tensordot(C, E, ([1], [0]))  # C(1d)E(dga)->CE(1ga)
-        EL = torch.tensordot(
-            E, CE, ([2], [0])
-        )  # E(2e1)CE(1ga)->EL(2ega)  use E(2e1) == E(1e2)
+        EL = torch.tensordot(E, CE, ([2], [0]))  # E(2e1)CE(1ga)->EL(2ega)  use E(2e1) == E(1e2)
         EL = torch.tensordot(EL, Td, ([1, 2], [1, 0]))  # EL(2ega)T(gehbmn)->EL(2ahbmn)
-        EL = torch.tensordot(
-            EL, CE, ([0, 2], [0, 1])
-        )  # EL(2ahbmn)CE(2hc)->EL(abmnc), use CE(2hc) == CE(1ga)
+        EL = torch.tensordot(EL, CE, ([0, 2], [0, 1]))  # EL(2ahbmn)CE(2hc)->EL(abmnc), use CE(2hc) == CE(1ga)
 
         Rho = (
             torch.tensordot(EL, EL, ([0, 1, 4], [0, 1, 4]))
@@ -157,10 +120,14 @@ class Methods:
         dimensional arrays.
         """
         rank = len(M.shape)
-        if rank != 2 and rank != 3:
-            raise Exception("M has to be a 2 or 3 dimensional array.")
 
-        axes = (1, 0) if rank == 2 else (1, 0, 2)
+        if rank == 2:
+            axes = (1, 0)
+        elif rank == 3:
+            axes = (2, 1, 0)
+        elif rank == 4:
+            axes = (3, 1, 2, 0)
+
         return (M + M.permute(*axes)) / 2
 
     @staticmethod
@@ -178,14 +145,14 @@ class Methods:
         # diagonal symmetry
         Asymm = (Asymm + Asymm.permute(0, 2, 1, 4, 3)) / 2.0
 
-        return Asymm / torch.norm(Asymm)
+        return Asymm / Asymm.norm()
 
     @staticmethod
     def normalize(M: torch.Tensor) -> torch.Tensor:
         """
         Divide all elements in the given array by its largest value.
         """
-        return M / torch.amax(M)
+        return M / M.amax()
 
     @staticmethod
     def perturb(T: torch.Tensor, eps: float = 1e-2) -> torch.Tensor:
