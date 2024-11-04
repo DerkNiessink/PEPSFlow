@@ -5,12 +5,13 @@ from pepsflow.train.iPEPS_trainer import iPEPSTrainer
 
 class TestiPEPSTrainer:
 
-    @pytest.mark.parametrize("lam, E_exp", [(1, -1.06283), (4, -2.06688)])
-    def test_exe(self, lam, E_exp):
+    @pytest.mark.parametrize("lam, E_exp, split", [(1, -1.06283, False), (4, -2.06688, True)])
+    def test_exe(self, lam, E_exp, split):
         args = {
             "model": "Ising",
             "chi": 8,
             "d": 2,
+            "split": split,
             "data_fn": None,
             "gpu": False,
             "lam": lam,

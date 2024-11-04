@@ -151,7 +151,7 @@ def info(folder: click.Path, file: click.Path, state: bool, lam: bool, energy: b
     """
     console = Console()
     console.print("\n")
-    table = Table(title=f"iPEPS Information for Folder: {folder}", box=box.MINIMAL_DOUBLE_HEAD, show_lines=True)
+    table = Table(title=f"iPEPS Information for Folder: {folder}", box=box.MINIMAL_DOUBLE_HEAD)
     
     print_all = not any([lam, energy, magnetization, correlation, losses, state])
 
@@ -164,7 +164,7 @@ def info(folder: click.Path, file: click.Path, state: bool, lam: bool, energy: b
 
     filenames = [file] if file else os.listdir(os.path.join("data", folder))
     
-    for f in filenames:
+    for i, f in enumerate(filenames):
         reader = iPEPSReader(os.path.join("data", folder, f))
         row = [f]
         if energy or print_all: row.append(f"{reader.energy()}")
@@ -172,7 +172,8 @@ def info(folder: click.Path, file: click.Path, state: bool, lam: bool, energy: b
         if correlation or print_all: row.append(f"{reader.correlation()}")
         if losses: row.append(f"{reader.losses()}")
         if state: row.append(f"{reader.iPEPS_state()}")
-        table.add_row(*row)
+        style = "grey50" if i % 2 != 0 else "grey78"
+        table.add_row(*row, style=style)
 
     console.print(table)
     console.print("\n")

@@ -15,8 +15,8 @@ class TestObservables:
         # Because state is from matlab, we need to permute the dimensions
         A = A.permute(4, 1, 2, 3, 0).contiguous()
 
-        alg = CtmAlg(a=Tensors.a(A), chi=16)
-        alg.exe(max_steps=100)
+        alg = CtmAlg(A, chi=16)
+        alg.exe(N=100)
 
         sx = torch.Tensor([[0, 1], [1, 0]]).double()
         sz = torch.Tensor([[1, 0], [0, -1]]).double()
@@ -28,8 +28,8 @@ class TestObservables:
     def test_E_Heisenberg(self):
         A = torch.from_numpy(np.loadtxt("tests/Heisenberg_state.txt").reshape(2, 2, 2, 2, 2)).double()
 
-        alg = CtmAlg(a=Tensors.a(A), chi=48)
-        alg.exe(max_steps=100)
+        alg = CtmAlg(A, chi=48)
+        alg.exe(N=100)
 
         sz = torch.Tensor([[1, 0], [0, -1]]).double()
         sy = torch.Tensor([[0, -1], [1, 0]]).double()

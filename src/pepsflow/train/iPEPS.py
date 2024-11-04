@@ -23,6 +23,7 @@ class iPEPS(torch.nn.Module):
     def __init__(
         self,
         chi: int,
+        split: bool,
         lam: float,
         H: torch.Tensor,
         map: torch.Tensor,
@@ -34,6 +35,7 @@ class iPEPS(torch.nn.Module):
     ):
         super(iPEPS, self).__init__()
         self.chi = chi
+        self.split = split
         self.lam = lam
         self.H = H
         self.map = map
@@ -113,8 +115,8 @@ class iPEPS(torch.nn.Module):
         Asymm = self.params[self.map]
 
         # Do one step of the CTM algorithm
-        alg = CtmAlg(Tensors.a(Asymm), self.chi, C, T)
-        alg.exe(max_steps=1)
+        alg = CtmAlg(Asymm, self.chi, C, T, self.split)
+        alg.exe()
 
         # Compute the energy (loss) using the Hamiltonian, corner, and edge tensors
         loss = Observables.E(Asymm, self.H, alg.C, alg.T)

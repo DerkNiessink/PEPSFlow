@@ -14,7 +14,7 @@ def CtmAlg_contractions(A):
     T = torch.einsum("aabcdefg->bcdefg", a).view(D**2, D**2, D**2)
 
     a = a.reshape(D**2, D**2, D**2, D**2)
-    M = torch.einsum("ab,acd,bef,ecgh->dghf", C, T, T, a)
+    M = torch.einsum("ab,acd,bef,ecgh->dgfh", C, T, T, a)
 
     # Test contractions
     path_info1 = oe.contract_path("abcde,afghi->bcdefghi", A, A)
@@ -30,19 +30,21 @@ def CtmAlg_split_contractions(A):
     C = torch.einsum("aabbcdef->cdef", a).view(D**2, D**2)
     T = torch.einsum("aabcdefg->bcdefg", a).view(D**2, D, D, D**2)
 
-    M = torch.einsum("ab,acde,bfgh,mfcij,mglkd->eikjlh", C, T, T, A, A)
+    M = torch.einsum("ab,acde,bfgh,mfcij,mglkd->eikhjl", C, T, T, A, A)
 
     # Test contractions
-    path_info = oe.contract_path("ab,acde,bfgh,ifcjk,igdlm->ejlkmh", C, T, T, A, A)
+    path_info = oe.contract_path("ab,acde,bfgh,mfcij,mglkd->eikhjl", C, T, T, A, A)
     return path_info[1].opt_cost, M.reshape(D**2, D**2, D**2, D**2)
 
 
 if __name__ == "__main__":
-    D = 6
+    D = 2
     A = Tensors.A_random_symmetric(D)
     classic_cost, classic_M = CtmAlg_contractions(A)
-
     split_cost, split_M = CtmAlg_split_contractions(A)
+    print(classic_M[0, :, 0, :])
+    print(split_M[0, :, 0, :])
+    print(torch.round(classic_M, decimals=4) == torch.round(split_M, decimals=4))
 
     print(f"Classic cost: {classic_cost}")
     print(f"Split cost: {split_cost}")

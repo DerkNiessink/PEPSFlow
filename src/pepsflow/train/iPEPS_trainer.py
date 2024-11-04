@@ -65,7 +65,6 @@ class iPEPSTrainer:
         best_model = None
 
         with self.progress:
-
             for _ in range(self.args["runs"]):
                 model = self._train_model()
 
@@ -85,7 +84,7 @@ class iPEPSTrainer:
         H = self._get_hamiltonian()
         chi, lam, lr, per = self.args["chi"], self.args["lam"], self.args["learning_rate"], self.args["perturbation"]
 
-        model = iPEPS(chi, lam, H, map, checkpoint, losses, epoch, per, norms).to(self.device)
+        model = iPEPS(chi, self.args["split"], lam, H, map, checkpoint, losses, epoch, per, norms).to(self.device)
         C, T = model.get_edge_corner()
 
         # Initialize the optimizer
@@ -141,9 +140,9 @@ class iPEPSTrainer:
         else:
             A = Tensors.A_random_symmetric(self.args["d"]).to(self.device)
             params, map = torch.unique(A, return_inverse=True)
-            alg = CtmAlg(a=Tensors.a(A), chi=self.args["chi"])
+            alg = CtmAlg(A, chi=self.args["chi"], split=self.args["split"])
             self.progress.tasks[self.warmup_task].visible = True
-            alg.exe(max_steps=self.args["warmup_steps"], progress=self.progress, task=self.warmup_task)
+            alg.exe(N=self.args["warmup_steps"], progress=self.progress, task=self.warmup_task)
             C, T = alg.C, alg.T
             checkpoint = {"C": [C], "T": [T], "params": [params]}
             losses, gradient_norms = [], []
