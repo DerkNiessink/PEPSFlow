@@ -43,7 +43,7 @@ class CtmAlg:
         # -> (chi, chi)
 
         if T_init is not None:
-            self.T = T_init.view(chi, d, d, chi) if split else T_init.view(chi, d**2, chi)
+            self.T = T_init.reshape(chi, d, d, chi) if split else T_init.reshape(chi, d**2, chi)
         else:
             shape = (d**2, d, d, d**2) if split else (d**2, d**2, d**2)
             self.T = torch.einsum("aabcdefg->bcdefg", a).view(shape)

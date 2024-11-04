@@ -45,6 +45,7 @@ def params(ctx):
 @click.option("-ws", "--warmup_steps", type=int, help="Number of warmup steps to perform in the CTM algorithm before starting the optimization. This is only applicable if no previous data file is given.")
 @click.option("-ls/-no-ls", "--line_search/--no-line_search", default=None, type=bool, help="Use Wolfe line search in the LBFGS optimizer.")
 @click.option("-s", "--start_epoch", type=int, help="Epoch to start the optimization from. This is only applicable if a previous data file is given. If -1, the optimization starts from the last epoch.")
+@click.option("--split/--no-split", default = None, type=bool, help="Keep the tensor in the CTM algorithm split or not.")
 def set(**args):
     """
     Set specific parameters for the optimization of the iPEPS tensor network.
