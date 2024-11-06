@@ -37,6 +37,7 @@ def optimize():
 
     # Read the parameters from the configuration file
     parser = configparser.ConfigParser()
+    parser.optionxform = str  # Preserve the case of the keys
     parser.read("src/pepsflow/optimize.cfg")
     args = dict(parser["PARAMETERS"])
 

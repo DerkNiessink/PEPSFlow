@@ -20,37 +20,51 @@ class CtmAlg:
         chi (int): bond dimension of the edge and corner tensors. Default is 2.
         C (torch.Tensor): initial corner tensor for the CTM algorithm. Default is None. (right, down) -> (chi, chi).
         T (torch.Tensor): initial edge tensor for the CTM algorithm. Default is None. (up, right, down) -> (chi, d, chi).
-
-                 /                      |
-        A =  -- o --   C =  o --   T =  o --
-               /|           |           |
-
     """
+
+    #            /                      |
+    #   A =  -- o --   C =  o --   T =  o --
+    #          /|           |           |
 
     def __init__(
         self, A: torch.Tensor, chi: int, C_init: torch.Tensor = None, T_init: torch.Tensor = None, split: bool = False
     ):
-        d = A.size(1)
-        self.d = d
+        D = A.size(1)
+        self.D = D
         self.split = split
         self.max_chi = chi
-        self.chi = d**2 if C_init is None else chi
+        self.chi = D**2 if C_init is None else chi
         self.trunc_errors = []
 
         a = torch.einsum("abcde,afghi->bfcidheg", A, A)
-        # -> (d, d, d, d, d, d, d, d)
-        self.C = torch.einsum("aabbcdef->cdef", a).view(d**2, d**2) if C_init is None else C_init
-        # -> (chi, chi)
+        #      /
+        #  -- o --
+        #    /|/      🡺   [D, D, D, D, D, D, D, D, D]
+        #  -- o --
+        #    /
+
+        self.C = torch.einsum("aabbcdef->cdef", a).view(D**2, D**2) if C_init is None else C_init
+        #       /|
+        #  --- o ---
+        #  |  /|/      🡺   o --  [χ, χ]
+        #  --- o ---        |
+        #     /
 
         if T_init is not None:
-            self.T = T_init.reshape(chi, d, d, chi) if split else T_init.reshape(chi, d**2, chi)
+            self.T = T_init.reshape(chi, D, D, chi) if split else T_init.reshape(chi, D**2, chi)
         else:
-            shape = (d**2, d, d, d**2) if split else (d**2, d**2, d**2)
+            shape = (D**2, D, D, D**2) if split else (D**2, D**2, D**2)
             self.T = torch.einsum("aabcdefg->bcdefg", a).view(shape)
-        # -> (chi, d, d, chi) if split else (chi, d^2, chi)
+        #       /
+        #  --- o --         |                         | __
+        #  |  /|/      🡺   o --  [χ, D², χ]    OR    o --  [χ, D, D, χ]
+        #  --- o --         |                         |
+        #     /
 
-        self.a = A if split else a.reshape(d**2, d**2, d**2, d**2)
-        # -> (D, d, d, d, d) if split else (d^2, d^2, d^2, d^2)
+        self.a = A if split else a.reshape(D**2, D**2, D**2, D**2)
+        #      /                                |
+        #  -- o --  [d, D, D, D, D]    OR    -- o --  [D², D², D², D²]
+        #    /|                                 |
 
     def exe(self, N: int = 1, progress: Progress = None, task: Task = None):
         """
@@ -67,27 +81,81 @@ class CtmAlg:
             progress.update(task, advance=1) if progress else None
         self.exe_time = time.time() - start
         if self.split:
-            self.T = self.T.view(self.chi, self.d**2, self.chi)
+            self.T = self.T.view(self.chi, self.D**2, self.chi)
 
     def classic_step(self):
         """
         Execute one "classic" CTM step. This is the standard CTM algorithm for the rank-4 input tensor.
         """
         # fmt: off
-        M = torch.einsum("ab,acd,bef,ecgh->dgfh", self.C, self.T, self.T, self.a)         # -> (chi, d^2, chi, d^2)
-        U = self._new_U(M)                                                                # -> (chi, d^2, chi)
-        self.C = symm(norm(torch.einsum("abc,abfe,fed->cd", U, M, U)))                    # -> (chi, chi)
-        self.T = symm(norm(torch.einsum("cba,cgf,bdeg,feh->adh", U, self.T, self.a, U)))  # -> (chi, d^2, chi)
+        M = torch.einsum("ab,acd,bef,ecgh->dgfh", self.C, self.T, self.T, self.a)  
+        #   o -- o --
+        #   |    |      🡺   [χ, D², χ, D²]
+        #   o -- o --
+        #   |    |
+
+        U = self._new_U(M)
+        #  --|\   
+        #    | |--   🡺   [χ, D², χ]
+        #  --|/    
+        # 
+                
+        self.C = symm(norm(torch.einsum("abc,abfe,fed->cd", U, M, U)))               
+        #  o -- o --|\
+        #  |    |   | |-- 
+        #  o -- o --|/      🡺   o --   [χ, χ]    
+        #  |____|                |
+        #  \____/  
+        #     |
+
+        self.T = symm(norm(torch.einsum("cba,cgf,bdeg,feh->adh", U, self.T, self.a, U))) 
+        #   _|__
+        #  /____\
+        #  |    |           |
+        #  o -- o --   🡺   o --  [χ, D², χ]
+        #  |____|           |
+        #  \____/
+        #     |
 
     def split_step(self):
         """
         Execute one "split" CTM step. This is the CTM algorithm for the rank-5 input tensor.
         """
         # fmt: off
-        M = torch.einsum("ab,acde,bfgh,mfcij,mglkd->eikhjl", self.C, self.T, self.T, self.a, self.a)        # -> (chi, d, d, chi, d, d)
-        U = self._new_U(M)                                                                                  # -> (chi, d, d, chi)
-        self.C = symm(norm(torch.einsum("abcd,abcefh,efhg->dg", U, M, U)))                                  # -> (chi, chi)
-        self.T = symm(norm(torch.einsum("abcd,aefg,lbemh,lcfij,gmik->dhjk", U, self.T, self.a, self.a, U))) # -> (chi, d, d, chi)
+        M = torch.einsum("ab,acde,bfgh,mfcij,mglkd->eikhjl", self.C, self.T, self.T, self.a, self.a)
+        #        o----o----
+        #       /    /|
+        #      /_- o---- 
+        #     //  /|/      🡺   [χ, D, D, χ, D, D]     
+        #    o---/-o---- 
+        #   /     /
+        #  /     /
+
+        U = self._new_U(M)   
+        #  --|\   
+        #  --| |--   🡺   [χ, D, D, χ]
+        #  --|/    
+                                                                       
+        self.C = symm(norm(torch.einsum("abcd,abcefh,efhg->dg", U, M, U)))
+        #        o----o-_
+        #       /    /| |\
+        #      /_- o---_| |--        
+        #     //  /|/   |/      🡺   o --  [χ, χ]
+        #    o---/-o---/             |
+        #    /___|_/         
+        #    \____/
+        #      /
+
+        self.T = symm(norm(torch.einsum("abcd,aefg,lbemh,lcfij,gmik->dhjk", U, self.T, self.a, self.a, U)))
+        #        __/_
+        #       /____\
+        #      /   / /        | __
+        #     /_- o---   🡺   o --  [χ, D, D, χ]
+        #    //  /|/          |
+        #   o---/ o --
+        #  /___|_/
+        #  \____/
+        #    /
 
     def _new_U(self, M: torch.Tensor) -> torch.Tensor:
         """
@@ -99,19 +167,19 @@ class CtmAlg:
 
         Returns the renormalization tensor of shape (chi, d, chi) which is obtained by reshaping `U` in a rank-3.
         """
-        M = M.contiguous().view(self.chi * self.d**2, self.chi * self.d**2)
+        M = M.contiguous().view(self.chi * self.D**2, self.chi * self.D**2)
+        #  --o--  [χD², χD²]
 
-        k = self.chi
-        U, s, _ = CustomSVD.apply(M)
+        U, s, Vh = CustomSVD.apply(M)
+        #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
+
         self.trunc_errors.append(torch.sum(normalize(s, p=1, dim=0)[self.chi :]).float())
 
         # Let chi grow if the desired chi is not yet reached.
-        if self.chi >= self.max_chi:
-            self.chi = self.max_chi
-            U = U[:, : self.chi]
-        else:
-            self.chi *= self.d**2
+        k = self.chi
+        self.chi = min(self.chi * self.D**2, self.max_chi)
+        U = U[:, : self.chi]
 
         # Reshape U back in a rank-3 or 4 tensor.
-        shape = (k, self.d, self.d, self.chi) if self.split else (k, self.d**2, self.chi)
+        shape = (k, self.D, self.D, self.chi) if self.split else (k, self.D**2, self.chi)
         return U.view(shape)

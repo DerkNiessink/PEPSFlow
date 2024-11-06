@@ -17,6 +17,7 @@ def params(ctx):
     """
     if ctx.invoked_subcommand is None:
         config = configparser.ConfigParser()
+        config.optionxform = str # Preserve the case of the keys
         config.read("src/pepsflow/optimize.cfg")
         console = Console()
         table = Table(title="Optimization parameters", title_justify="center", box=box.SIMPLE_HEAVY)
@@ -32,7 +33,7 @@ def params(ctx):
 @params.command()
 @click.option("--model", type=str, help="Model to optimize. Options are 'Ising' and 'Heisenberg'")
 @click.option("--chi", type=str, help="Comma separated list of values of the bond dimension chi of the CTM algorithm")
-@click.option("--d", type=str, help="Comma separated list of values of the bulk dimension d of the iPEPS tensor")
+@click.option("--D", type=str, help="Comma separated list of values of the bulk dimension d of the iPEPS tensor")
 @click.option("-df","--data_folder", type=str, help="Folder containing iPEPS models")
 @click.option("--gpu/--no-gpu", default=None, type=bool, help="Run the model on the GPU if available")
 @click.option("--lam", type=str, help="Comma separated list of values of the parameter lambda in the tranverse-field Ising model")

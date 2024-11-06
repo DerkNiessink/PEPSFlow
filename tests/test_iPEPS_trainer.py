@@ -10,7 +10,7 @@ class TestiPEPSTrainer:
         args = {
             "model": "Ising",
             "chi": 8,
-            "d": 2,
+            "D": 2,
             "split": split,
             "data_fn": None,
             "gpu": False,

@@ -138,7 +138,7 @@ class iPEPSTrainer:
             epoch = self.args["start_epoch"]
         # Generate a random symmetric A tensor and do CTM warmup steps
         else:
-            A = Tensors.A_random_symmetric(self.args["d"]).to(self.device)
+            A = Tensors.A_random_symmetric(self.args["D"]).to(self.device)
             params, map = torch.unique(A, return_inverse=True)
             alg = CtmAlg(A, chi=self.args["chi"], split=self.args["split"])
             self.progress.tasks[self.warmup_task].visible = True
