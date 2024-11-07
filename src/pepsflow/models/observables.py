@@ -9,9 +9,7 @@ class Observables:
     """
 
     @staticmethod
-    def E(
-        A: torch.Tensor, H: torch.Tensor, C: torch.Tensor, T: torch.Tensor
-    ) -> torch.Tensor:
+    def E(A: torch.Tensor, H: torch.Tensor, C: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
         """
         Compute the energy of a PEPS state.
 
@@ -26,9 +24,7 @@ class Observables:
         return torch.mm(Rho, H).trace() / Tnorm
 
     @staticmethod
-    def M(
-        A: torch.Tensor, C: torch.Tensor, T: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def M(A: torch.Tensor, C: torch.Tensor, T: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Compute the magnetization of a PEPS state.
 

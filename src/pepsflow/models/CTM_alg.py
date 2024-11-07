@@ -16,15 +16,22 @@ class CtmAlg:
     Class for the Corner Transfer Matrix (CTM) algorithm.
 
     Args:
-        A (torch.Tensor): initial tensor to insert in the CTM algorithm. (phy, up, left, down, right) -> (D, d, d, d, d).
+        A (torch.Tensor): initial tensor to insert in the CTM algorithm
         chi (int): bond dimension of the edge and corner tensors. Default is 2.
-        C (torch.Tensor): initial corner tensor for the CTM algorithm. Default is None. (right, down) -> (chi, chi).
-        T (torch.Tensor): initial edge tensor for the CTM algorithm. Default is None. (up, right, down) -> (chi, d, chi).
+        C (torch.Tensor): initial corner tensor for the CTM algorithm. Default is None
+        T (torch.Tensor): initial edge tensor for the CTM algorithm. Default is None
     """
 
-    #            /                      |
-    #   A =  -- o --   C =  o --   T =  o --
-    #          /|           |           |
+    #            /
+    #   A =  -- o --  [D, d, d, d, d]
+    #          /|
+    #
+    #   C =  o --  [χ, χ]
+    #        |
+    #
+    #        |
+    #   T =  o --  [χ, D², χ]
+    #        |
 
     def __init__(
         self, A: torch.Tensor, chi: int, C_init: torch.Tensor = None, T_init: torch.Tensor = None, split: bool = False
