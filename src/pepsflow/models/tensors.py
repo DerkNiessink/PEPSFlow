@@ -32,25 +32,15 @@ class Tensors:
         return res.reshape(4, 4)
 
     @staticmethod
-    def Mpx() -> torch.Tensor:
+    def Mp() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
-        Return the operator to measure the magnetization in the x-direction.
+        Return the operator to measure the magnetization in the (x, y, z) direction.
         """
-        return torch.kron(torch.Tensor([[0, 1], [1, 0]]), torch.eye(2)).double()
-
-    @staticmethod
-    def Mpy() -> torch.Tensor:
-        """
-        Returns the operator to measure the magnetization in the y-direction.
-        """
-        return torch.kron(torch.Tensor([[0, -1], [1, 0]]), torch.eye(2)).double()
-
-    @staticmethod
-    def Mpz() -> torch.Tensor:
-        """
-        Returns the operator to measure the magnetization in the z-direction.
-        """
-        return torch.kron(torch.Tensor([[1, 0], [0, -1]]), torch.eye(2)).double()
+        return (
+            torch.kron(torch.Tensor([[0, 1], [1, 0]]), torch.eye(2)).double(),
+            torch.kron(torch.Tensor([[0, -1], [1, 0]]), torch.eye(2)).double(),
+            torch.kron(torch.Tensor([[1, 0], [0, -1]]), torch.eye(2)).double(),
+        )
 
     @staticmethod
     def A_random_symmetric(D=2) -> torch.Tensor:
