@@ -15,13 +15,27 @@ class Observables:
 
         Args:
             A (torch.Tensor): Symmetric A tensor of the PEPS state.
-            H (torch.Tensor): Hamiltonian operator (l -> d^2, r -> d^2).
-            C (torch.Tensor): Corner tensor obtained in CTMRG algorithm (d -> chi, r -> chi).
-            E (torch.Tensor): Edge tensor obtained in CTMRG algorithm (u -> chi, d -> chi, r -> d).
+            H (torch.Tensor): Hamiltonian operator.
+            C (torch.Tensor): Corner tensor obtained in CTMRG algorithm.
+            E (torch.Tensor): Edge tensor obtained in CTMRG algorithm.
         """
+        #           /
+        #  A =  -- o --  [D, d, d, d, d]
+        #         /|
+        #
+        #        _|_
+        #  H =  |___|  [D², D²]
+        #         |
+        #
+        #  C =  o --  [χ, χ]
+        #       |
+        #
+        #       |
+        #  E =  o --  [χ, D², χ]
+        #       |
         Rho = Tensors.rho(A, C, T)
-        Tnorm = Rho.trace()
-        return torch.mm(Rho, H).trace() / Tnorm
+        norm = Rho.trace()
+        return torch.mm(Rho, H).trace() / norm
 
     @staticmethod
     def M(A: torch.Tensor, C: torch.Tensor, T: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:

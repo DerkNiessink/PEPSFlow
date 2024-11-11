@@ -81,37 +81,47 @@ class Tensors:
 
         Args:
             A (torch.Tensor): Symmetric A tensor of the PEPS state.
-            C (torch.Tensor): Corner tensor obtained in CTMRG algorithm (d -> chi, r -> chi).
-            E (torch.Tensor): Edge tensor obtained in CTMRG algorithm (u -> chi, d -> d, r -> chi).
+            C (torch.Tensor): Corner tensor obtained in CTMRG algorithm.
+            E (torch.Tensor): Edge tensor obtained in CTMRG algorithm.
 
         Returns:
-            torch.Tensor: Reduced density matrix of the PEPS state.
+            torch.Tensor: Reduced density (ρ) matrix of the PEPS state.
         """
-        Da = A.size()
-        Td = (
-            torch.einsum("mefgh,nabcd->eafbgchdmn", (A, A))
-            .contiguous()
-            .view(Da[1] ** 2, Da[2] ** 2, Da[3] ** 2, Da[4] ** 2, Da[0], Da[0])
-        )
 
-        CE = torch.tensordot(C, E, ([1], [0]))  # C(1d)E(dga)->CE(1ga)
-        EL = torch.tensordot(E, CE, ([2], [0]))  # E(2e1)CE(1ga)->EL(2ega)  use E(2e1) == E(1e2)
-        EL = torch.tensordot(EL, Td, ([1, 2], [1, 0]))  # EL(2ega)T(gehbmn)->EL(2ahbmn)
-        EL = torch.tensordot(EL, CE, ([0, 2], [0, 1]))  # EL(2ahbmn)CE(2hc)->EL(abmnc), use CE(2hc) == CE(1ga)
+        #           /
+        #  A =  -- o --  [D, d, d, d, d]
+        #         /|
+        #
+        #  C =  o --  [χ, χ]
+        #       |
+        #
+        #       |
+        #  E =  o --  [χ, D², χ]
+        #       |
 
-        Rho = (
-            torch.tensordot(EL, EL, ([0, 1, 4], [0, 1, 4]))
-            .permute(0, 2, 1, 3)
-            .contiguous()
-            .view(Da[0] ** 2, Da[0] ** 2)
-        )
+        D, d = A.size(0), A.size(1)
+        a = torch.einsum("mefgh,nabcd->eafbgchdmn", (A, A)).view(d**2, d**2, d**2, d**2, D, D)
+        #      /        /              /
+        #  -- o --  -- o --   🡺   -- o --  [d², d², d², d², D, D]
+        #    /|       /|             /||
+
+        Rho = torch.einsum(
+            "ab,bcd,afe,cfghij,dk,khl,emn,no,gmprst,opq,lru,uq->isjt", (C, E, E, a, C, E, E, C, a, E, E, C)
+        ).reshape(D**2, D**2)
+        #  o -- o -- o
+        #  |    |    |
+        #  o -- o -- o                        ___
+        #  |    |\\  |   [D, D, D, D]   🡺   |___|   [D², D²]
+        #  o -- o -- o                       |   |
+        #  |    |\\  |
+        #  o -- o -- o
 
         return 0.5 * (Rho + Rho.t())
 
 
 @dataclass
 class Methods:
-    """This class contains methods for np.arrays, required for the CTM algorithm."""
+    """This class contains methods for torch.Tensors, required for the CTM algorithm."""
 
     @staticmethod
     def symmetrize(M: torch.Tensor) -> torch.Tensor:
