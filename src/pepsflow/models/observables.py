@@ -17,10 +17,10 @@ class Observables:
             A (torch.Tensor): Symmetric A tensor of the PEPS state.
             H (torch.Tensor): Hamiltonian operator.
             C (torch.Tensor): Corner tensor obtained in CTMRG algorithm.
-            E (torch.Tensor): Edge tensor obtained in CTMRG algorithm.
+            T (torch.Tensor): Edge tensor obtained in CTMRG algorithm.
         """
         #           /
-        #  A =  -- o --  [D, d, d, d, d]
+        #  A =  -- o --  [d, D, D, D, D]
         #         /|
         #
         #        _|_
@@ -31,11 +31,15 @@ class Observables:
         #       |
         #
         #       |
-        #  E =  o --  [χ, D², χ]
+        #  T =  o --  [χ, D², χ]
         #       |
         Rho = Tensors.rho(A, C, T)
-        norm = Rho.trace()
-        return torch.mm(Rho, H).trace() / norm
+        E = torch.einsum("ab,ab", Rho, H) / Rho.trace()
+        #   ___
+        #  |___|        ___
+        #  _|_|_   /   |___|
+        #  |___|
+        return E
 
     @staticmethod
     def M(A: torch.Tensor, C: torch.Tensor, T: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -45,18 +49,34 @@ class Observables:
         Args:
             A (torch.Tensor): Symmetric A tensor of the PEPS state.
             C (torch.Tensor): Corner tensor obtained in CTMRG algorithm.
-            E (torch.Tensor): Edge tensor obtained in CTMRG algorithm.
+            T (torch.Tensor): Edge tensor obtained in CTMRG algorithm.
+
+        Returns:
+            tuple[torch.Tensor, torch.Tensor, torch.Tensor]: Magnetization components (Mx, My, Mz).
         """
-        Sx, Sy, Sz = (
-            Tensors.Mpx().to(A.device),
-            Tensors.Mpy().to(A.device),
-            Tensors.Mpz().to(A.device),
-        )
+        #           /
+        #  A =  -- o --  [d, D, D, D, D]
+        #         /|
+        #
+        #  C =  o --  [χ, χ]
+        #       |
+        #
+        #       |
+        #  T =  o --  [χ, D², χ]
+        #       |
+
+        Sx, Sy, Sz = Tensors.Mp()
         Rho = Tensors.rho(A, C, T)
-        Tnorm = Rho.trace()
-        Mx = torch.mm(Rho, Sx).trace() / Tnorm
-        My = torch.mm(Rho, Sy).trace() / Tnorm
-        Mz = torch.mm(Rho, Sz).trace() / Tnorm
+
+        norm = Rho.trace()
+        Mx = torch.mm(Rho, Sx).trace() / norm
+        My = torch.mm(Rho, Sy).trace() / norm
+        Mz = torch.mm(Rho, Sz).trace() / norm
+        #   ___
+        #  |___|        ___
+        #  _|_|_   /   |___|
+        #  |___|
+
         return Mx, My, Mz
 
     @staticmethod
@@ -67,8 +87,15 @@ class Observables:
         Args:
             T (torch.Tensor): Edge tensor obtained in CTMRG algorithm.
         """
-        M = torch.einsum("abc,dec->adbe", T, T)
-        M = M.reshape(T.size(0) ** 2, T.size(0) ** 2)
+        #      |
+        #  T = o --  [χ, D², χ]
+        #      |
+
+        chi = T.size(0)
+        M = torch.einsum("abc,dbe->adce", T, T).reshape(chi**2, chi**2)
+        #   |    |        |
+        #   o -- o   🡺   o   [χ², χ²]
+        #   |    |        |
+
         w = torch.linalg.eigvalsh(M)
-        xi = 1 / torch.log(torch.abs(w[-1]) / torch.abs(w[-2]))
-        return xi
+        return 1 / torch.log(torch.abs(w[-1]) / torch.abs(w[-2]))
