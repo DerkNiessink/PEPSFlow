@@ -52,21 +52,24 @@ def set(**args):
     Set specific parameters for the optimization of the iPEPS tensor network.
     """
     config = configparser.ConfigParser()
+    config.optionxform = str
     file = "src/pepsflow/optimize.cfg"
     config.read(file)    
 
     # Regular expression pattern to match parameters
     for param, value in args.items():
         if value is not None and value != ():
-            # Variational parameters
+            # Case sensitive parameters
+            param = 'D' if param == 'd' else param
+            # Varying parameters
             if param == 'lam' and ',' in value:
                 value = [float(x) for x in value.split(',') if x]
-            if (param == 'chi' or param == 'd') and ',' in value:
+            if (param == 'chi' or param == 'D') and ',' in value:
                 value = [int(x) for x in value.split(',') if x]
-            
             config['PARAMETERS'][param] = str(value)
 
-    config.write(open(file, 'w'))
+    config.optionxform = str
+    with open(file, 'w') as configfile: config.write(configfile)
 
 
 @params.command()
