@@ -33,14 +33,12 @@ class CtmAlg:
     #   T =  o --  [χ, D², χ]
     #        |
 
-    def __init__(
-        self, A: torch.Tensor, chi: int, C_init: torch.Tensor = None, T_init: torch.Tensor = None, split: bool = False
-    ):
+    def __init__(self, A: torch.Tensor, chi: int, C: torch.Tensor = None, T: torch.Tensor = None, split: bool = False):
         D = A.size(1)
         self.D = D
         self.split = split
         self.max_chi = chi
-        self.chi = D**2 if C_init is None else chi
+        self.chi = D**2 if C is None else C.size(0)  # In both cases we have to let chi grow to max_chi.
         self.trunc_errors = []
 
         a = torch.einsum("abcde,afghi->bfcidheg", A, A)
@@ -50,15 +48,15 @@ class CtmAlg:
         #  -- o --
         #    /
 
-        self.C = torch.einsum("aabbcdef->cdef", a).view(D**2, D**2) if C_init is None else C_init
+        self.C = torch.einsum("aabbcdef->cdef", a).view(D**2, D**2) if C is None else C
         #       /|
         #  --- o ---
         #  |  /|/      🡺   o --  [χ, χ]
         #  --- o ---        |
         #     /
 
-        if T_init is not None:
-            self.T = T_init.reshape(chi, D, D, chi) if split else T_init.reshape(chi, D**2, chi)
+        if T is not None:
+            self.T = T.view(self.chi, D, D, self.chi) if split else T
         else:
             shape = (D**2, D, D, D**2) if split else (D**2, D**2, D**2)
             self.T = torch.einsum("aabcdefg->bcdefg", a).view(shape)

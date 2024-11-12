@@ -87,7 +87,6 @@ class iPEPSTrainer:
         model = iPEPS(chi, self.args["split"], lam, H, map, checkpoint, losses, epoch, per, norms).to(self.device)
         C, T = model.get_edge_corner()
 
-        # Initialize the optimizer
         ls = "strong_wolfe" if self.args["line_search"] else None
         optimizer = torch.optim.LBFGS(model.parameters(), lr, 1, line_search_fn=ls)
 
