@@ -2,9 +2,10 @@ from pepsflow.models.tensors import Tensors
 from pepsflow.train.iPEPS import iPEPS
 from pepsflow.models.CTM_alg import CtmAlg
 
+from torchmin import Minimizer
 import torch
 import os
-from rich.progress import Progress, TextColumn, BarColumn, MofNCompleteColumn, TimeElapsedColumn, Task
+from rich.progress import Progress, TextColumn, BarColumn, MofNCompleteColumn, TimeElapsedColumn
 from rich import print
 
 
@@ -27,7 +28,6 @@ class iPEPSTrainer:
         )
         self._init_pauli_operators()
 
-        # Initialize the progress bar
         self.progress = Progress(
             TextColumn("[progress.description]{task.description}"),
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
@@ -87,8 +87,9 @@ class iPEPSTrainer:
         model = iPEPS(chi, self.args["split"], lam, H, map, checkpoint, losses, epoch, per, norms).to(self.device)
         C, T = model.get_edge_corner()
 
-        ls = "strong_wolfe" if self.args["line_search"] else None
-        optimizer = torch.optim.LBFGS(model.parameters(), lr, 1, line_search_fn=ls)
+        ls = "strong-wolfe" if self.args["line_search"] else "none"
+        optimizer = Minimizer(model.parameters(), "l-bfgs", max_iter=1, options={"lr": lr, "line_search": ls})
+        # optimizer = torch.optim.LBFGS(model.parameters(), lr, 1, line_search_fn=ls)
 
         def train() -> torch.Tensor:
             """
@@ -98,11 +99,11 @@ class iPEPSTrainer:
             nonlocal C, T
             optimizer.zero_grad()
             loss, C, T = model.forward(C, T)
-            loss.backward()
+            # Optimizer calls the following internally: loss.backward()
             return loss
 
         self.progress.start_task(self.training_task)
-        for i in range(self.args["epochs"]):
+        for _ in range(self.args["epochs"]):
             loss = optimizer.step(train)
 
             # Save intermediate results
