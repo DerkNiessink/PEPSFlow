@@ -2,7 +2,7 @@ import torch
 import os
 
 from pepsflow.models.observables import Observables
-from pepsflow.train.iPEPS import iPEPS
+from pepsflow.iPEPS.iPEPS import iPEPS
 
 
 class iPEPSReader:

@@ -1,5 +1,5 @@
 from pepsflow.models.tensors import Tensors
-from pepsflow.train.iPEPS import iPEPS
+from pepsflow.iPEPS.iPEPS import iPEPS
 from pepsflow.models.CTM_alg import CtmAlg
 
 from torchmin import Minimizer
@@ -87,9 +87,9 @@ class iPEPSTrainer:
         model = iPEPS(chi, self.args["split"], lam, H, map, checkpoint, losses, epoch, per, norms).to(self.device)
         C, T = model.get_edge_corner()
 
-        ls = "strong-wolfe" if self.args["line_search"] else "none"
-        optimizer = Minimizer(model.parameters(), "l-bfgs", max_iter=1, options={"lr": lr, "line_search": ls})
-        # optimizer = torch.optim.LBFGS(model.parameters(), lr, 1, line_search_fn=ls)
+        ls = "strong_wolfe" if self.args["line_search"] else None
+        # optimizer = Minimizer(model.parameters(), "l-bfgs", max_iter=1, options={"lr": lr, "line_search": ls})
+        optimizer = torch.optim.LBFGS(model.parameters(), lr, 1, line_search_fn=ls)
 
         def train() -> torch.Tensor:
             """
@@ -99,7 +99,7 @@ class iPEPSTrainer:
             nonlocal C, T
             optimizer.zero_grad()
             loss, C, T = model.forward(C, T)
-            # Optimizer calls the following internally: loss.backward()
+            loss.backward()
             return loss
 
         self.progress.start_task(self.training_task)

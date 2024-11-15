@@ -6,7 +6,7 @@ from rich.text import Text
 from rich.filesize import decimal
 from rich.markup import escape
 
-from pepsflow.train.iPEPS_reader import iPEPSReader
+from pepsflow.iPEPS.reader import iPEPSReader
 
 
 def get_observables(

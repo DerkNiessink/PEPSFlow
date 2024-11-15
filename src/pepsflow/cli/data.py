@@ -9,7 +9,7 @@ from rich.console import Console
 from rich.table import Table
 from rich import box
 
-from pepsflow.train.iPEPS_reader import iPEPSReader
+from pepsflow.iPEPS.reader import iPEPSReader
 from pepsflow.cli.utils import get_observables, walk_directory
 
 # fmt: off

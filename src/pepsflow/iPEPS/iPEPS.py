@@ -1,7 +1,7 @@
 import torch
 
 from pepsflow.models.CTM_alg import CtmAlg
-from pepsflow.models.tensors import Tensors, Methods
+from pepsflow.models.tensors import Methods
 from pepsflow.models.observables import Observables
 
 

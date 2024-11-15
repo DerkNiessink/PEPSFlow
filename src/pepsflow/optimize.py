@@ -3,7 +3,7 @@ import multiprocessing as mp
 import os
 import ast
 
-from pepsflow.train.iPEPS_trainer import iPEPSTrainer
+from pepsflow.iPEPS.trainer import iPEPSTrainer
 
 
 def optimize_single_run(value: float, param, args: dict):
