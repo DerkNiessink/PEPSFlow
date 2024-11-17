@@ -9,7 +9,7 @@ from rich.progress import Progress, TextColumn, BarColumn, MofNCompleteColumn, T
 from rich import print
 
 
-class iPEPSTrainer:
+class Trainer:
     """
     Class to train the iPEPS model using automatic differentiation for different
     values of lambda.

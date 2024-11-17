@@ -1,5 +1,4 @@
 import torch
-import os
 
 from pepsflow.models.observables import Observables
 from pepsflow.iPEPS.iPEPS import iPEPS

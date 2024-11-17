@@ -4,7 +4,7 @@ from rich.console import Console
 from rich.table import Table
 from rich import box
 
-import pepsflow.optimize
+import pepsflow.pepsflow as pepsflow
 
 # fmt: off
 
@@ -18,7 +18,7 @@ def params(ctx):
     if ctx.invoked_subcommand is None:
         config = configparser.ConfigParser()
         config.optionxform = str # Preserve the case of the keys
-        config.read("src/pepsflow/optimize.cfg")
+        config.read("src/pepsflow/pepsflow.cfg")
         console = Console()
         table = Table(title="Optimization parameters", title_justify="center", box=box.SIMPLE_HEAVY)
         table.add_column("Parameter", no_wrap=True, justify="left")
@@ -53,7 +53,7 @@ def set(**args):
     """
     config = configparser.ConfigParser()
     config.optionxform = str
-    file = "src/pepsflow/optimize.cfg"
+    file = "src/pepsflow/pepsflow.cfg"
     config.read(file)    
 
     # Regular expression pattern to match parameters
@@ -77,4 +77,16 @@ def optimize():
     """
     Optimize the iPEPS tensor network with the specified parameters in the configuration file.
     """
-    pepsflow.optimize.optimize()
+    pepsflow.optimize()
+
+
+@params.command()
+@click.argument("filename", type=str)
+def converge(filename: str):
+    """
+    Converge the iPEPS tensor network with the specified parameters in the configuration file.
+
+    Args:
+        filename (str): Filename of the data to read.
+    """
+    pepsflow.converge(filename)

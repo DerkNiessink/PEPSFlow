@@ -80,7 +80,6 @@ class Tensors:
         return res.reshape(4, 4)
 
     @staticmethod
-    @property
     def Mp() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Return the operator to measure the magnetization in the (x, y, z) direction.

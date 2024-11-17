@@ -3,7 +3,6 @@ from pepsflow.models.tensors import Tensors
 from pepsflow.models.observables import Observables
 
 import pytest
-import torch
 
 
 class TestCtmAlg:

@@ -5,6 +5,7 @@ from rich.tree import Tree
 from rich.text import Text
 from rich.filesize import decimal
 from rich.markup import escape
+import configparser
 
 from pepsflow.iPEPS.reader import iPEPSReader
 
