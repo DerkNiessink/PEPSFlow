@@ -5,7 +5,7 @@ from rich.tree import Tree
 from rich.text import Text
 from rich.filesize import decimal
 from rich.markup import escape
-import configparser
+import json
 
 from pepsflow.iPEPS.reader import iPEPSReader
 
@@ -17,6 +17,7 @@ def get_observables(
     correlation_length: bool,
     gradient: click.Path,
     gradient_norm: click.Path,
+    energy_convergence: click.Path,
 ) -> tuple[list, list, list, list, list]:
     """
     Get the observables of all iPEPS models in the specified folder.
@@ -28,10 +29,13 @@ def get_observables(
         correlation_length (bool): Compute the correlation length.
         gradient (str): Desired file to plot the gradient.
         gradient_norm: (str): Desired file to plot the gradient norm.
+        energy_convergence (str): Desired file to plot the energy convergence.
     """
     # fmt: off
-    magnetizations, energies, correlations, lambdas, losses, norms = [], [], [], [], [], []
+    magnetizations, energies, correlations, lambdas, losses, norms, energy_convergence_data = [], [], [], [], [], [], []
     for file in os.listdir(os.path.join("data", folder)):
+        if not file.endswith(".pth"):
+            continue
         reader = iPEPSReader(os.path.join("data", folder, file))
         lambdas.append(reader.lam())
         if magnetization:
@@ -49,7 +53,11 @@ def get_observables(
         reader = iPEPSReader(os.path.join("data", folder, gradient_norm))
         norms = reader.gradient_norms()
 
-    return lambdas, magnetizations, energies, correlations, losses, norms
+    if energy_convergence:
+        with open(os.path.join("data", folder, energy_convergence)) as f:
+            energy_convergence_data = json.load(f)
+
+    return lambdas, magnetizations, energies, correlations, losses, norms, energy_convergence_data
 
 
 def walk_directory(directory: pathlib.Path, tree: Tree, concise: bool) -> None:

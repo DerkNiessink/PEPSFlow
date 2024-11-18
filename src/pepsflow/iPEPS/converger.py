@@ -3,6 +3,7 @@ from pepsflow.models.tensors import Tensors
 from pepsflow.models.observables import Observables
 from pepsflow.iPEPS.iPEPS import iPEPS
 
+import json
 import torch
 import os
 from rich.progress import Progress, TextColumn, BarColumn, MofNCompleteColumn, TimeElapsedColumn
@@ -33,7 +34,7 @@ class Converger:
             TimeElapsedColumn(),
         )
         self.task = self.progress.add_task(
-            f"[blue bold]CTM steps (χ = {self.args['chi']})", total=self.args["warmup_steps"], start=False
+            f"[blue bold]CTM steps (χ = {args['chi']})", total=args["warmup_steps"], start=False
         )
 
     def exe(self):
@@ -41,24 +42,37 @@ class Converger:
         Compute the energy if a converged iPEPS state for a given bond dimension using the CTMRG
         algorithm.
         """
-        self.progress.start_task(self.task)
-        alg = CtmAlg(self.A, self.args["chi"], split=self.args["split"])
-        for _ in range(self.args["warmup_steps"]):
-            alg.exe()
-            self.energies.append(Observables.E(self.A, self.H, alg.C, alg.T))
-            self.progress.update(self.task, advance=1)
+        with self.progress:
+            alg = CtmAlg(self.A, self.args["chi"], split=self.args["split"])
+            for _ in range(self.args["warmup_steps"]):
+                alg.exe(1, self.progress, self.task)
+                self.energies.append(Observables.E(self.A, self.H, alg.C, alg.T).item())
 
     def save_data(self, fn: str):
         """
-        Save the energies to a file.
+        Save the energies to a JSON file.
 
         Args:
-            fn (str): Filename to save the data.
+            fn (str): Filename to save the data. This filename will be appended with '.json'.
         """
+        fn = fn.replace(".pth", ".json")
         folder = os.path.dirname(fn)
         if folder and not os.path.exists(folder):
             os.makedirs(folder)
 
-        fn = f"{fn}" if fn else "data.pth"
-        torch.save(self.energies, fn)
+        fn = f"{fn}" if fn else "data"
+        table = json.load(open(fn, "r")) if os.path.exists(fn) else []
+
+        # Check if chi already exists and overwrite
+        chi_exists = False
+        for entry in table:
+            if entry["chi"] == self.args["chi"]:
+                entry["energies"] = self.energies
+                chi_exists = True
+                break
+
+        if not chi_exists:
+            table.append({"chi": self.args["chi"], "energies": self.energies})
+
+        json.dump(table, open(fn, "w"), indent=4)
         print(f"[green bold] \nData saved to {fn}")

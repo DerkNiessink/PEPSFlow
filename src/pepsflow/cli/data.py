@@ -8,6 +8,7 @@ import shutil
 from rich.console import Console
 from rich.table import Table
 from rich import box
+import json
 
 from pepsflow.iPEPS.reader import iPEPSReader
 from pepsflow.cli.utils import get_observables, walk_directory
@@ -39,11 +40,12 @@ def data(ctx, folder: str, concise: bool):
 @click.option("-xi", "--correlation_length", is_flag=True, default=False, help="Plot the correlation length as a function of lambda")
 @click.option("-g", "--gradient", type=click.Path(), default=None, help="Plot the gradient as a function of epoch")
 @click.option("-n", "--gradient_norm", type=click.Path(), default=None, help="Plot the gradient norm as a function of epoch")
-def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetization: bool, gradient: click.Path, gradient_norm: click.Path):
+@click.option("-c", "--energy_convergence", type=click.Path(), default=None, help="Plot the energy convergence as a function of epoch. Has to be a .json file.")
+def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetization: bool, gradient: click.Path, gradient_norm: click.Path, energy_convergence: click.Path):
     """
     Plot the observables of the iPEPS models.
     """
-    plot_all = not any([magnetization, energy, correlation_length, gradient, gradient_norm])
+    plot_all = not any([magnetization, energy, correlation_length, gradient, gradient_norm, energy_convergence])
     
     if magnetization or plot_all:
         mag_figure, mag_ax = plt.subplots(figsize=(6, 4))
@@ -61,7 +63,7 @@ def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetizat
         xi_ax.set_xlabel(r"$\lambda$")
 
     for folder in folders:
-        lambdas, magnetizations, energies, correlations, losses, norms = get_observables(folder, magnetization, energy, correlation_length, gradient, gradient_norm)
+        lambdas, magnetizations, energies, correlations, losses, norms, energy_conververgence_data = get_observables(folder, magnetization, energy, correlation_length, gradient, gradient_norm, energy_convergence)
 
         if magnetization or plot_all:
             mag_ax.plot(lambdas, magnetizations, "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
@@ -86,6 +88,15 @@ def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetizat
             grad_norm_ax.set_ylabel("Gradient Norm")
             grad_norm_ax.set_xlabel("Epoch")
             grad_norm_ax.legend()
+            plt.show()
+
+        if energy_convergence:
+            energy_convergence_figure, energy_convergence_ax = plt.subplots(figsize=(6, 4))
+            for data in energy_conververgence_data:
+                energy_convergence_ax.plot(range(len(data["energies"])), data["energies"], "v-", markersize=4, linewidth=0.5, label=data["chi"])
+            energy_convergence_ax.set_ylabel("$E$")
+            energy_convergence_ax.set_xlabel("Epoch")
+            energy_convergence_ax.legend()
             plt.show()
 
     if magnetization or plot_all:

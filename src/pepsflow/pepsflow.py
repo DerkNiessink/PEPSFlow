@@ -49,13 +49,10 @@ def get_save_path(value: float, param: str, args: dict, fn: str = None) -> str:
     # Set the value of the variational
     args[param] = value
     args["var_param"] = param
-    fn = f"{param}_{value}.pth" if not fn else fn
+    fn = f"{param}_{value}" if not fn else fn
 
     # Set the data file name
-    if args["data_folder"] != "None":
-        args["data_fn"] = os.path.join("data", args["data_folder"], fn)
-    else:
-        args["data_fn"] = None
+    args["data_fn"] = os.path.join("data", args["data_folder"], fn) if args["data_folder"] != "None" else None
 
     return os.path.join("data", args["save_folder"], fn)
 

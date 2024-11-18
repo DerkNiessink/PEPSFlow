@@ -24,7 +24,9 @@ class Trainer:
         self.device = torch.device("cuda:0" if args["gpu"] and torch.cuda.is_available() else "cpu")
         self.data = None
         self.data_prev: iPEPS = (
-            torch.load(args["data_fn"], map_location=self.device, weights_only=False) if args["data_fn"] else None
+            torch.load(f"{args["data_fn"]}.pth", map_location=self.device, weights_only=False)
+            if args["data_fn"]
+            else None
         )
 
         self.progress = Progress(
@@ -146,16 +148,15 @@ class Trainer:
 
     def save_data(self, fn: str = None) -> None:
         """
-        Save the collected data to a pickle file. The data is saved in the
-        'data' directory.
+        Save the collected data to a torch .pth file.
 
         Args:
-            fn (str): Filename to save the data to. Default is 'data.pth'.
+            fn (str): Filename to save the data to, without file extension. Default is 'data.pth'.
         """
         folder = os.path.dirname(fn)
         if folder and not os.path.exists(folder):
             os.makedirs(folder)
 
-        fn = f"{fn}" if fn else "data.pth"
+        fn = f"{fn}.pth" if fn else "data.pth"
         torch.save(self.data, fn)
         print(f"[green bold] \nData saved to {fn}")
