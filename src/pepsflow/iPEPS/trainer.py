@@ -1,14 +1,15 @@
 from pepsflow.models.tensors import Tensors
-from pepsflow.train.iPEPS import iPEPS
+from pepsflow.iPEPS.iPEPS import iPEPS
 from pepsflow.models.CTM_alg import CtmAlg
 
+from torchmin import Minimizer
 import torch
 import os
-from rich.progress import Progress, TextColumn, BarColumn, MofNCompleteColumn, TimeElapsedColumn, Task
+from rich.progress import Progress, TextColumn, BarColumn, MofNCompleteColumn, TimeElapsedColumn
 from rich import print
 
 
-class iPEPSTrainer:
+class Trainer:
     """
     Class to train the iPEPS model using automatic differentiation for different
     values of lambda.
@@ -23,11 +24,11 @@ class iPEPSTrainer:
         self.device = torch.device("cuda:0" if args["gpu"] and torch.cuda.is_available() else "cpu")
         self.data = None
         self.data_prev: iPEPS = (
-            torch.load(args["data_fn"], map_location=self.device, weights_only=False) if args["data_fn"] else None
+            torch.load(f"{args["data_fn"]}.pth", map_location=self.device, weights_only=False)
+            if args["data_fn"]
+            else None
         )
-        self._init_pauli_operators()
 
-        # Initialize the progress bar
         self.progress = Progress(
             TextColumn("[progress.description]{task.description}"),
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
@@ -48,15 +49,6 @@ class iPEPSTrainer:
             total=self.args["runs"] * self.args["epochs"],
             start=False,
         )
-
-    def _init_pauli_operators(self):
-        self.sx = torch.Tensor([[0, 1], [1, 0]]).double().to(self.device)
-        self.sz = torch.Tensor([[1, 0], [0, -1]]).double().to(self.device)
-        self.sy = torch.Tensor([[0, -1], [1, 0]]).double().to(self.device)
-        self.sy = torch.complex(torch.zeros_like(self.sz), self.sy).to(self.device)
-        self.sp = torch.Tensor([[0, 1], [0, 0]]).double().to(self.device)
-        self.sm = torch.Tensor([[0, 0], [1, 0]]).double().to(self.device)
-        self.I = torch.eye(2).double().to(self.device)
 
     def exe(self) -> None:
         """
@@ -81,13 +73,18 @@ class iPEPSTrainer:
 
         checkpoint, map, losses, epoch, norms = self._get_checkpoint()
 
-        H = self._get_hamiltonian()
+        H = (
+            Tensors.H_Heisenberg(self.args["lam"])
+            if self.args["model"] == "Heisenberg"
+            else Tensors.H_Ising(self.args["lam"])
+        )
         chi, lam, lr, per = self.args["chi"], self.args["lam"], self.args["learning_rate"], self.args["perturbation"]
 
-        model = iPEPS(chi, self.args["split"], lam, H, map, checkpoint, losses, epoch, per, norms).to(self.device)
+        model = iPEPS(chi, self.args["split"], lam, H, map, checkpoint, losses, epoch, per, norms)
         C, T = model.get_edge_corner()
 
         ls = "strong_wolfe" if self.args["line_search"] else None
+        # optimizer = Minimizer(model.parameters(), "l-bfgs", max_iter=1, options={"lr": lr, "line_search": ls})
         optimizer = torch.optim.LBFGS(model.parameters(), lr, 1, line_search_fn=ls)
 
         def train() -> torch.Tensor:
@@ -102,7 +99,7 @@ class iPEPSTrainer:
             return loss
 
         self.progress.start_task(self.training_task)
-        for i in range(self.args["epochs"]):
+        for _ in range(self.args["epochs"]):
             loss = optimizer.step(train)
 
             # Save intermediate results
@@ -137,7 +134,7 @@ class iPEPSTrainer:
             epoch = self.args["start_epoch"]
         # Generate a random symmetric A tensor and do CTM warmup steps
         else:
-            A = Tensors.A_random_symmetric(self.args["D"]).to(self.device)
+            A = Tensors.A_random_symmetric(self.args["D"])
             params, map = torch.unique(A, return_inverse=True)
             alg = CtmAlg(A, chi=self.args["chi"], split=self.args["split"])
             self.progress.tasks[self.warmup_task].visible = True
@@ -149,33 +146,17 @@ class iPEPSTrainer:
 
         return checkpoint, map, losses, epoch, gradient_norms
 
-    def _get_hamiltonian(self) -> torch.Tensor:
-        """
-        Get the Hamiltonian operator for the iPEPS model.
-
-        Returns:
-            torch.Tensor: Hamiltonian operator
-        """
-        if self.args["model"] == "Heisenberg":
-            H = Tensors.H_Heisenberg(self.args["lam"], self.sy, self.sz, self.sp, self.sm).to(self.device)
-        elif self.args["model"] == "Ising":
-            H = Tensors.H_Ising(self.args["lam"], self.sz, self.sx, self.I).to(self.device)
-        else:
-            raise ValueError("Invalid model type. Choose 'Heisenberg' or 'Ising'.")
-        return H
-
     def save_data(self, fn: str = None) -> None:
         """
-        Save the collected data to a pickle file. The data is saved in the
-        'data' directory.
+        Save the collected data to a torch .pth file.
 
         Args:
-            fn (str): Filename to save the data to. Default is 'data.pth'.
+            fn (str): Filename to save the data to, without file extension. Default is 'data.pth'.
         """
         folder = os.path.dirname(fn)
         if folder and not os.path.exists(folder):
             os.makedirs(folder)
 
-        fn = f"{fn}" if fn else "data.pth"
+        fn = f"{fn}.pth" if fn else "data.pth"
         torch.save(self.data, fn)
         print(f"[green bold] \nData saved to {fn}")

@@ -8,25 +8,73 @@ from typing import Sequence
 class Tensors:
 
     @staticmethod
-    def H_Ising(lam: float, sz: torch.Tensor, sx: torch.Tensor, I: torch.Tensor) -> torch.Tensor:
+    def sx() -> torch.Tensor:
         """
-        Returns the Hamiltonian operator of the Ising model
+        Return the Pauli X matrix.
         """
-        return -torch.kron(sz, sz) - 0.25 * lam * (torch.kron(sx, I) + torch.kron(I, sx))
+        return torch.Tensor([[0, 1], [1, 0]]).double()
 
-    def H_Heisenberg(
-        lam: float,
-        sy: torch.Tensor,
-        sz: torch.Tensor,
-        sp: torch.Tensor,
-        sm: torch.Tensor,
-    ) -> torch.Tensor:
+    @staticmethod
+    def sy() -> torch.Tensor:
         """
-        Returns the Hamiltonian operator of the Heisenberg model.
+        Return the Pauli Y matrix.
         """
-        rot = torch.matrix_exp(1j * torch.pi * sy / 2)
-        sz = torch.complex(sz, torch.zeros_like(sz))
-        res = 2 * lam * (torch.kron(sz, sz) / 4 + torch.kron(sp, sm) / 2 + torch.kron(sm, sp) / 2)
+        sy = torch.Tensor([[0, -1], [1, 0]]).double()
+        return torch.complex(torch.zeros_like(Tensors.sz()), sy)
+
+    @staticmethod
+    def sz() -> torch.Tensor:
+        """
+        Return the Pauli Z matrix.
+        """
+        return torch.Tensor([[1, 0], [0, -1]]).double()
+
+    @staticmethod
+    def sp() -> torch.Tensor:
+        """
+        Return the raising operator.
+        """
+        return torch.Tensor([[0, 1], [0, 0]]).double()
+
+    @staticmethod
+    def sm() -> torch.Tensor:
+        """
+        Return the lowering operator.
+        """
+        return torch.Tensor([[0, 0], [1, 0]]).double()
+
+    @staticmethod
+    def I() -> torch.Tensor:
+        """
+        Return the identity matrix.
+        """
+        return torch.eye(2).double()
+
+    @staticmethod
+    def H_Ising(lam: float) -> torch.Tensor:
+        """
+        Return the Hamiltonian operator of the Ising model
+        """
+        return -torch.kron(Tensors.sz(), Tensors.sz()) - 0.25 * lam * (
+            torch.kron(Tensors.sx(), Tensors.I()) + torch.kron(Tensors.I(), Tensors.sx())
+        )
+
+    @staticmethod
+    def H_Heisenberg(lam: float) -> torch.Tensor:
+        """
+        Return the Hamiltonian operator of the Heisenberg model.
+        """
+        rot = torch.matrix_exp(1j * torch.pi * Tensors.sy() / 2)
+        sz = torch.complex(Tensors.sz(), torch.zeros_like(Tensors.sz()))
+        res = (
+            2
+            * lam
+            * (
+                torch.kron(sz, sz) / 4
+                + torch.kron(Tensors.sp(), Tensors.sm()) / 2
+                + torch.kron(Tensors.sm(), Tensors.sp()) / 2
+            )
+        )
         res = res.view(2, 2, 2, 2)
         res = torch.einsum("abcd,be,df->aecf", res, rot, torch.conj(rot)).real
         return res.reshape(4, 4)
@@ -37,15 +85,15 @@ class Tensors:
         Return the operator to measure the magnetization in the (x, y, z) direction.
         """
         return (
-            torch.kron(torch.Tensor([[0, 1], [1, 0]]), torch.eye(2)).double(),
+            torch.kron(Tensors.sx(), torch.eye(2)).double(),
             torch.kron(torch.Tensor([[0, -1], [1, 0]]), torch.eye(2)).double(),
-            torch.kron(torch.Tensor([[1, 0], [0, -1]]), torch.eye(2)).double(),
+            torch.kron(Tensors.sz(), torch.eye(2)).double(),
         )
 
     @staticmethod
     def A_random_symmetric(D=2) -> torch.Tensor:
         """
-        Returns a random rank 5 tensor with legs of size d, which has left-right,
+        Return a random rank 5 tensor with legs of size d, which has left-right,
         up-down and diagonal symmetry. The legs are ordered as follows:
         A(phy, up, left, down, right).
         """
@@ -56,7 +104,7 @@ class Tensors:
     @staticmethod
     def random(shape: tuple) -> torch.Tensor:
         """
-        Returns a random tensor of specific shape, which can be either rank 2
+        Return a random tensor of specific shape, which can be either rank 2
         or rank 3. The tensor is symmetric under the exchange of the first two
         indices and the values are normalized.
         """

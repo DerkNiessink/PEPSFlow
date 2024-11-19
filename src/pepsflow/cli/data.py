@@ -8,9 +8,11 @@ import shutil
 from rich.console import Console
 from rich.table import Table
 from rich import box
+import json
 
-from pepsflow.train.iPEPS_reader import iPEPSReader
+from pepsflow.iPEPS.reader import iPEPSReader
 from pepsflow.cli.utils import get_observables, walk_directory
+from matplotlib.ticker import LogLocator
 
 # fmt: off
 
@@ -37,66 +39,99 @@ def data(ctx, folder: str, concise: bool):
 @click.option("-e", "--energy", is_flag=True, default=False, help="Plot the energy as a function of lambda")
 @click.option("-m", "--magnetization", is_flag=True, default=False, help="Plot the magnetization as a function of lambda")
 @click.option("-xi", "--correlation_length", is_flag=True, default=False, help="Plot the correlation length as a function of lambda")
-@click.option("-g", "--gradient", type=click.Path(), default=None, help="Plot the gradient as a function of epoch")
-@click.option("-n", "--gradient_norm", type=click.Path(), default=None, help="Plot the gradient norm as a function of epoch")
-def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetization: bool, gradient: click.Path, gradient_norm: click.Path):
+@click.option("-g", "--gradient", type=click.Path(), default=None, help="Plot the gradient as a function of epoch. Has to be a .pth file.")
+@click.option("-n", "--gradient_norm", type=click.Path(), default=None, help="Plot the gradient norm as a function of epoch. Has to be a .pth file.")
+@click.option("-c", "--energy_convergence", type=click.Path(), default=None, help="Plot the energy convergence as a function of epoch. Has to be a .json file.")
+@click.option("-chi", "--energy_chi", type=click.Path(), default=None, help="Plot the converged energy as a function of 1/chi. Has to be a .json file.")
+def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetization: bool, gradient: click.Path, gradient_norm: click.Path, energy_convergence: click.Path, energy_chi: click.Path):
     """
     Plot the observables of the iPEPS models.
-    """
-    plot_all = not any([magnetization, energy, correlation_length, gradient, gradient_norm])
-    
-    if magnetization or plot_all:
+    """    
+    if magnetization:
         mag_figure, mag_ax = plt.subplots(figsize=(6, 4))
         mag_ax.set_ylabel(r"$\langle M_z \rangle$")
         mag_ax.set_xlabel(r"$\lambda$")
 
-    if energy or plot_all:
+    if energy:
         en_figure, en_ax = plt.subplots(figsize=(6, 4))
         en_ax.set_ylabel(r"$E$")
         en_ax.set_xlabel(r"$\lambda$")
 
-    if correlation_length or plot_all:
+    if correlation_length:
         xi_figure, xi_ax = plt.subplots(figsize=(6, 4))
         xi_ax.set_ylabel(r"$\xi$")
         xi_ax.set_xlabel(r"$\lambda$")
 
     for folder in folders:
-        lambdas, magnetizations, energies, correlations, losses, norms = get_observables(folder, magnetization, energy, correlation_length, gradient, gradient_norm)
+        data = get_observables(folder, magnetization, energy, correlation_length, gradient, gradient_norm, energy_convergence, energy_chi)
 
-        if magnetization or plot_all:
-            mag_ax.plot(lambdas, magnetizations, "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
+        if magnetization:
+            mag_ax.plot(data["lam"], data["M"], "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
 
-        if energy or plot_all:
-            en_ax.plot(lambdas, energies, "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
+        if energy:
+            en_ax.plot(data["lam"], data["E"], "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
 
-        if correlation_length or plot_all:
-            xi_ax.plot(lambdas, correlations, "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
+        if correlation_length:
+            xi_ax.plot(data["lam"], data["xi"], "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
 
         if gradient:
             grad_figure, grad_ax = plt.subplots(figsize=(6, 4))
-            grad_ax.plot(range(len(losses)), losses, "v-", markersize=4, linewidth=0.5, label=folder)
+            grad_ax.plot(range(len(data["losses"])), data["losses"], "v-", markersize=4, linewidth=0.5, label=folder)
             grad_ax.set_ylabel("$E$")
             grad_ax.set_xlabel("Epoch")
             grad_ax.legend()
+            grad_ax.grid(which='both', linestyle='--', linewidth=0.5)
+            plt.tight_layout()
             plt.show()
 
         if gradient_norm:
             grad_norm_figure, grad_norm_ax = plt.subplots(figsize=(6, 4))
-            grad_norm_ax.plot(range(len(norms)), norms, "v-", markersize=4, linewidth=0.5, label=folder)
+            grad_norm_ax.plot(range(len(data["norms"])), data["norms"], "v-", markersize=4, linewidth=0.5, label=folder)
             grad_norm_ax.set_ylabel("Gradient Norm")
             grad_norm_ax.set_xlabel("Epoch")
             grad_norm_ax.legend()
             plt.show()
 
-    if magnetization or plot_all:
+        if energy_convergence:
+            energy_convergence_figure, energy_convergence_ax = plt.subplots(figsize=(6, 4))
+            for vals in data["energy_convergence"]:
+                energy_convergence_ax.plot(range(len(vals["energies"])), vals["energies"], "v-", markersize=4, linewidth=0.5, label=rf"$\chi={vals['chi']}$")
+            energy_convergence_ax.set_ylabel("$E$")
+            energy_convergence_ax.set_xlabel("CTMRG Steps")
+            energy_convergence_ax.legend()
+            energy_convergence_ax.grid(which='both', linestyle='--', linewidth=0.5)	
+            energy_convergence_ax.set_xlim(0, 30)
+            energy_convergence_ax.set_ylim(-0.6659,-0.6645)
+            plt.tight_layout()
+            plt.show()
+
+        if energy_chi:
+            energy_chi_figure, energy_chi_ax = plt.subplots(figsize=(6, 4))
+            inverse_chis, energies = [], []
+            for vals in data["energy_convergence"]:
+                inverse_chis.append(1/vals["chi"])
+                energies.append(vals["energies"][-1])
+            
+            energy_chi_ax.set_xlim(0, 1.05*max(inverse_chis))
+            energy_chi_ax.grid(which='both', linestyle='--', linewidth=0.5)
+            energy_chi_ax.plot(inverse_chis, energies, "v-", markersize=4, linewidth=0.5, label=f"${folder}$")
+            energy_chi_ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.4f}'))
+            energy_chi_ax.set_ylabel("$E$")
+            energy_chi_ax.set_xlabel(r"$1/\chi$")
+            energy_chi_ax.legend()
+            plt.tight_layout()
+            plt.show()
+    
+
+    if magnetization:
         mag_ax.legend()
         plt.show()
 
-    if energy or plot_all:
+    if energy:
         en_ax.legend()
         plt.show()
 
-    if correlation_length or plot_all:
+    if correlation_length:
         xi_ax.legend()
         plt.show()
 

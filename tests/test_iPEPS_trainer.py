@@ -1,6 +1,6 @@
 import pytest
 
-from pepsflow.train.iPEPS_trainer import iPEPSTrainer
+from pepsflow.iPEPS.trainer import Trainer
 
 
 class TestiPEPSTrainer:
@@ -24,7 +24,7 @@ class TestiPEPSTrainer:
             "var_param": "lam",
             "line_search": False,
         }
-        trainer = iPEPSTrainer(args)
+        trainer = Trainer(args)
         trainer.exe()
         E = trainer.data.losses[-1]
         assert E == pytest.approx(E_exp, abs=1e-3)
