@@ -80,10 +80,13 @@ def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetizat
             grad_ax.set_ylabel("$E$")
             grad_ax.set_xlabel("Epoch")
             grad_ax.legend()
+            grad_ax.grid(which='both', linestyle='--', linewidth=0.5)
+            plt.tight_layout()
+            plt.show()
 
         if gradient_norm:
             grad_norm_figure, grad_norm_ax = plt.subplots(figsize=(6, 4))
-            grad_norm_ax.plot(range(len(data["norm"])), data["norm"], "v-", markersize=4, linewidth=0.5, label=folder)
+            grad_norm_ax.plot(range(len(data["norms"])), data["norms"], "v-", markersize=4, linewidth=0.5, label=folder)
             grad_norm_ax.set_ylabel("Gradient Norm")
             grad_norm_ax.set_xlabel("Epoch")
             grad_norm_ax.legend()
