@@ -21,9 +21,9 @@ def read_config():
         if value == "None":
             args[key] = None
 
-        # Skip the save_folder, data_folder, and model parameters.
         # These already have the correct data type (str).
-        if key not in ("save_folder", "data_folder", "model", "optimizer"):
+        if key not in ("write_folder", "read_folder", "model", "optimizer"):
+
             args[key] = ast.literal_eval(value)
             # Find the variational parameter
             if type(args[key]) == list:
@@ -43,7 +43,7 @@ def get_save_path(value: float, param: str, args: dict, fn: str = None) -> str:
         value (float): Value of the variational parameter.
         param (str): Name of the variational parameter.
         args (dict): Arguments for the optimization.
-        fn (str): Filename for the data file.
+        read_fn (str): Filename of the data file to read from and save to.
 
     Returns:
         str: Filename for the data file.
@@ -54,9 +54,9 @@ def get_save_path(value: float, param: str, args: dict, fn: str = None) -> str:
     fn = f"{param}_{value}" if not fn else fn
 
     # Set the data file name
-    args["data_fn"] = os.path.join("data", args["data_folder"], fn) if args["data_folder"] != None else None
+    args["data_fn"] = os.path.join("data", args["read_folder"], fn) if args["read_folder"] != None else None
 
-    return os.path.join("data", args["save_folder"], fn)
+    return os.path.join("data", args["write_folder"], fn)
 
 
 def optimize_single_run(value: float, param: str, args: dict):
@@ -74,7 +74,7 @@ def optimize_single_run(value: float, param: str, args: dict):
     trainer.save_data(path)
 
 
-def converge_single_run(value: float, param: str, args: dict, data_fn: str):
+def converge_single_run(value: float, param: str, args: dict, read_fn: str):
     """
     Compute the energy if a converged iPEPS state for a given bond dimension using the CTMRG
     algorithm.
@@ -83,9 +83,10 @@ def converge_single_run(value: float, param: str, args: dict, data_fn: str):
         value (float): Value of the variational parameter.
         param (str): Name of the variational parameter.
         args (dict): Arguments for the optimization.
+        read_fn (str): Filename of the data file to read from
     """
     args["chi"] = value
-    path = get_save_path(value, param, args, data_fn)
+    path = get_save_path(value, param, args, read_fn)
     conv = Converger(args)
     conv.exe()
     conv.save_data(path)
@@ -103,17 +104,17 @@ def optimize():
         )
 
 
-def converge(data_fn: str):
+def converge(read_fn: str):
     """
     Compute the energy if a converged iPEPS state for a list of bond dimensions using the CTMRG
     algorithm.
 
     Args:
-        data_fn (str): Filename of the data file to read from.
+        read_fn (str): Filename of the data file to read from.
     """
     args, var_param = read_config()
     with mp.Pool(processes=len(args[var_param])) as pool:
         pool.starmap(
             converge_single_run,
-            [(value, var_param, args.copy(), data_fn) for value in args[var_param]],
+            [(value, var_param, args.copy(), read_fn) for value in args[var_param]],
         )
