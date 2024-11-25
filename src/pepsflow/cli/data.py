@@ -8,11 +8,9 @@ import shutil
 from rich.console import Console
 from rich.table import Table
 from rich import box
-import json
 
 from pepsflow.iPEPS.reader import iPEPSReader
 from pepsflow.cli.utils import get_observables, walk_directory
-from matplotlib.ticker import LogLocator
 
 # fmt: off
 
@@ -212,3 +210,16 @@ def info(folder: click.Path, file: click.Path, state: bool, lam: bool, energy: b
 
     console.print(table)
     console.print("\n")
+
+
+@data.command()
+@click.argument("folder", type=click.Path())
+@click.option("-f", "--file", default=None, type=click.Path(), help="File containing data, if not specified, all files in the folder are set to the lowest energy.")
+def lowest(folder: click.Path, file: click.Path):
+    """
+    Set the last epoch of the iPEPS model to the lowest energy.
+    """
+    filenames = [file] if file else os.listdir(os.path.join("data", folder))
+    for f in filenames:
+        reader = iPEPSReader(os.path.join("data", folder, f))
+        reader.set_to_lowest_energy()

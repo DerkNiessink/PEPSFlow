@@ -15,6 +15,7 @@ click = "^8.1.7"
 rich = "^13.9.2"
 opt-einsum = "^3.4.0"
 pytorch-minimize = "^0.0.2"
+ncg-optimizer = "^0.1.1"
 
 [tool.poetry.scripts]
 pepsflow = "pepsflow.cli.main:cli"

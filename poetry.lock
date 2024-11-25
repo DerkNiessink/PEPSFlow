@@ -587,6 +587,20 @@ gmpy = ["gmpy2 (>=2.1.0a4)"]
 tests = ["pytest (>=4.6)"]
 
 [[package]]
+name = "ncg-optimizer"
+version = "0.1.1"
+description = "PyTorch optimizer based on nonlinear conjugate gradient method"
+optional = false
+python-versions = "*"
+files = [
+    {file = "ncg-optimizer-0.1.1.tar.gz", hash = "sha256:349a11b163e026df9ce7fe1993ac66ea7620dce828d7f95833757d805ac81534"},
+    {file = "ncg_optimizer-0.1.1-py3-none-any.whl", hash = "sha256:2a765bdb6749da24028f55905c2af85d1e8cd22ce671952de3833f7491d0e207"},
+]
+
+[package.dependencies]
+torch = ">=1.7.1"
+
+[[package]]
 name = "networkx"
 version = "3.4.2"
 description = "Python package for creating and manipulating graphs and networks"
@@ -1252,4 +1266,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "2cf3ae2e34374fc3c5bc3ca6b69667e02727fcd07d9cabc47a5ff6a3b070e1fd"
+content-hash = "713801a128202ededf282ace6fe15e945dab266bb84cb76d4e83ffadf02862d0"

@@ -1,4 +1,5 @@
 import torch
+import os
 
 from pepsflow.models.observables import Observables
 from pepsflow.iPEPS.iPEPS import iPEPS
@@ -14,6 +15,7 @@ class iPEPSReader:
 
     def __init__(self, file: str):
         self.iPEPS: iPEPS = torch.load(file, weights_only=False)
+        self.file = file
         self.iPEPS.eval()
 
     def lam(self) -> float:
@@ -79,3 +81,10 @@ class iPEPSReader:
             float: Correlation of the iPEPS model.
         """
         return float(Observables.xi(self.iPEPS.T))
+
+    def set_to_lowest_energy(self) -> None:
+        """
+        Set the iPEPS model to the state with the lowest energy.
+        """
+        self.iPEPS.set_to_lowest_energy()
+        torch.save(self.iPEPS, self.file)
