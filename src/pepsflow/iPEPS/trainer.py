@@ -1,9 +1,8 @@
 from pepsflow.models.tensors import Tensors
 from pepsflow.iPEPS.iPEPS import iPEPS
 from pepsflow.models.CTM_alg import CtmAlg
+from pepsflow.models.optimizers import Optimizer
 
-from torchmin import Minimizer
-import ncg_optimizer as ngco
 import torch
 import os
 from rich.progress import Progress, TextColumn, BarColumn, MofNCompleteColumn, TimeElapsedColumn
@@ -79,16 +78,17 @@ class Trainer:
             if self.args["model"] == "Heisenberg"
             else Tensors.H_Ising(self.args["lam"])
         )
-        chi, lam, lr, per = self.args["chi"], self.args["lam"], self.args["learning_rate"], self.args["perturbation"]
+        chi, lam, per, split = self.args["chi"], self.args["lam"], self.args["perturbation"], self.args["split"]
+        model = iPEPS(chi, split, lam, H, map, checkpoint, losses, epoch, per, norms)
 
-        model = iPEPS(chi, self.args["split"], lam, H, map, checkpoint, losses, epoch, per, norms)
+        optimizer = Optimizer(
+            self.args["optimizer"],
+            model.parameters(),
+            lr=self.args["learning_rate"],
+            line_search_fn=self.args["line_search"],
+        )
+
         C, T = model.get_edge_corner()
-
-        ls = "Strong_Wolfe" if self.args["line_search"] else None
-        # optimizer = Minimizer(model.parameters(), "l-bfgs", max_iter=1, options={"lr": lr, "line_search": ls})
-        # optimizer = torch.optim.LBFGS(model.parameters(), lr, 1, line_search_fn=ls)
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-        # optimizer = ngco.BASIC(model.parameters(), method="HZ", line_search=ls, lr=1, max_ls=3)
 
         def train() -> torch.Tensor:
             """

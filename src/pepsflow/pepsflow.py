@@ -18,10 +18,12 @@ def read_config():
 
     var_param = None
     for key, value in args.items():
+        if value == "None":
+            args[key] = None
 
         # Skip the save_folder, data_folder, and model parameters.
         # These already have the correct data type (str).
-        if key not in ("save_folder", "data_folder", "model"):
+        if key not in ("save_folder", "data_folder", "model", "optimizer"):
             args[key] = ast.literal_eval(value)
             # Find the variational parameter
             if type(args[key]) == list:
@@ -52,7 +54,7 @@ def get_save_path(value: float, param: str, args: dict, fn: str = None) -> str:
     fn = f"{param}_{value}" if not fn else fn
 
     # Set the data file name
-    args["data_fn"] = os.path.join("data", args["data_folder"], fn) if args["data_folder"] != "None" else None
+    args["data_fn"] = os.path.join("data", args["data_folder"], fn) if args["data_folder"] != None else None
 
     return os.path.join("data", args["save_folder"], fn)
 
