@@ -3,6 +3,7 @@ from pepsflow.iPEPS.iPEPS import iPEPS
 from pepsflow.models.CTM_alg import CtmAlg
 
 from torchmin import Minimizer
+import ncg_optimizer as ngco
 import torch
 import os
 from rich.progress import Progress, TextColumn, BarColumn, MofNCompleteColumn, TimeElapsedColumn
@@ -83,9 +84,11 @@ class Trainer:
         model = iPEPS(chi, self.args["split"], lam, H, map, checkpoint, losses, epoch, per, norms)
         C, T = model.get_edge_corner()
 
-        ls = "strong_wolfe" if self.args["line_search"] else None
+        ls = "Strong_Wolfe" if self.args["line_search"] else None
         # optimizer = Minimizer(model.parameters(), "l-bfgs", max_iter=1, options={"lr": lr, "line_search": ls})
-        optimizer = torch.optim.LBFGS(model.parameters(), lr, 1, line_search_fn=ls)
+        # optimizer = torch.optim.LBFGS(model.parameters(), lr, 1, line_search_fn=ls)
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        # optimizer = ngco.BASIC(model.parameters(), method="HZ", line_search=ls, lr=1, max_ls=3)
 
         def train() -> torch.Tensor:
             """

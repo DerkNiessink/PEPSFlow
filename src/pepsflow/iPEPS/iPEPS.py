@@ -99,6 +99,17 @@ class iPEPS(torch.nn.Module):
         """
         return self.C.clone().detach(), self.T.clone().detach()
 
+    def set_to_lowest_energy(self) -> None:
+        """
+        Set the iPEPS tensor network to the state with the lowest energy.
+        """
+        i = self.losses.index(min(self.losses))
+
+        self.set_edge_corner(self.checkpoints["C"][i], self.checkpoints["T"][i])
+        self.params = torch.nn.Parameter(self.checkpoints["params"][i])
+        self.losses = self.losses[: i + 1]
+        self.gradient_norms = self.gradient_norms[: i + 1]
+
     def forward(self, C: torch.Tensor, T: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Compute the energy of the iPEPS tensor network by performing the following steps:
