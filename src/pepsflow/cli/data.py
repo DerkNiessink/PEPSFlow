@@ -43,7 +43,9 @@ def data(ctx, folder: str, concise: bool):
 @click.option("-chi", "--energy_chi", type=click.Path(), default=None, help="Plot the converged energy as a function of 1/chi. Has to be a .json file.")
 def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetization: bool, gradient: click.Path, gradient_norm: click.Path, energy_convergence: click.Path, energy_chi: click.Path):
     """
-    Plot the observables of the iPEPS models.
+    Plot the observables of iPEPS models.
+
+    FOLDERS are the folders containing the iPEPS models. Can be multiple folders.
     """    
     if magnetization:
         mag_figure, mag_ax = plt.subplots(figsize=(6, 4))
@@ -140,6 +142,8 @@ def plot(folders: click.Path, correlation_length: bool, energy: bool, magnetizat
 def rename(old: str, new: str):
     """
     Rename a folder name to a new name.
+
+    OLD is the current folder name. NEW is the new folder name.
     """
     for dirpath, dirnames, filenames in os.walk("data"):
         if os.path.basename(dirpath) == old:
@@ -152,6 +156,8 @@ def rename(old: str, new: str):
 def remove(path: click.Path):
     """
     Remove a file or folder from the data directory.
+
+    PATH is the file or folder to remove.
     """
     full_path = os.path.join("data", path) 
     if os.path.isdir(full_path): 
@@ -180,7 +186,9 @@ def remove(path: click.Path):
 @click.option("-o", "--losses", is_flag=True, default=False, help="Print the losses.")
 def info(folder: click.Path, file: click.Path, state: bool, lam: bool, energy: bool, magnetization: bool, correlation: bool, losses: bool):
     """
-    Print the information of the iPEPS models in the specified folder.
+    Print the information of the iPEPS models in the specified FOLDER.
+
+    FOLDER contains the iPEPS models.
     """
     console = Console()
     console.print("\n")
@@ -218,6 +226,8 @@ def info(folder: click.Path, file: click.Path, state: bool, lam: bool, energy: b
 def lowest(folder: click.Path, file: click.Path):
     """
     Set the last epoch of the iPEPS model to the lowest energy.
+
+    FOLDER contains the iPEPS models.
     """
     filenames = [file] if file else os.listdir(os.path.join("data", folder))
     for f in filenames:

@@ -87,7 +87,6 @@ def converge(filename: str):
     """
     Converge the iPEPS tensor network with the specified parameters in the configuration file.
 
-    Args:
-        filename (str): Filename of the data to read.
+    FILENAME is the data file to read from.
     """
     pepsflow.converge_parallel(filename)
