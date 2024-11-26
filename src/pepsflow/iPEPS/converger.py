@@ -19,9 +19,7 @@ class Converger:
     """
 
     def __init__(self, args: dict):
-        data: iPEPS = torch.load(args["data_fn"], weights_only=False)
-        self.A = data.params[data.map]
-        self.H = Tensors.H_Ising(args["lam"]) if args["model"] == "Ising" else Tensors.H_Heisenberg(args["lam"])
+        self.data: iPEPS = None
         self.energies = []
         self.args = args
 
@@ -37,18 +35,38 @@ class Converger:
             f"[blue bold]CTM steps (χ = {args['chi']})", total=args["warmup_steps"], start=False
         )
 
+    def read(self, fn: str):
+        """
+        Read the data from a torch .pth file.
+
+        Args:
+            fn (str): Filename to read the data from, without file extension. Has to be a .pth file.
+        """
+        self.data: iPEPS = torch.load(fn, weights_only=False)
+
     def exe(self):
         """
         Compute the energy if a converged iPEPS state for a given bond dimension using the CTMRG
-        algorithm.
+        algorithm. This method can only be called after reading the data.
         """
-        with self.progress:
-            alg = CtmAlg(self.A, self.args["chi"], split=self.args["split"])
-            for _ in range(self.args["warmup_steps"]):
-                alg.exe(1, self.progress, self.task)
-                self.energies.append(Observables.E(self.A, self.H, alg.C, alg.T).item())
+        if self.data is None:
+            raise ValueError("No data found. Please first read data.")
 
-    def save_data(self, fn: str):
+        else:
+            A = self.data.params[self.data.map]
+            H = (
+                Tensors.H_Ising(self.args["lam"])
+                if self.args["model"] == "Ising"
+                else Tensors.H_Heisenberg(self.args["lam"])
+            )
+
+            with self.progress:
+                alg = CtmAlg(A, self.args["chi"], split=self.args["split"])
+                for _ in range(self.args["warmup_steps"]):
+                    alg.exe(1, self.progress, self.task)
+                    self.energies.append(Observables.E(A, H, alg.C, alg.T).item())
+
+    def write(self, fn: str):
         """
         Save the energies to a JSON file.
 
