@@ -7,59 +7,50 @@ from pepsflow.iPEPS.trainer import Trainer
 from pepsflow.iPEPS.converger import Converger
 
 
-def read_config():
+def path(folder: str, file: str) -> str:
+    """
+    Return the path to the file in the folder.
+
+    Args:
+        folder (str): Folder containing the file.
+        file (str): Filename.
+
+    Returns:
+        str: Path to the file.
+    """
+    return os.path.join("data", folder, file)
+
+
+def read_config() -> dict:
     """
     Read the parameters from the configuration file.
+
+    Returns:
+        dict: Dictionary containing the parameters.
     """
     parser = configparser.ConfigParser()
     parser.optionxform = str  # Preserve the case of the keys
     parser.read("src/pepsflow/pepsflow.cfg")
     args = dict(parser["PARAMETERS"])
+    args["var_param"] = None
 
-    var_param = None
     for key, value in args.items():
-        if value == "None":
-            args[key] = None
 
-        # These already have the correct data type (str).
-        if key not in ("write_folder", "read_folder", "model", "optimizer"):
-
+        try:
             args[key] = ast.literal_eval(value)
-            # Find the variational parameter
-            if type(args[key]) == list:
-                var_param = key
+            args[key] = None if value == "None" else args[key]
+            args["var_param"] = key if type(args[key]) == list else args["var_param"]
 
-    if var_param is None:
+        except ValueError:
+            pass
+
+    if args["var_param"] is None:
         raise ValueError("No variational parameter found.")
 
-    return args, var_param
+    return args
 
 
-def get_save_path(value: float, param: str, args: dict, fn: str = None) -> str:
-    """
-    Get the filename for the data file.
-
-    Args:
-        value (float): Value of the variational parameter.
-        param (str): Name of the variational parameter.
-        args (dict): Arguments for the optimization.
-        read_fn (str): Filename of the data file to read from and save to.
-
-    Returns:
-        str: Filename for the data file.
-    """
-    # Set the value of the variational
-    args[param] = value
-    args["var_param"] = param
-    fn = f"{param}_{value}" if not fn else fn
-
-    # Set the data file name
-    args["data_fn"] = os.path.join("data", args["read_folder"], fn) if args["read_folder"] != None else None
-
-    return os.path.join("data", args["write_folder"], fn)
-
-
-def optimize_single_run(value: float, param: str, args: dict):
+def optimize(value: float, args: dict):
     """
     Optimize the iPEPS model for a single value the variational parameter.
 
@@ -68,43 +59,50 @@ def optimize_single_run(value: float, param: str, args: dict):
         param (str): Name of the variational parameter.
         args (dict): Arguments for the optimization.
     """
-    path = get_save_path(value, param, args)
+    # Set the value of the variational parameter
+    args[args["var_param"]] = value
+    fn = f"{args['var_param']}_{value}.pth"
+
     trainer = Trainer(args)
+    if args["read_folder"]:
+        trainer.read(path(args["read_folder"], fn))
     trainer.exe()
-    trainer.save_data(path)
+    trainer.write(path(args["write_folder"], fn))
 
 
-def converge_single_run(value: float, param: str, args: dict, read_fn: str):
+def converge(value: float, args: dict, read_fn: str):
     """
     Compute the energy if a converged iPEPS state for a given bond dimension using the CTMRG
     algorithm.
 
     Args:
         value (float): Value of the variational parameter.
-        param (str): Name of the variational parameter.
         args (dict): Arguments for the optimization.
         read_fn (str): Filename of the data file to read from
     """
-    args["chi"] = value
-    path = get_save_path(value, param, args, read_fn)
+    # Set the value of the variational parameter
+    if args["var_param"] == "chi":
+        args[args["var_param"]] = value
+        fn = f"{args['var_param']}_{value}.pth"
+    else:
+        raise ValueError("Only chi as variational parameter is supported for convergence.")
+
     conv = Converger(args)
+    conv.read(path(args["read_folder"], read_fn))
     conv.exe()
-    conv.save_data(path)
+    conv.write(path(args["write_folder"], fn))
 
 
-def optimize():
+def optimize_parallel():
     """
     Optimize the iPEPS model for a list of values of the variational parameter.
     """
-    args, var_param = read_config()
-    with mp.Pool(processes=len(args[var_param])) as pool:
-        pool.starmap(
-            optimize_single_run,
-            [(value, var_param, args.copy()) for value in args[var_param]],
-        )
+    args = read_config()
+    with mp.Pool(processes=len(args[args["var_param"]])) as pool:
+        pool.starmap(optimize, [(value, args.copy()) for value in args[args["var_param"]]])
 
 
-def converge(read_fn: str):
+def converge_parallel(read_fn: str):
     """
     Compute the energy if a converged iPEPS state for a list of bond dimensions using the CTMRG
     algorithm.
@@ -112,9 +110,6 @@ def converge(read_fn: str):
     Args:
         read_fn (str): Filename of the data file to read from.
     """
-    args, var_param = read_config()
-    with mp.Pool(processes=len(args[var_param])) as pool:
-        pool.starmap(
-            converge_single_run,
-            [(value, var_param, args.copy(), read_fn) for value in args[var_param]],
-        )
+    args = read_config()
+    with mp.Pool(processes=len(args[args["var_param"]])) as pool:
+        pool.starmap(converge, [(value, args.copy(), read_fn) for value in args[args["var_param"]]])

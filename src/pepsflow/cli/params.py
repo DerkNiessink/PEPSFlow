@@ -78,7 +78,7 @@ def optimize():
     """
     Optimize the iPEPS tensor network with the specified parameters in the configuration file.
     """
-    pepsflow.optimize()
+    pepsflow.optimize_parallel()
 
 
 @params.command()
@@ -90,4 +90,4 @@ def converge(filename: str):
     Args:
         filename (str): Filename of the data to read.
     """
-    pepsflow.converge(filename)
+    pepsflow.converge_parallel(filename)

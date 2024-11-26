@@ -19,15 +19,9 @@ class Trainer:
     """
 
     def __init__(self, args: dict):
-        self.args = args
         torch.set_num_threads(args["threads"])
-        self.device = torch.device("cuda:0" if args["gpu"] and torch.cuda.is_available() else "cpu")
-        self.data = None
-        self.data_prev: iPEPS = (
-            torch.load(f"{args["data_fn"]}.pth", map_location=self.device, weights_only=False)
-            if args["data_fn"]
-            else None
-        )
+        self.args = args
+        self.data, self.data_prev = None, None
 
         self.progress = Progress(
             TextColumn("[progress.description]{task.description}"),
@@ -49,6 +43,15 @@ class Trainer:
             total=self.args["runs"] * self.args["epochs"],
             start=False,
         )
+
+    def read(self, fn: str) -> None:
+        """
+        Read the data from a torch .pth file.
+
+        Args:
+            fn (str): Filename to read the data from, without file extension. Has to be a .pth file.
+        """
+        self.data_prev: iPEPS = torch.load(fn, weights_only=False)
 
     def exe(self) -> None:
         """
@@ -135,6 +138,7 @@ class Trainer:
             gradient_norms = self.data_prev.gradient_norms
             map = self.data_prev.map
             epoch = self.args["start_epoch"]
+
         # Generate a random symmetric A tensor and do CTM warmup steps
         else:
             A = Tensors.A_random_symmetric(self.args["D"])
@@ -149,17 +153,15 @@ class Trainer:
 
         return checkpoint, map, losses, epoch, gradient_norms
 
-    def save_data(self, fn: str = None) -> None:
+    def write(self, fn: str) -> None:
         """
         Save the collected data to a torch .pth file.
 
         Args:
-            fn (str): Filename to save the data to, without file extension. Default is 'data.pth'.
+            fn (str): Filename to save the data to. Has to be a .pth file.
         """
         folder = os.path.dirname(fn)
         if folder and not os.path.exists(folder):
             os.makedirs(folder)
-
-        fn = f"{fn}.pth" if fn else "data.pth"
         torch.save(self.data, fn)
         print(f"[green bold] \nData saved to {fn}")
