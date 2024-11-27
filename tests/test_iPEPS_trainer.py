@@ -24,6 +24,7 @@ class TestiPEPSTrainer:
             "threads": 1,
             "var_param": "lam",
             "line_search": False,
+            "seed": None,
         }
         trainer = Trainer(args)
         trainer.exe()
