@@ -8,7 +8,6 @@ import pepsflow.pepsflow as pepsflow
 
 # fmt: off
 
-
 @click.group(invoke_without_command=True)
 @click.pass_context
 def params(ctx):
@@ -32,13 +31,13 @@ def params(ctx):
 
 @params.command()
 @click.option("--model", type=str, help="Model to optimize. Options are 'Ising' and 'Heisenberg'.")
-@click.option("--chi", type=str, help="Comma separated list of values of the bond dimension chi of the CTM algorithm.")
-@click.option("--D", type=str, help="Comma separated list of values of the bulk dimension d of the iPEPS tensor.")
+@click.option("--chi", type=str, help="One value of comma separated list of values of the bond dimension chi of the CTM algorithm.")
+@click.option("--D", type=str, help="One value or comma separated list of values of the bulk dimension d of the iPEPS tensor.")
 @click.option("-r","--read_folder", type=str, help="Folder containing iPEPS models and other datafiles to read.")
 @click.option("--gpu/--no-gpu", default=None, type=bool, help="Run the model on the GPU if available.")
-@click.option("--lam", type=str, help="Comma separated list of values of the parameter lambda in the tranverse-field Ising model.")
+@click.option("--lam", type=str, help="One value of comma separated list of values of the parameter lambda in the tranverse-field Ising model.")
 @click.option("--runs", type=int, help="Number of runs to train the model. Applies to random initialization. The program will choose the best model based on the lowest energy.")
-@click.option("-lr","--learning_rate", type=float, help="Learning rate for the optimizer.")
+@click.option("-lr","--learning_rate", type=str, help="One value or comma separated list of values of the learning rate for the optimizer.")
 @click.option("--epochs", type=int, help="Maximum number of epochs to train the model.")
 @click.option("-per", "--perturbation", type=float, help="Amount of perturbation to apply to the initial state.")
 @click.option("-w", "--write_folder", type=str, help="Folder to save the iPEPS model in.")
@@ -48,6 +47,7 @@ def params(ctx):
 @click.option("-s", "--start_epoch", type=int, help="Epoch to start the optimization from. This is only applicable if a previous data file is given. If -1, the optimization starts from the last epoch.")
 @click.option("--split/--no-split", default = None, type=bool, help="Keep the tensor in the CTM algorithm split or not.")
 @click.option("-o", "--optimizer", type=str, help="Optimizer to use. Options are 'adam' and 'lbfgs'.")
+@click.option("--seed", type=float, help="Seed for the random generation of tensors.")
 def set(**args):
     """
     Set specific parameters for the optimization of the iPEPS tensor network.
@@ -62,11 +62,23 @@ def set(**args):
         if value is not None and value != ():
             # Case sensitive parameters
             param = 'D' if param == 'd' else param
+
             # Varying parameters
-            if param == 'lam' and ',' in value:
-                value = [float(x) for x in value.split(',') if x]
-            if (param == 'chi' or param == 'D') and ',' in value:
-                value = [int(x) for x in value.split(',') if x]
+            if type(value) == str and ',' in value:
+                match param:
+                    case 'chi': 
+                        list_type = int
+                    case 'D':
+                        list_type = int
+                    case 'lam':
+                        list_type = float
+                    case 'learning_rate':
+                        list_type = float
+                    case 'optimizer':
+                        list_type = str
+                    
+                value = [list_type(x) for x in value.split(",") if x]
+
             config['PARAMETERS'][param] = str(value)
 
     config.optionxform = str

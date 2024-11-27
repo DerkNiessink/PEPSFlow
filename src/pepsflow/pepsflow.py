@@ -39,13 +39,18 @@ def read_config() -> dict:
         try:
             args[key] = ast.literal_eval(value)
             args[key] = None if value == "None" else args[key]
-            args["var_param"] = key if type(args[key]) == list else args["var_param"]
+
+            if type(args[key]) == list:
+                if args["var_param"] is None:
+                    args["var_param"] = key
+                else:
+                    raise KeyError("Only one varying parameter is allowed.")
 
         except ValueError:
             pass
 
     if args["var_param"] is None:
-        raise ValueError("No variational parameter found.")
+        raise KeyError("No variational parameter found.")
 
     return args
 
@@ -85,7 +90,7 @@ def converge(value: float, args: dict, read_fn: str):
         args[args["var_param"]] = value
         fn = f"{args['var_param']}_{value}.pth"
     else:
-        raise ValueError("Only chi as variational parameter is supported for convergence.")
+        raise KeyError("Only chi as variational parameter is supported for convergence.")
 
     conv = Converger(args)
     conv.read(path(args["read_folder"], read_fn))

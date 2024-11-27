@@ -20,6 +20,7 @@ class Trainer:
 
     def __init__(self, args: dict):
         torch.set_num_threads(args["threads"])
+        torch.random.manual_seed(args["seed"]) if args["seed"] else None
         self.args = args
         self.data, self.data_prev = None, None
 
@@ -83,12 +84,12 @@ class Trainer:
         )
         chi, lam, per, split = self.args["chi"], self.args["lam"], self.args["perturbation"], self.args["split"]
         model = iPEPS(chi, split, lam, H, map, checkpoint, losses, epoch, per, norms)
-
+        ls = "strong_wolfe" if self.args["line_search"] else None
         optimizer = Optimizer(
             self.args["optimizer"],
             model.parameters(),
             lr=self.args["learning_rate"],
-            line_search_fn=self.args["line_search"],
+            line_search_fn=ls,
         )
 
         C, T = model.get_edge_corner()
