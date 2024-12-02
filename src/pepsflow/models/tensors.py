@@ -19,8 +19,7 @@ class Tensors:
         """
         Return the Pauli Y matrix.
         """
-        sy = torch.Tensor([[0, -1], [1, 0]]).double()
-        return torch.complex(torch.zeros_like(Tensors.sz()), sy)
+        return torch.Tensor([[0, -1], [1, 0]]).double()
 
     @staticmethod
     def sz() -> torch.Tensor:
@@ -50,6 +49,22 @@ class Tensors:
         """
         return torch.eye(2).double()
 
+    def Hamiltonian(model: str, **kwargs: dict) -> torch.Tensor:
+        """
+        Return the Hamiltonian operator of the specified model.
+
+        Args:
+            model (str): Name of the model.
+            **kwargs (dict): Additional arguments required to construct the Hamiltonian.
+        """
+        match model:
+            case "Ising":
+                return Tensors.H_Ising(kwargs["lam"])
+            case "Heisenberg":
+                return Tensors.H_Heisenberg()
+            case _:
+                raise ValueError(f"Model {model} not recognized.")
+
     @staticmethod
     def H_Ising(lam: float) -> torch.Tensor:
         """
@@ -60,24 +75,15 @@ class Tensors:
         )
 
     @staticmethod
-    def H_Heisenberg(lam: float) -> torch.Tensor:
+    def H_Heisenberg(Jz: float = 1.0, Jxy: float = 1.0) -> torch.Tensor:
         """
         Return the Hamiltonian operator of the Heisenberg model.
         """
-        rot = torch.matrix_exp(1j * torch.pi * Tensors.sy() / 2)
-        sz = torch.complex(Tensors.sz(), torch.zeros_like(Tensors.sz()))
-        res = (
-            2
-            * lam
-            * (
-                torch.kron(sz, sz) / 4
-                + torch.kron(Tensors.sp(), Tensors.sm()) / 2
-                + torch.kron(Tensors.sm(), Tensors.sp()) / 2
-            )
+        sx, sz, sp, sm = Tensors.sx() * 0.5, Tensors.sz() * 0.5, Tensors.sp(), Tensors.sm()
+
+        return 2 * Jz * torch.kron(sz, 4 * sx @ sz @ sx) - Jxy * (
+            torch.kron(sm, 4 * sx @ sp @ sx) + torch.kron(sp, 4 * sx @ sm @ sx)
         )
-        res = res.view(2, 2, 2, 2)
-        res = torch.einsum("abcd,be,df->aecf", res, rot, torch.conj(rot)).real
-        return res.reshape(4, 4)
 
     @staticmethod
     def Mp() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:

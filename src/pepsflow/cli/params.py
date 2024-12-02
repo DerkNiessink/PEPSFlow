@@ -19,13 +19,16 @@ def params(ctx):
         config.optionxform = str # Preserve the case of the keys
         config.read("src/pepsflow/pepsflow.cfg")
         console = Console()
-        table = Table(title="Optimization parameters", title_justify="center", box=box.SIMPLE_HEAVY)
+        table = Table(title="PEPSFLOW parameters", title_justify="center", box=box.SIMPLE)
         table.add_column("Parameter", no_wrap=True, justify="left")
-        table.add_column("Value", style="green")
-        for i, (key, value) in enumerate(config['PARAMETERS'].items()):
-            style = "grey50" if i % 2 != 0 else "grey78"
-                
-            table.add_row(key, value, style = style)
+        table.add_column("Value")
+        for section in config.sections():
+            table.add_section()
+            if section != "parameters":
+                table.add_row(f"[bold]{section}", "", style="bold underline")
+            for i, (key, value) in enumerate(config.items(section)):
+                style = "grey50" if i % 2 != 0 else "grey78"  
+                table.add_row(key, value, style = style)
         console.print(table)
 
 
@@ -33,14 +36,14 @@ def params(ctx):
 @click.option("--model", type=str, help="Model to optimize. Options are 'Ising' and 'Heisenberg'.")
 @click.option("--chi", type=str, help="One value of comma separated list of values of the bond dimension chi of the CTM algorithm.")
 @click.option("--D", type=str, help="One value or comma separated list of values of the bulk dimension d of the iPEPS tensor.")
-@click.option("-r","--read_folder", type=str, help="Folder containing iPEPS models and other datafiles to read.")
+@click.option("-r","--read", type=str, help="Folder containing iPEPS models and other datafiles to read.")
 @click.option("--gpu/--no-gpu", default=None, type=bool, help="Run the model on the GPU if available.")
 @click.option("--lam", type=str, help="One value of comma separated list of values of the parameter lambda in the tranverse-field Ising model.")
-@click.option("--runs", type=int, help="Number of runs to train the model. Applies to random initialization. The program will choose the best model based on the lowest energy.")
+@click.option("-N","--Niter", type=int, help="Number of iterations in the forward step.")
 @click.option("-lr","--learning_rate", type=str, help="One value or comma separated list of values of the learning rate for the optimizer.")
 @click.option("--epochs", type=int, help="Maximum number of epochs to train the model.")
 @click.option("-per", "--perturbation", type=float, help="Amount of perturbation to apply to the initial state.")
-@click.option("-w", "--write_folder", type=str, help="Folder to save the iPEPS model in.")
+@click.option("-w", "--write", type=str, help="Folder to save the iPEPS model in.")
 @click.option("--threads", type=int, help="Number of threads to use for the optimization. Each thread runs on a separate CPU core.")
 @click.option("-ws", "--warmup_steps", type=int, help="Number of warmup steps to perform in the CTM algorithm before starting the optimization. This is only applicable if no previous data file is given.")
 @click.option("-ls/-no-ls", "--line_search/--no-line_search", default=None, type=bool, help="Use Wolfe line search in the LBFGS optimizer.")
@@ -55,33 +58,33 @@ def set(**args):
     config = configparser.ConfigParser()
     config.optionxform = str
     file = "src/pepsflow/pepsflow.cfg"
-    config.read(file)    
+    config.read(file)
 
-    # Regular expression pattern to match parameters
-    for param, value in args.items():
-        if value is not None and value != ():
-            # Case sensitive parameters
-            param = 'D' if param == 'd' else param
+    for section in config.sections():
+        for param, value in args.items():
+            if param == 'd': param = 'D'
+            if param == 'niter': param = 'Niter'
 
-            # Varying parameters
-            if type(value) == str and ',' in value:
-                match param:
-                    case 'chi': 
-                        list_type = int
-                    case 'D':
-                        list_type = int
-                    case 'lam':
-                        list_type = float
-                    case 'learning_rate':
-                        list_type = float
-                    case 'optimizer':
-                        list_type = str
-                    
-                value = [list_type(x) for x in value.split(",") if x]
+            if param in config[section] and value is not None:
 
-            config['PARAMETERS'][param] = str(value)
+                # Varying parameters
+                if type(value) == str and ',' in value:
+                    match param:
+                        case 'chi': 
+                            list_type = int
+                        case 'D':
+                            list_type = int
+                        case 'lam':
+                            list_type = float
+                        case 'learning_rate':
+                            list_type = float
+                        case 'optimizer':
+                            list_type = str
+                        
+                    value = [list_type(x) for x in value.split(",") if x]
 
-    config.optionxform = str
+                config[section][param] = str(value)
+
     with open(file, 'w') as configfile: config.write(configfile)
 
 

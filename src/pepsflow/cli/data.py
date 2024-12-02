@@ -41,7 +41,7 @@ def data(ctx, folder: str, concise: bool):
 @click.option("-g", "--gradient", type=str, default=None, help="Plot the gradient as a function of epoch. Has to be a .pth file.")
 @click.option("-n", "--gradient_norm", type=str, default=None, help="Plot the gradient norm as a function of epoch. Has to be a .pth file.")
 @click.option("-c", "--energy_convergence", type=click.Path(), default=None, help="Plot the energy convergence as a function of epoch. Has to be a .json file.")
-@click.option("-chi", "--energy_chi", type=click.Path(), default=None, help="Plot the converged energy as a function of 1/chi. Has to be a .json file.")
+@click.option("-chi", "--energy_chi", is_flag=True, default=False, help="Plot the converged energy as a function of 1/chi of all .json files in the folder.")
 @click.pass_context
 def plot(ctx, folder, **kwargs):
     """
@@ -52,7 +52,7 @@ def plot(ctx, folder, **kwargs):
     if sum(bool(opt) for opt in kwargs.values()) > 1:
         ctx.fail("Only one option can be selected at a time.")
 
-    readers = [iPEPSReader(os.path.join("data", folder, x)) for x in os.listdir(os.path.join("data", folder)) if x.endswith(".pth")]
+    readers = [iPEPSReader(os.path.join("data", folder, x)) for x in os.listdir(os.path.join("data", folder))]
 
     plt.figure(figsize=(6, 4))
 
@@ -102,12 +102,16 @@ def plot(ctx, folder, **kwargs):
     if kwargs["energy_chi"]:
         plt.ylabel(r"$E$")
         plt.xlabel(r"$1/\chi$")
-        with open(os.path.join("data", folder, kwargs["energy_chi"])) as f:
-            data = json.load(f)
-            inv_chis = [1/x["chi"] for x in data]
-            energies = [x["energies"][-1] for x in data]
-            plt.plot(inv_chis, energies, "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
-
+        energies, inv_chis = [], []
+        for file in os.listdir(os.path.join("data", folder)):
+            if not file.endswith(".json"):
+                continue
+            with open(os.path.join("data", folder, file)) as f:
+                data = json.load(f)[0]
+            inv_chis.append(1 / int(data["chi"]))
+            energies.append(data["energies"][-1])
+        plt.plot(inv_chis, energies, "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
+        
     plt.tight_layout()
     plt.legend()
     plt.show()
