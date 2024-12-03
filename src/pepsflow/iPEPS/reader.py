@@ -1,5 +1,4 @@
 import torch
-import os
 
 from pepsflow.models.observables import Observables
 from pepsflow.iPEPS.iPEPS import iPEPS
@@ -14,8 +13,8 @@ class iPEPSReader:
     """
 
     def __init__(self, file: str):
-        self.iPEPS: iPEPS = torch.load(file, weights_only=False)
-        self.file = file
+        self.file = f"{file}.pth" if not file.endswith(".pth") else file
+        self.iPEPS: iPEPS = torch.load(self.file, weights_only=False)
         self.iPEPS.eval()
 
     def lam(self) -> float:
@@ -25,7 +24,7 @@ class iPEPSReader:
         Returns:
             float: Lambda value.
         """
-        return self.iPEPS.lam
+        return self.iPEPS.args["lam"]
 
     def losses(self) -> list[float]:
         """
@@ -34,7 +33,7 @@ class iPEPSReader:
         Returns:
             list: List of losses.
         """
-        return self.iPEPS.losses
+        return [E.detach() for E in self.iPEPS.data["losses"]]
 
     def gradient_norms(self) -> list[float]:
         """
@@ -43,7 +42,7 @@ class iPEPSReader:
         Returns:
             list: List of gradient norms.
         """
-        return self.iPEPS.gradient_norms
+        return self.iPEPS.data["norms"]
 
     def iPEPS_state(self) -> torch.Tensor:
         """
@@ -52,7 +51,7 @@ class iPEPSReader:
         Returns:
             torch.Tensor: iPEPS state
         """
-        return self.iPEPS.params[self.iPEPS.map]
+        return self.iPEPS.params.detach()
 
     def energy(self) -> float:
         """
@@ -61,7 +60,7 @@ class iPEPSReader:
         Returns:
             float: Energy of the iPEPS model.
         """
-        return self.iPEPS.losses[-1]
+        return float(self.iPEPS.data["losses"][-1].detach())
 
     def magnetization(self) -> float:
         """

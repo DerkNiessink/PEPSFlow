@@ -2,9 +2,22 @@ import configparser
 import multiprocessing as mp
 import os
 import ast
+from rich.progress import Progress, TextColumn, SpinnerColumn, MofNCompleteColumn, TimeElapsedColumn, BarColumn
 
 from pepsflow.iPEPS.trainer import Trainer
 from pepsflow.iPEPS.converger import Converger
+from pepsflow.iPEPS.iPEPS import iPEPS
+from pepsflow.iPEPS.reader import iPEPSReader
+
+# Global progress bar
+progress = Progress(
+    SpinnerColumn(),
+    TextColumn("[progress.description]{task.description}"),
+    BarColumn(),
+    MofNCompleteColumn(),
+    TextColumn("•"),
+    TimeElapsedColumn(),
+)
 
 
 def path(folder: str, file: str) -> str:
@@ -21,61 +34,74 @@ def path(folder: str, file: str) -> str:
     return os.path.join("data", folder, file)
 
 
-def read_config() -> dict:
+def read_config() -> tuple[dict, tuple[str, str]]:
     """
     Read the parameters from the configuration file.
 
     Returns:
         dict: Dictionary containing the parameters.
+        tuple: Tuple containing the section and key of the varying parameter.
     """
     parser = configparser.ConfigParser()
-    parser.optionxform = str  # Preserve the case of the keys
+    parser.optionxform = lambda option: option  # Preserve the case of the keys
     parser.read("src/pepsflow/pepsflow.cfg")
-    args = dict(parser["PARAMETERS"])
-    args["var_param"] = None
 
-    for key, value in args.items():
+    var_param = None
+    args = {section: {} for section in parser.sections()}
+    for section in args.keys():
+        for key, value in parser.items(section):
+            try:
+                args[section][key] = ast.literal_eval(value)
 
-        try:
-            args[key] = ast.literal_eval(value)
-            args[key] = None if value == "None" else args[key]
+                if isinstance(args[section][key], list):
+                    if var_param:
+                        raise KeyError("Only one varying parameter is allowed.")
+                    var_param = (section, key)
 
-            if type(args[key]) == list:
-                if args["var_param"] is None:
-                    args["var_param"] = key
-                else:
-                    raise KeyError("Only one varying parameter is allowed.")
+            # If the value is no type and should be a string
+            except ValueError:
+                pass
 
-        except ValueError:
-            pass
-
-    if args["var_param"] is None:
+    if var_param is None:
         raise KeyError("No variational parameter found.")
 
-    return args
+    return args, var_param
 
 
-def optimize(value: float, args: dict):
+def optimize(var_param: tuple[str, str], value: float, args: dict):
     """
     Optimize the iPEPS model for a single value the variational parameter.
 
     Args:
+        var_param (tuple): Section and key of the variational parameter.
         value (float): Value of the variational parameter.
-        param (str): Name of the variational parameter.
-        args (dict): Arguments for the optimization.
+        args (dict): folder, ipeps, and optimization parameters.
     """
+    task = progress.add_task(f"[blue bold]Training iPEPS ({key} = {value})", total=opt_params["epochs"], start=False)
+
     # Set the value of the variational parameter
-    args[args["var_param"]] = value
-    fn = f"{args['var_param']}_{value}.pth"
+    section, key = var_param
+    args[section][key] = value
+    fn = f"{key}_{value}"
 
-    trainer = Trainer(args)
-    if args["read_folder"]:
-        trainer.read(path(args["read_folder"], fn))
-    trainer.exe()
-    trainer.write(path(args["write_folder"], fn))
+    folders = args["parameters.folders"]
+    ipeps_params = args["parameters.ipeps"]
+    opt_params = args["parameters.optimization"]
+
+    # Read the iPEPS model from a file if specified
+    if folders["read"]:
+        ipeps = iPEPSReader(path(folders["read"], fn)).iPEPS
+        ipeps = iPEPS(args=ipeps_params, initial_ipeps=ipeps)
+    else:
+        ipeps = iPEPS(ipeps_params)
+
+    # Execute the optimization and write the iPEPS model to a file
+    trainer = Trainer(ipeps, opt_params)
+    trainer.exe(progress, task)
+    trainer.write(path(folders["write"], fn))
 
 
-def converge(value: float, args: dict, read_fn: str):
+def converge(var_param, value: float, args: dict, read_fn: str):
     """
     Compute the energy if a converged iPEPS state for a given bond dimension using the CTMRG
     algorithm.
@@ -85,26 +111,36 @@ def converge(value: float, args: dict, read_fn: str):
         args (dict): Arguments for the optimization.
         read_fn (str): Filename of the data file to read from
     """
+
     # Set the value of the variational parameter
-    if args["var_param"] == "chi":
-        args[args["var_param"]] = value
-        fn = f"{args['var_param']}_{value}.pth"
+    section, key = var_param
+    if key == "chi":
+        args[section][key] = value
+        write_fn = f"{key}_{value}"
     else:
         raise KeyError("Only chi as variational parameter is supported for convergence.")
 
-    conv = Converger(args)
-    conv.read(path(args["read_folder"], read_fn))
+    folders, ipeps_params = args["parameters.folders"], args["parameters.ipeps"]
+
+    ipeps = iPEPSReader(path(folders["read"], read_fn)).iPEPS
+
+    # Execute the convergence and write the data to a file
+    conv = Converger(ipeps, ipeps_params)
     conv.exe()
-    conv.write(path(args["write_folder"], fn))
+    conv.write(path(folders["write"], write_fn))
 
 
 def optimize_parallel():
     """
     Optimize the iPEPS model for a list of values of the variational parameter.
     """
-    args = read_config()
-    with mp.Pool(processes=len(args[args["var_param"]])) as pool:
-        pool.starmap(optimize, [(value, args.copy()) for value in args[args["var_param"]]])
+    args, var_param = read_config()
+    section, key = var_param
+    var_param_values = args[section][key]
+    num_processes = len(var_param_values)
+
+    with mp.Pool(num_processes) as pool:
+        pool.starmap(optimize, [(var_param, value, args.copy()) for value in var_param_values])
 
 
 def converge_parallel(read_fn: str):
@@ -115,6 +151,10 @@ def converge_parallel(read_fn: str):
     Args:
         read_fn (str): Filename of the data file to read from.
     """
-    args = read_config()
-    with mp.Pool(processes=len(args[args["var_param"]])) as pool:
-        pool.starmap(converge, [(value, args.copy(), read_fn) for value in args[args["var_param"]]])
+    args, var_param = read_config()
+    section, key = var_param
+    var_param_values = args[section][key]
+    num_processes = len(var_param_values)
+
+    with mp.Pool(num_processes) as pool:
+        pool.starmap(converge, [(var_param, value, args.copy(), read_fn) for value in var_param_values])

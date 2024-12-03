@@ -1,8 +1,6 @@
 import time
 import torch
-import torch.backends.opt_einsum
 from torch.nn.functional import normalize
-from rich.progress import Progress, Task
 
 from pepsflow.models.tensors import Methods
 from pepsflow.models.svd import CustomSVD
@@ -71,19 +69,15 @@ class CtmAlg:
         #  -- o --  [d, D, D, D, D]    OR    -- o --  [D², D², D², D²]
         #    /|                                 |
 
-    def exe(self, N: int = 1, progress: Progress = None, task: Task = None):
+    def exe(self, N: int = 1):
         """
         Execute the CTM algorithm for N steps.
 
-        `N` (int): number of steps to execute the algorithm for.
-        `progress` (rich.progress.Progress): Progress bar to visualize the progress of the algorithm. Default is None.
-        `task` (rich.progress.Task): Task to update the progress bar with. Default is None.
+        `N` (int): number of steps to execute the algorithm for. Default is 1.
         """
         start = time.time()
-        progress.start_task(task) if progress else None
         for _ in range(N):
             self.split_step() if self.split else self.classic_step()
-            progress.update(task, advance=1) if progress else None
         self.exe_time = time.time() - start
         if self.split:
             self.T = self.T.view(self.chi, self.D**2, self.chi)
@@ -92,28 +86,27 @@ class CtmAlg:
         """
         Execute one "classic" CTM step. This is the standard CTM algorithm for the rank-4 input tensor.
         """
-        # fmt: off
-        M = torch.einsum("ab,acd,bef,ecgh->dgfh", self.C, self.T, self.T, self.a)  
+        M = torch.einsum("ab,acd,bef,ecgh->dgfh", self.C, self.T, self.T, self.a)
         #   o -- o --
         #   |    |      🡺   [χ, D², χ, D²]
         #   o -- o --
         #   |    |
 
         U = self._new_U(M)
-        #  --|\   
+        #  --|\
         #    | |--   🡺   [χ, D², χ]
-        #  --|/    
-        # 
-                
-        self.C = symm(norm(torch.einsum("abc,abfe,fed->cd", U, M, U)))               
+        #  --|/
+        #
+
+        self.C = symm(norm(torch.einsum("abc,abfe,fed->cd", U, M, U)))
         #  o -- o --|\
-        #  |    |   | |-- 
-        #  o -- o --|/      🡺   o --   [χ, χ]    
+        #  |    |   | |--
+        #  o -- o --|/      🡺   o --   [χ, χ]
         #  |____|                |
-        #  \____/  
+        #  \____/
         #     |
 
-        self.T = symm(norm(torch.einsum("cba,cgf,bdeg,feh->adh", U, self.T, self.a, U))) 
+        self.T = symm(norm(torch.einsum("cba,cgf,bdeg,feh->adh", U, self.T, self.a, U)))
         #   _|__
         #  /____\
         #  |    |           |

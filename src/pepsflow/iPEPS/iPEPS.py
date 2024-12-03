@@ -1,7 +1,7 @@
 import torch
 
 from pepsflow.models.CTM_alg import CtmAlg
-from pepsflow.models.tensors import Methods
+from pepsflow.models.tensors import Methods, Tensors
 from pepsflow.models.observables import Observables
 
 
@@ -10,126 +10,91 @@ class iPEPS(torch.nn.Module):
     Class implementing an infinite Projected Entangled Pair State (iPEPS) tensor network.
 
     Args:
-        chi (int): Bond dimension of the edge and corner tensors.
-        lam (float): Regularization parameter for the iPEPS tensor.
-        H (torch.Tensor): Hamiltonian operator for the system.
-        map (torch.Tensor): indices of the parameters to map to the iPEPS tensor.
-        checkpoints (dict): Dictionary containing the corner and edge tensors and the parameters.
-        losses (list): List of losses.
-        epoch (int): Current epoch.
-        perturbation (float): Perturbation value for the parameters.
+        args (dict): Dictionary containing the arguments for the iPEPS model.
+        start_ipeps (dict): iPEPS tensor network to start from.
     """
 
     def __init__(
         self,
-        chi: int,
-        split: bool,
-        lam: float,
-        H: torch.Tensor,
-        map: torch.Tensor,
-        checkpoints: dict[list, list, list],  # {"C": [], "T": [], "params": []}
-        losses: list,
-        epoch: int,
-        perturbation: float,
-        norms: list,
+        args: dict,
+        initial_ipeps: "iPEPS" = None,
     ):
         super(iPEPS, self).__init__()
-        self.chi = chi
-        self.split = split
-        self.lam = lam
-        self.H = H
-        self.map = map
-        self.checkpoints = checkpoints
-        self.losses = losses[: epoch + 1] if epoch != -1 else losses
-        self.gradient_norms = norms
-        params = Methods.perturb(checkpoints["params"][epoch], perturbation)
+        self.args = args
+        self.initial_ipeps = initial_ipeps
+        self._setup_random() if initial_ipeps is None else self._setup_from_initial_ipeps()
+        self.C, self.T = None, None
+        self.data: dict[list, list, list, list, list]
+
+    def _setup_from_initial_ipeps(self) -> None:
+        """
+        Setup the iPEPS tensor network from the initial data.
+        """
+        self.data = {}
+        epoch = self.args["start_epoch"]
+        for key in ["params", "losses", "norms", "C", "T"]:
+            self.data[key] = self.initial_ipeps.data[key][: epoch + 1]
+
+        params = Methods.perturb(self.data["params"][epoch], self.args["perturbation"])
+        self.map = self.initial_ipeps.map
         self.params = torch.nn.Parameter(params)
-        self.C = checkpoints["C"][epoch]
-        self.T = checkpoints["T"][epoch]
+        self.H = self.initial_ipeps.H
 
-    def add_checkpoint(self, C: torch.Tensor, T: torch.Tensor) -> None:
+    def _setup_random(self) -> None:
         """
-        Add a checkpoint to the dictionary of checkpoints.
+        Setup the iPEPS tensor network with random parameters.
+        """
+        A = Tensors.A_random_symmetric(self.args["D"])
+        params, map = torch.unique(A, return_inverse=True)
+        self.data = {"C": [], "T": [], "params": [], "losses": [], "norms": []}
+        self.params = torch.nn.Parameter(params)
+        self.map = map
+        self.H = Tensors.Hamiltonian(self.args["model"], lam=self.args["lam"])
 
-        Args:
-            C (torch.Tensor): Corner tensor.
-            T (torch.Tensor): Edge tensor.
-            params (torch.Tensor): Parameters.
+    def add_data(self, loss: torch.Tensor, C: torch.Tensor, T: torch.Tensor) -> None:
         """
-        self.checkpoints["C"].append(C.clone().detach())
-        self.checkpoints["T"].append(T.clone().detach())
-        self.checkpoints["params"].append(self.params.clone().detach())
-
-    def add_loss(self, loss: torch.Tensor) -> None:
-        """
-        Add the loss to the list of losses.
+        Add the loss, corner, and edge tensors to the data dictionary.
 
         Args:
-            loss (torch.Tensor): Loss value.
+            loss (torch.Tensor): Loss value of the optimization step.
+            C (torch.Tensor): Corner tensor of the iPEPS tensor network.
+            T (torch.Tensor): Edge tensor of the iPEPS tensor network.
         """
-        self.losses.append(loss.item())
-
-    def add_gradient_norm(self) -> None:
-        """
-        Compute and add the gradient norm to the list of gradient norms.
-
-        Args:
-            norm (torch.Tensor): Gradient norm.
-        """
-        total_norm = torch.sqrt(sum(p.grad.detach().data.norm(2) ** 2 for p in self.parameters()))
-        self.gradient_norms.append(total_norm.item())
-
-    def set_edge_corner(self, C: torch.Tensor, T: torch.Tensor) -> None:
-        """
-        Set the corner and edge tensors of the iPEPS tensor network.
-
-        Args:
-            C (torch.Tensor): Corner tensor.
-            T (torch.Tensor): Edge tensor.
-        """
-        self.C = C.detach()
-        self.T = T.detach()
-
-    def get_edge_corner(self) -> tuple[torch.Tensor, torch.Tensor]:
-        """
-        Get the corner and edge tensors of the iPEPS tensor network.
-
-        Returns:
-            tuple: Corner and edge tensors.
-        """
-        return self.C.clone().detach(), self.T.clone().detach()
+        self.data["losses"].append(loss)
+        self.data["params"].append(self.params.clone().detach())
+        squared_norm = sum(p.data.norm(2) ** 2 for p in self.parameters() if p.grad is not None)
+        self.data["norms"].append(torch.sqrt(squared_norm) if isinstance(squared_norm, torch.Tensor) else squared_norm)
+        self.data["C"].append(C)
+        self.data["T"].append(T)
+        self.C, self.T = C, T
 
     def set_to_lowest_energy(self) -> None:
         """
         Set the iPEPS tensor network to the state with the lowest energy.
         """
-        i = self.losses.index(min(self.losses))
+        i = self.data["losses"].index(min(self.data["losses"]))
+        self.params = torch.nn.Parameter(self.data["params"][i])
+        for key in ["params", "losses", "norms", "C", "T"]:
+            self.data[key] = self.data[key][: i + 1]
 
-        self.set_edge_corner(self.checkpoints["C"][i], self.checkpoints["T"][i])
-        self.params = torch.nn.Parameter(self.checkpoints["params"][i])
-        self.losses = self.losses[: i + 1]
-        self.gradient_norms = self.gradient_norms[: i + 1]
-
-    def forward(self, C: torch.Tensor, T: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Compute the energy of the iPEPS tensor network by performing the following steps:
         1. Map the parameters to a symmetric rank-5 iPEPS tensor.
-        2. Construct the tensor network contraction a.
-        3. Execute the CTM (Corner Transfer Matrix) algorithm to compute the new corner (C) and edge (T) tensors.
-        4. Compute the loss as the energy expectation value using the Hamiltonian H, the symmetrized tensor,
+        2. Execute the CTM (Corner Transfer Matrix) algorithm to compute the corner (C) and edge (T) tensors.
+        3. Compute the loss as the energy expectation value using the Hamiltonian H, the symmetrized tensor,
            and the corner and edge tensors from the CTM algorithm.
 
         Returns:
             torch.Tensor: The loss, representing the energy expectation value, and the corner and edge tensors.
         """
-        # Map the parameters to a symmetric rank-5 iPEPS tensor
         Asymm = self.params[self.map]
+        Asymm = Asymm / Asymm.norm()
 
-        # Do one step of the CTM algorithm
-        alg = CtmAlg(Asymm, self.chi, C, T, self.split)
-        alg.exe()
+        if torch.isnan(self.params).any():
+            raise ValueError("NaN in the iPEPS tensor.")
 
-        # Compute the energy (loss) using the Hamiltonian, corner, and edge tensors
-        loss = Observables.E(Asymm, self.H, alg.C, alg.T)
+        alg = CtmAlg(Asymm, self.args["chi"], split=self.args["split"])
+        alg.exe(N=self.args["Niter"])
 
-        return loss, alg.C.detach(), alg.T.detach()
+        return Observables.E(Asymm, self.H, alg.C, alg.T), alg.C.detach(), alg.T.detach()
