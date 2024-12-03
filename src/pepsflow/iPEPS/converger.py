@@ -2,7 +2,7 @@ from pepsflow.iPEPS.iPEPS import iPEPS
 
 import torch
 import os
-from rich.progress import Progress, TextColumn, BarColumn, MofNCompleteColumn, TimeElapsedColumn
+from rich.progress import Progress, TaskID
 from rich import print
 
 
@@ -18,30 +18,14 @@ class Converger:
     def __init__(self, ipeps: iPEPS, args: dict):
         self.ipeps = iPEPS(args, ipeps)
 
-        self.progress = Progress(
-            TextColumn("[progress.description]{task.description}"),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            BarColumn(),
-            MofNCompleteColumn(),
-            TextColumn("•"),
-            TimeElapsedColumn(),
-        )
-        self.task = self.progress.add_task(
-            f"[blue bold]CTM steps (χ = {args['chi']})", total=args["Niter"], start=False
-        )
-
-    def exe(self):
+    def exe(self) -> None:
         """
         Compute the energy if a converged iPEPS state for a given bond dimension using the CTMRG
         algorithm. This method can only be called after reading the data.
         """
-        Niter = self.ipeps.args["Niter"]
-        self.ipeps.args["Niter"] = 1
-        with self.progress:
-            for _ in range(Niter):
-                E, C, T = self.ipeps.forward()
-                self.ipeps.add_data(E, C, T)
-                self.progress.update(self.task, advance=1)
+        with torch.no_grad():
+            E, C, T = self.ipeps.forward()
+        self.ipeps.add_data(E, C, T)
 
     def write(self, fn: str) -> None:
         """

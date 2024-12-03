@@ -62,8 +62,8 @@ class iPEPS(torch.nn.Module):
         """
         self.data["losses"].append(loss)
         self.data["params"].append(self.params.clone().detach())
-        norm = torch.sqrt(sum(p.grad.detach().data.norm(2) ** 2 for p in self.parameters() if p.grad is not None))
-        self.data["norms"].append(norm.item())
+        squared_norm = sum(p.data.norm(2) ** 2 for p in self.parameters() if p.grad is not None)
+        self.data["norms"].append(torch.sqrt(squared_norm) if isinstance(squared_norm, torch.Tensor) else squared_norm)
         self.data["C"].append(C)
         self.data["T"].append(T)
         self.C, self.T = C, T

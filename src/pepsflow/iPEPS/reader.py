@@ -33,7 +33,7 @@ class iPEPSReader:
         Returns:
             list: List of losses.
         """
-        return self.iPEPS.data["losses"]
+        return [E.detach() for E in self.iPEPS.data["losses"]]
 
     def gradient_norms(self) -> list[float]:
         """
@@ -51,7 +51,7 @@ class iPEPSReader:
         Returns:
             torch.Tensor: iPEPS state
         """
-        return self.iPEPS.params[self.iPEPS.map]
+        return self.iPEPS.params.detach()
 
     def energy(self) -> float:
         """
@@ -60,7 +60,7 @@ class iPEPSReader:
         Returns:
             float: Energy of the iPEPS model.
         """
-        return self.iPEPS.data["losses"][-1]
+        return float(self.iPEPS.data["losses"][-1].detach())
 
     def magnetization(self) -> float:
         """

@@ -9,6 +9,16 @@ from pepsflow.iPEPS.converger import Converger
 from pepsflow.iPEPS.iPEPS import iPEPS
 from pepsflow.iPEPS.reader import iPEPSReader
 
+# Global progress bar
+progress = Progress(
+    SpinnerColumn(),
+    TextColumn("[progress.description]{task.description}"),
+    BarColumn(),
+    MofNCompleteColumn(),
+    TextColumn("•"),
+    TimeElapsedColumn(),
+)
+
 
 def path(folder: str, file: str) -> str:
     """
@@ -33,7 +43,7 @@ def read_config() -> tuple[dict, tuple[str, str]]:
         tuple: Tuple containing the section and key of the varying parameter.
     """
     parser = configparser.ConfigParser()
-    parser.optionxform = str  # Preserve the case of the keys
+    parser.optionxform = lambda option: option  # Preserve the case of the keys
     parser.read("src/pepsflow/pepsflow.cfg")
 
     var_param = None
@@ -42,7 +52,6 @@ def read_config() -> tuple[dict, tuple[str, str]]:
         for key, value in parser.items(section):
             try:
                 args[section][key] = ast.literal_eval(value)
-                args[section][key] = None if value == "None" else args[section][key]
 
                 if isinstance(args[section][key], list):
                     if var_param:
@@ -68,6 +77,7 @@ def optimize(var_param: tuple[str, str], value: float, args: dict):
         value (float): Value of the variational parameter.
         args (dict): folder, ipeps, and optimization parameters.
     """
+    task = progress.add_task(f"[blue bold]Training iPEPS ({key} = {value})", total=opt_params["epochs"], start=False)
 
     # Set the value of the variational parameter
     section, key = var_param
@@ -77,17 +87,6 @@ def optimize(var_param: tuple[str, str], value: float, args: dict):
     folders = args["parameters.folders"]
     ipeps_params = args["parameters.ipeps"]
     opt_params = args["parameters.optimization"]
-
-    # Initialize the progress bar
-    progress = Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        MofNCompleteColumn(),
-        TextColumn("•"),
-        TimeElapsedColumn(),
-    )
-    task = progress.add_task(f"[blue bold]Training iPEPS ({key} = {value})", total=opt_params["epochs"], start=False)
 
     # Read the iPEPS model from a file if specified
     if folders["read"]:
@@ -112,21 +111,23 @@ def converge(var_param, value: float, args: dict, read_fn: str):
         args (dict): Arguments for the optimization.
         read_fn (str): Filename of the data file to read from
     """
+
     # Set the value of the variational parameter
-    if var_param == "chi":
-        section, key = var_param
+    section, key = var_param
+    if key == "chi":
         args[section][key] = value
         write_fn = f"{key}_{value}"
     else:
         raise KeyError("Only chi as variational parameter is supported for convergence.")
 
     folders, ipeps_params = args["parameters.folders"], args["parameters.ipeps"]
+    task = progress.add_task(f"[blue bold]CTM steps (χ = {value})", total=ipeps_params["Niter"], start=False)
 
     ipeps = iPEPSReader(path(folders["read"], read_fn)).iPEPS
 
     # Execute the convergence and write the data to a file
     conv = Converger(ipeps, ipeps_params)
-    conv.exe()
+    conv.exe(progress, task)
     conv.write(path(folders["write"], write_fn))
 
 
@@ -157,4 +158,4 @@ def converge_parallel(read_fn: str):
     num_processes = len(var_param_values)
 
     with mp.Pool(num_processes) as pool:
-        pool.starmap(converge, [(value, args.copy(), read_fn) for value in var_param_values])
+        pool.starmap(converge, [(var_param, value, args.copy(), read_fn) for value in var_param_values])

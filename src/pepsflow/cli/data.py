@@ -1,4 +1,4 @@
-import click
+import rich_click as click
 import matplotlib.pyplot as plt
 import os
 from rich.tree import Tree
@@ -60,19 +60,19 @@ def plot(ctx, folder, **kwargs):
         plt.ylabel(r"$\langle M_z \rangle$")
         plt.xlabel(r"$\lambda$")
         lams, mags = zip(*[(reader.lam(), reader.magnetization()) for reader in readers])
-        plt.plot(lams, mags, "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
+        plt.plot(lams, mags, "v-", markersize=4, linewidth=0.5, label=folder)
 
     if kwargs["energy"]:
         plt.ylabel(r"$E$")
         plt.xlabel(r"$\lambda$")
         lams, energies = zip(*[(reader.lam(), reader.energy()) for reader in readers])
-        plt.plot(lams, energies, "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
+        plt.plot(lams, energies, "v-", markersize=4, linewidth=0.5, label=folder)
 
     if kwargs["correlation_length"]:
         plt.ylabel(r"$\xi$")
         plt.xlabel(r"$\lambda$")
         lams, xis = zip(*[(reader.lam(), reader.correlation()) for reader in readers])
-        plt.plot(lams, xis, "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
+        plt.plot(lams, xis, "v-", markersize=4, linewidth=0.5, label=folder)
 
     if kwargs["gradient"]:
         plt.ylabel(r"$E$")
@@ -91,26 +91,18 @@ def plot(ctx, folder, **kwargs):
         for reader in readers:
             norms = reader.gradient_norms()
             plt.plot(range(len(norms)), norms, "v-", markersize=4, linewidth=0.5, label=reader.file)
-     
-    if kwargs["energy_convergence"]:
-        plt.ylabel(r"$E$")
-        plt.xlabel(r"CTM step")
-        with open(os.path.join("data", folder, kwargs["energy_convergence"])) as f:
-            for data in json.load(f):
-                plt.plot(range(len(data["energies"])), data["energies"], "v-", markersize=4, linewidth=0.5, label=rf"$\chi = {data['chi']}$")
 
     if kwargs["energy_chi"]:
         plt.ylabel(r"$E$")
         plt.xlabel(r"$1/\chi$")
         energies, inv_chis = [], []
-        for file in os.listdir(os.path.join("data", folder)):
-            if not file.endswith(".json"):
-                continue
-            with open(os.path.join("data", folder, file)) as f:
-                data = json.load(f)[0]
-            inv_chis.append(1 / int(data["chi"]))
-            energies.append(data["energies"][-1])
-        plt.plot(inv_chis, energies, "v-", markersize=4, linewidth=0.5, label=rf"${folder}$")
+        readers = [reader for reader in readers if "chi" in reader.file]
+        for reader in readers:
+            inv_chis.append(1/reader.iPEPS.args["chi"])
+            energies.append(reader.energy())
+        
+        inv_chis, energies = zip(*sorted(zip(inv_chis, energies), reverse=True))
+        plt.plot(inv_chis, energies, "v-", markersize=4, linewidth=0.5, label=folder)
         
     plt.tight_layout()
     plt.legend()
@@ -165,7 +157,8 @@ def remove(path: click.Path):
 @click.option("-m", "--magnetization", is_flag=True, default=False, help="Print the magnetization.")
 @click.option("-xi", "--correlation", is_flag=True, default=False, help="Print the correlation.")
 @click.option("-o", "--losses", is_flag=True, default=False, help="Print the losses.")
-def info(folder: click.Path, file: click.Path, state: bool, lam: bool, energy: bool, magnetization: bool, correlation: bool, losses: bool):
+@click.option("-p", "--params", is_flag=True, default=False, help="Print the parameters of the iPEPS model.")
+def info(folder: click.Path, file: click.Path, state: bool, lam: bool, energy: bool, magnetization: bool, correlation: bool, losses: bool, params: bool):
     """
     Print the information of the iPEPS models in the specified FOLDER.
 
@@ -183,6 +176,7 @@ def info(folder: click.Path, file: click.Path, state: bool, lam: bool, energy: b
     if correlation or print_all: table.add_column("Correlation", justify="right")
     if losses: table.add_column("Losses", justify="left")
     if state: table.add_column("State", justify="left")
+    if params: table.add_column("iPEPS Parameters", justify="left")
 
     filenames = [file] if file else os.listdir(os.path.join("data", folder))
     
@@ -194,6 +188,7 @@ def info(folder: click.Path, file: click.Path, state: bool, lam: bool, energy: b
         if correlation or print_all: row.append(f"{reader.correlation()}")
         if losses: row.append(f"{reader.losses()}")
         if state: row.append(f"{reader.iPEPS_state()}")
+        if params: row.append(f"{reader.iPEPS.args}")
         style = "grey50" if i % 2 != 0 else "grey78"
         table.add_row(*row, style=style)
 
