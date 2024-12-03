@@ -2,7 +2,6 @@ from pepsflow.iPEPS.iPEPS import iPEPS
 
 import torch
 import os
-from rich.progress import Progress, TaskID
 from rich import print
 
 

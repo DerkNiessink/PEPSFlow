@@ -121,13 +121,12 @@ def converge(var_param, value: float, args: dict, read_fn: str):
         raise KeyError("Only chi as variational parameter is supported for convergence.")
 
     folders, ipeps_params = args["parameters.folders"], args["parameters.ipeps"]
-    task = progress.add_task(f"[blue bold]CTM steps (χ = {value})", total=ipeps_params["Niter"], start=False)
 
     ipeps = iPEPSReader(path(folders["read"], read_fn)).iPEPS
 
     # Execute the convergence and write the data to a file
     conv = Converger(ipeps, ipeps_params)
-    conv.exe(progress, task)
+    conv.exe()
     conv.write(path(folders["write"], write_fn))
 
 

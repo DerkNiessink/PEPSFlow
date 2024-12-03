@@ -27,7 +27,7 @@ class Trainer:
             self.args["optimizer"], self.ipeps.parameters(), lr=self.args["learning_rate"], line_search_fn=ls
         )
 
-    def exe(self, progress: Progress, task: TaskID) -> None:
+    def exe(self, progress: Progress = None, task: TaskID = None) -> None:
         """
         Optimize the iPEPS model using the CTM algorithm and the given optimizer.
 
@@ -47,7 +47,7 @@ class Trainer:
             return loss
 
         with progress:
-            progress.start_task(task)
+            progress.start_task(task) if progress else None
             for epoch in range(self.args["epochs"]):
                 try:
                     self.opt.step(train)
@@ -58,7 +58,7 @@ class Trainer:
 
                     # Save intermediate results
                     self.ipeps.add_data(loss, C, T)
-                    progress.update(task, advance=1)
+                    progress.update(task, advance=1) if progress else None
 
                 except ValueError:
                     print("[red bold] NaN in iPEPS tensor detected. Saving and quiting training...")

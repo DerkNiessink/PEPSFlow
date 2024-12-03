@@ -1,32 +1,40 @@
 import pytest
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, MofNCompleteColumn, TimeElapsedColumn
 
 from pepsflow.iPEPS.trainer import Trainer
+from pepsflow.iPEPS.iPEPS import iPEPS
+
+# Global progress bar
+progress = Progress(
+    SpinnerColumn(),
+    TextColumn("[progress.description]{task.description}"),
+    BarColumn(),
+    MofNCompleteColumn(),
+    TextColumn("•"),
+    TimeElapsedColumn(),
+)
 
 
 class TestiPEPSTrainer:
 
     @pytest.mark.parametrize("lam, E_exp, split", [(1, -1.06283, False), (4, -2.06688, True)])
     def test_exe(self, lam, E_exp, split):
-        args = {
-            "model": "Ising",
-            "chi": 8,
-            "D": 2,
-            "optimizer": "adam",
-            "split": split,
-            "data_fn": None,
-            "gpu": False,
-            "lam": lam,
-            "runs": 1,
-            "learning_rate": 0.1,
-            "epochs": 100,
-            "warmup_steps": 50,
-            "perturbation": 0.0,
-            "threads": 1,
-            "var_param": "lam",
-            "line_search": False,
-            "seed": None,
-        }
-        trainer = Trainer(args)
-        trainer.exe()
-        E = trainer.data.losses[-1]
-        assert E == pytest.approx(E_exp, abs=1e-3)
+
+        ipeps = iPEPS({"model": "Ising", "D": 2, "lam": lam, "split": split, "chi": 4, "Niter": 10})
+        trainer = Trainer(
+            ipeps,
+            {
+                "optimizer": "lbfgs",
+                "learning_rate": 1,
+                "epochs": 25,
+                "threads": 1,
+                "line_search": True,
+                "seed": 1,
+            },
+        )
+        task = progress.add_task(
+            f"[blue bold]Training iPEPS ({"lam"} = {lam})", total=trainer.args["epochs"], start=False
+        )
+
+        trainer.exe(progress, task)
+        assert ipeps.data["losses"][-1] == pytest.approx(E_exp, abs=1e-4)
