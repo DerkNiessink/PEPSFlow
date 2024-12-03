@@ -16,6 +16,7 @@ class Converger:
 
     def __init__(self, ipeps: iPEPS, args: dict):
         self.ipeps = iPEPS(args, ipeps)
+        self.ipeps.plant_unitary()
 
     def exe(self) -> None:
         """

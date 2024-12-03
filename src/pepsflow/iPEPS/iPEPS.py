@@ -45,11 +45,20 @@ class iPEPS(torch.nn.Module):
         Setup the iPEPS tensor network with random parameters.
         """
         A = Tensors.A_random_symmetric(self.args["D"])
-        params, map = torch.unique(A, return_inverse=True)
+        params, self.map = torch.unique(A, return_inverse=True)
         self.data = {"C": [], "T": [], "params": [], "losses": [], "norms": []}
         self.params = torch.nn.Parameter(params)
-        self.map = map
         self.H = Tensors.Hamiltonian(self.args["model"], lam=self.args["lam"])
+
+    def plant_unitary(self) -> None:
+        """
+        Plant a unitary matrix on the A tensors of the iPEPS tensor network.
+        """
+        U = Tensors.random_unitary(self.args["D"])
+        A = self.params[self.map]
+        A = torch.einsum("abcde,bf,cg,dh,ei->afghi", A, U, U, U, U)
+        params, self.map = torch.unique(A, return_inverse=True)
+        self.params = torch.nn.Parameter(params)
 
     def add_data(self, loss: torch.Tensor, C: torch.Tensor, T: torch.Tensor) -> None:
         """
@@ -88,13 +97,13 @@ class iPEPS(torch.nn.Module):
         Returns:
             torch.Tensor: The loss, representing the energy expectation value, and the corner and edge tensors.
         """
-        Asymm = self.params[self.map]
-        Asymm = Asymm / Asymm.norm()
+        A = self.params[self.map]
+        A = A / A.norm()
 
         if torch.isnan(self.params).any():
             raise ValueError("NaN in the iPEPS tensor.")
 
-        alg = CtmAlg(Asymm, self.args["chi"], split=self.args["split"])
+        alg = CtmAlg(A, self.args["chi"], split=self.args["split"])
         alg.exe(N=self.args["Niter"])
 
-        return Observables.E(Asymm, self.H, alg.C, alg.T), alg.C.detach(), alg.T.detach()
+        return Observables.E(A, self.H, alg.C, alg.T), alg.C.detach(), alg.T.detach()

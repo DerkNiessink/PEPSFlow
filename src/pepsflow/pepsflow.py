@@ -9,7 +9,6 @@ from pepsflow.iPEPS.converger import Converger
 from pepsflow.iPEPS.iPEPS import iPEPS
 from pepsflow.iPEPS.reader import iPEPSReader
 
-# Global progress bar
 progress = Progress(
     SpinnerColumn(),
     TextColumn("[progress.description]{task.description}"),
