@@ -2,10 +2,18 @@ import numpy as np
 from dataclasses import dataclass
 import torch
 from typing import Sequence
+from scipy.stats import ortho_group
 
 
 @dataclass
 class Tensors:
+
+    @staticmethod
+    def random_unitary(d: int) -> torch.Tensor:
+        """
+        Return a random unitary matrix of size d x d.
+        """
+        return torch.Tensor(ortho_group.rvs(d)).double()
 
     @staticmethod
     def sx() -> torch.Tensor:
@@ -49,6 +57,7 @@ class Tensors:
         """
         return torch.eye(2).double()
 
+    @staticmethod
     def Hamiltonian(model: str, **kwargs: dict) -> torch.Tensor:
         """
         Return the Hamiltonian operator of the specified model.
