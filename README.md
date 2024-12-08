@@ -49,6 +49,6 @@ Used for reading the parameters from the `optimize.cfg` file, translating it int
 #### **`cli.*`**
 Contains the implementation of the command line interface for both parameter and data handling.
 
-
+## Results
 
 
