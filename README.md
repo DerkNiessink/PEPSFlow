@@ -51,4 +51,25 @@ Contains the implementation of the command line interface for both parameter and
 
 ## Results
 
+### Transverse-field Ising Model
+
+The Hamiltonian is given by:
+
+$$ H = \sum_{\langle i,j \rangle} \sigma_i^z \sigma_j^z- \lambda \sum_{i} \sigma_{i}^x $$
+
+### Heisenberg Model
+
+The Hamiltonian is given by:
+
+$$ H = \frac{1}{2} \sum_{\langle i,j \rangle} \Big( \frac{\sigma^+_i \sigma^-_j + \sigma^-_i \sigma^+_j}{2} + \sigma^z_i \sigma^z_j \Big) $$
+
+
+### J1-J2 Model
+
+The Hamiltonian is given by:
+
+$$  H = J_1\sum_{\langle i,j \rangle} \mathbf{S}_i.\mathbf{S}_j + J_2 \sum _{\langle \langle i,j \rangle \rangle} \mathbf{S}_i.\mathbf{S}_j $$
+
+
+
 
