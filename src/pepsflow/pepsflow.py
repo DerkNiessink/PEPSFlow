@@ -3,6 +3,7 @@ import multiprocessing as mp
 import os
 import ast
 from rich.progress import Progress, TextColumn, SpinnerColumn, MofNCompleteColumn, TimeElapsedColumn, BarColumn
+import signal
 
 from pepsflow.iPEPS.trainer import Trainer
 from pepsflow.iPEPS.converger import Converger
@@ -76,8 +77,6 @@ def optimize(var_param: tuple[str, str], value: float, args: dict):
         value (float): Value of the variational parameter.
         args (dict): folder, ipeps, and optimization parameters.
     """
-    task = progress.add_task(f"[blue bold]Training iPEPS ({key} = {value})", total=opt_params["epochs"], start=False)
-
     # Set the value of the variational parameter
     section, key = var_param
     args[section][key] = value
@@ -96,6 +95,12 @@ def optimize(var_param: tuple[str, str], value: float, args: dict):
 
     # Execute the optimization and write the iPEPS model to a file
     trainer = Trainer(ipeps, opt_params)
+    task = progress.add_task(f"[blue bold]Training iPEPS ({key} = {value})", total=opt_params["epochs"], start=False)
+
+    # Save the data if the process is interrupted
+    save = lambda sig, frame: (trainer.write(path(folders["write"], fn)), exit(0))
+    signal.signal(signal.SIGINT, save)
+
     trainer.exe(progress, task)
     trainer.write(path(folders["write"], fn))
 
@@ -125,6 +130,11 @@ def converge(var_param, value: float, args: dict, read_fn: str):
 
     # Execute the convergence and write the data to a file
     conv = Converger(ipeps, ipeps_params)
+
+    # Save the data if the process is interrupted
+    save = lambda sig, frame: (conv.write(path(folders["write"], write_fn)), exit(0))
+    signal.signal(signal.SIGINT, save)
+
     conv.exe()
     conv.write(path(folders["write"], write_fn))
 

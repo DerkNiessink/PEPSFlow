@@ -86,13 +86,31 @@ class iPEPS(torch.nn.Module):
         for key in ["params", "losses", "norms", "C", "T"]:
             self.data[key] = self.data[key][: i + 1]
 
-    def forward(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def warmup(self) -> None:
+        """
+        Warmup the iPEPS tensor network by performing the CTM algorithm.
+
+        Args:
+            C (torch.Tensor): Initial corner tensor for the CTM algorithm.
+            T (torch.Tensor): Initial edge tensor for the CTM algorithm.
+        """
+        _, C, T = self.forward(warmup=True)
+        return C, T
+
+    def forward(
+        self, C: torch.Tensor = None, T: torch.Tensor = None, warmup: bool = False
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Compute the energy of the iPEPS tensor network by performing the following steps:
         1. Map the parameters to a symmetric rank-5 iPEPS tensor.
         2. Execute the CTM (Corner Transfer Matrix) algorithm to compute the corner (C) and edge (T) tensors.
         3. Compute the loss as the energy expectation value using the Hamiltonian H, the symmetrized tensor,
            and the corner and edge tensors from the CTM algorithm.
+
+        Args:
+            C (torch.Tensor): Initial corner tensor for the CTM algorithm. Default is None.
+            T (torch.Tensor): Initial edge tensor for the CTM algorithm. Default is None.
+            warmup (bool): Flag to indicate if the warmup steps should be executed. Default is False.
 
         Returns:
             torch.Tensor: The loss, representing the energy expectation value, and the corner and edge tensors.
@@ -103,7 +121,11 @@ class iPEPS(torch.nn.Module):
         if torch.isnan(self.params).any():
             raise ValueError("NaN in the iPEPS tensor.")
 
-        alg = CtmAlg(A, self.args["chi"], split=self.args["split"])
-        alg.exe(N=self.args["Niter"])
+        alg = CtmAlg(A, self.args["chi"], C, T, self.args["split"])
 
-        return Observables.E(A, self.H, alg.C, alg.T), alg.C.detach(), alg.T.detach()
+        N = self.args["warmup_steps"] if warmup else self.args["Niter"]
+        alg.exe(N)
+
+        # The loss does not have to be computed in the warmup steps
+        loss = None if warmup else Observables.E(A, self.H, alg.C, alg.T)
+        return loss, alg.C.detach(), alg.T.detach()

@@ -35,14 +35,17 @@ class Trainer:
             progress (Progress): Rich Progress object to track the progress of the optimization.
             task (TaskID): Task ID of the progress object.
         """
+        C, T = None, None
 
-        def train() -> torch.Tensor:
+        def train() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
             """
             Do one step in the CTM algorithm, compute the loss, and do the
             backward pass where the gradients are computed.
             """
+            nonlocal C, T
             self.opt.zero_grad()
-            loss, _, _ = self.ipeps.forward()
+            C, T = self.ipeps.warmup()
+            loss, C, T = self.ipeps.forward(C, T)
             loss.backward()
             return loss
 
@@ -50,10 +53,9 @@ class Trainer:
             progress.start_task(task) if progress else None
             for epoch in range(self.args["epochs"]):
                 try:
-                    self.opt.step(train)
+                    loss = self.opt.step(train)
 
-                    with torch.no_grad():
-                        loss, C, T = self.ipeps.forward()
+                    if self.args["log"]:
                         print(f"epoch, E: {epoch, loss.item()}")
 
                     # Save intermediate results
