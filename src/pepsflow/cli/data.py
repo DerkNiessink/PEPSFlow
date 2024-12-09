@@ -60,18 +60,28 @@ def plot(ctx, folders, **kwargs):
     plt.figure(figsize=(6, 4))
 
     if kwargs["magnetization"]:
-        plt.ylabel(r"$\langle M_z \rangle$")
-        plt.xlabel(r"$\lambda$")
+        plt.ylabel(r"$m_z$", fontsize=12)
+        plt.xlabel(r"$\lambda$", fontsize=12)
+        symbols = ["o-", "D-"]
+        colors = ["C0", "C2"]
         for i, readers in enumerate(all_readers):
             lams, mags = zip(*[(reader.lam(), reader.magnetization()) for reader in readers])
-            plt.plot(lams, mags, "v-", markersize=4, linewidth=0.5, label=folders[i])
+            plt.plot(lams, mags, symbols[i], color=colors[i], markersize=5, linewidth=0.5, label=folders[i])
+        plt.xlim(2.95, 3.15)
+        plt.ylim(-0.005, 0.45)
+        plt.xticks([2.95, 3.0, 3.05, 3.1, 3.15])
+        plt.minorticks_on()
+        plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(0.025))
+        plt.gca().yaxis.set_minor_locator(plt.MultipleLocator(0.05))
+        plt.tick_params(axis='x', which='minor', length=4)
+        plt.grid(which='both', linestyle='--', linewidth=0.5)
 
     if kwargs["energy"]:
         plt.ylabel(r"$E$")
         plt.xlabel(r"$\lambda$")
         for i, readers in enumerate(all_readers):
             lams, energies = zip(*[(reader.lam(), reader.energy()) for reader in readers])
-            plt.plot(lams, energies, "v-", markersize=4, linewidth=0.5, label=folders[i])
+            plt.plot(lams, energies, "v-", markersize=5, linewidth=0.5, label=rf"${folders[i]}$")
 
     if kwargs["correlation_length"]:
         plt.ylabel(r"$\xi$")

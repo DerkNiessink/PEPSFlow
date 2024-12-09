@@ -51,16 +51,22 @@ class Trainer:
 
         with progress:
             progress.start_task(task) if progress else None
+            loss = 0
             for epoch in range(self.args["epochs"]):
                 try:
-                    loss = self.opt.step(train)
+                    new_loss = self.opt.step(train)
 
                     if self.args["log"]:
-                        print(f"epoch, E: {epoch, loss.item()}")
+                        print(f"epoch, E, Diff: {epoch, new_loss.item(), abs(new_loss - loss).item()}")
 
                     # Save intermediate results
-                    self.ipeps.add_data(loss, C, T)
+                    self.ipeps.add_data(new_loss, C, T)
                     progress.update(task, advance=1) if progress else None
+
+                    if abs(new_loss - loss) < 1e-9:
+                        print(f"[green bold] \nConverged after {epoch} epochs. Saving and quiting training...")
+                        break
+                    loss = new_loss
 
                 except ValueError:
                     print("[red bold] NaN in iPEPS tensor detected. Saving and quiting training...")
