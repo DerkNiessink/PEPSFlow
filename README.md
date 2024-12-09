@@ -57,6 +57,9 @@ The Hamiltonian is given by:
 
 $$ H = \sum_{\langle i,j \rangle} \sigma_i^z \sigma_j^z- \lambda \sum_{i} \sigma_{i}^x $$
 
+![alt text](figures/Ising_m_z.png)
+
+
 ### Heisenberg Model
 
 The Hamiltonian is given by:
