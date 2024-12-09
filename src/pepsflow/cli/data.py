@@ -121,7 +121,7 @@ def plot(ctx, folders, **kwargs):
         
     plt.tight_layout()
     plt.legend()
-    plt.savefig("Ising_mz.pdf")
+    plt.savefig("figures/Ising_xi_D2.png")
     plt.show()
 
 
