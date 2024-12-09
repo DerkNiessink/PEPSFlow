@@ -53,23 +53,23 @@ Contains the implementation of the command line interface for both parameter and
 
 ### Transverse-field Ising Model
 
-The Hamiltonian is given by:
-
 $$ H = \sum_{\langle i,j \rangle} \sigma_i^z \sigma_j^z- \lambda \sum_{i} \sigma_{i}^x $$
 
-![alt text](figures/Ising_m_z.png)
+*50 warm up steps, 20 gradient steps, chi=30 for D=2 and chi is between 30 and 64 for D=3*
 
+![alt text](figures/Ising_m_z.pdf)
+
+![alt text](figures/Ising_xi_D2.pdf)
+
+
+ 
 
 ### Heisenberg Model
-
-The Hamiltonian is given by:
 
 $$ H = \frac{1}{2} \sum_{\langle i,j \rangle} \Big( \frac{\sigma^+_i \sigma^-_j + \sigma^-_i \sigma^+_j}{2} + \sigma^z_i \sigma^z_j \Big) $$
 
 
 ### J1-J2 Model
-
-The Hamiltonian is given by:
 
 $$  H = J_1\sum_{\langle i,j \rangle} \mathbf{S}_i.\mathbf{S}_j + J_2 \sum _{\langle \langle i,j \rangle \rangle} \mathbf{S}_i.\mathbf{S}_j $$
 
