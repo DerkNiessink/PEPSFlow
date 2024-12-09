@@ -36,7 +36,7 @@ def params(ctx):
 @params.command()
 @click.option("-N","--Niter","Niter", type=int, help="Number of iterations in the forward step.")
 @click.option("--D", "D", type=str, help="One value or comma separated list of values of the bulk dimension d of the iPEPS tensor.")
-@click.option("--model", type=str, help="Model to optimize. Options are 'Ising' and 'Heisenberg'.")
+@click.option("--model", type=str, help="Model to optimize. Options are 'Ising', 'Heisenberg', and 'J1J2'.")
 @click.option("--chi", type=str, help="One value of comma separated list of values of the bond dimension chi of the CTM algorithm.")
 @click.option("-r","--read", type=str, help="Folder containing iPEPS models and other datafiles to read.")
 @click.option("--gpu/--no-gpu", default=None, type=bool, help="Run the model on the GPU if available.")
