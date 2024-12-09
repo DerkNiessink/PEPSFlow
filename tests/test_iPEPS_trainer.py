@@ -20,7 +20,17 @@ class TestiPEPSTrainer:
     @pytest.mark.parametrize("lam, E_exp, split", [(1, -1.06283, False), (4, -2.06688, True)])
     def test_exe(self, lam, E_exp, split):
 
-        ipeps = iPEPS({"model": "Ising", "D": 2, "lam": lam, "split": split, "chi": 4, "Niter": 10})
+        ipeps = iPEPS(
+            {
+                "model": "Ising",
+                "D": 2,
+                "lam": lam,
+                "split": split,
+                "chi": 4,
+                "Niter": 10,
+                "warmup_steps": 50,
+            }
+        )
         trainer = Trainer(
             ipeps,
             {
@@ -30,6 +40,7 @@ class TestiPEPSTrainer:
                 "threads": 1,
                 "line_search": True,
                 "seed": 1,
+                "log": True,
             },
         )
         task = progress.add_task(
@@ -37,4 +48,4 @@ class TestiPEPSTrainer:
         )
 
         trainer.exe(progress, task)
-        assert ipeps.data["losses"][-1] == pytest.approx(E_exp, abs=1e-4)
+        assert ipeps.data["losses"][-1].detach() == pytest.approx(E_exp, abs=1e-4)

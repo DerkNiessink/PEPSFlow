@@ -45,11 +45,20 @@ class iPEPS(torch.nn.Module):
         Setup the iPEPS tensor network with random parameters.
         """
         A = Tensors.A_random_symmetric(self.args["D"])
-        params, map = torch.unique(A, return_inverse=True)
+        params, self.map = torch.unique(A, return_inverse=True)
         self.data = {"C": [], "T": [], "params": [], "losses": [], "norms": []}
         self.params = torch.nn.Parameter(params)
-        self.map = map
         self.H = Tensors.Hamiltonian(self.args["model"], lam=self.args["lam"])
+
+    def plant_unitary(self) -> None:
+        """
+        Plant a unitary matrix on the A tensors of the iPEPS tensor network.
+        """
+        U = Tensors.random_unitary(self.args["D"])
+        A = self.params[self.map]
+        A = torch.einsum("abcde,bf,cg,dh,ei->afghi", A, U, U, U, U)
+        params, self.map = torch.unique(A, return_inverse=True)
+        self.params = torch.nn.Parameter(params)
 
     def add_data(self, loss: torch.Tensor, C: torch.Tensor, T: torch.Tensor) -> None:
         """
@@ -77,7 +86,20 @@ class iPEPS(torch.nn.Module):
         for key in ["params", "losses", "norms", "C", "T"]:
             self.data[key] = self.data[key][: i + 1]
 
-    def forward(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def warmup(self) -> None:
+        """
+        Warmup the iPEPS tensor network by performing the CTM algorithm.
+
+        Args:
+            C (torch.Tensor): Initial corner tensor for the CTM algorithm.
+            T (torch.Tensor): Initial edge tensor for the CTM algorithm.
+        """
+        _, C, T = self.forward(warmup=True)
+        return C, T
+
+    def forward(
+        self, C: torch.Tensor = None, T: torch.Tensor = None, warmup: bool = False
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Compute the energy of the iPEPS tensor network by performing the following steps:
         1. Map the parameters to a symmetric rank-5 iPEPS tensor.
@@ -85,16 +107,25 @@ class iPEPS(torch.nn.Module):
         3. Compute the loss as the energy expectation value using the Hamiltonian H, the symmetrized tensor,
            and the corner and edge tensors from the CTM algorithm.
 
+        Args:
+            C (torch.Tensor): Initial corner tensor for the CTM algorithm. Default is None.
+            T (torch.Tensor): Initial edge tensor for the CTM algorithm. Default is None.
+            warmup (bool): Flag to indicate if the warmup steps should be executed. Default is False.
+
         Returns:
             torch.Tensor: The loss, representing the energy expectation value, and the corner and edge tensors.
         """
-        Asymm = self.params[self.map]
-        Asymm = Asymm / Asymm.norm()
+        A = self.params[self.map]
+        A = A / A.norm()
 
         if torch.isnan(self.params).any():
             raise ValueError("NaN in the iPEPS tensor.")
 
-        alg = CtmAlg(Asymm, self.args["chi"], split=self.args["split"])
-        alg.exe(N=self.args["Niter"])
+        alg = CtmAlg(A, self.args["chi"], C, T, self.args["split"])
 
-        return Observables.E(Asymm, self.H, alg.C, alg.T), alg.C.detach(), alg.T.detach()
+        N = self.args["warmup_steps"] if warmup else self.args["Niter"]
+        alg.exe(N)
+
+        # The loss does not have to be computed in the warmup steps
+        loss = None if warmup else Observables.E(A, self.H, alg.C, alg.T)
+        return loss, alg.C.detach(), alg.T.detach()

@@ -74,5 +74,8 @@ The Hamiltonian is given by:
 $$  H = J_1\sum_{\langle i,j \rangle} \mathbf{S}_i.\mathbf{S}_j + J_2 \sum _{\langle \langle i,j \rangle \rangle} \mathbf{S}_i.\mathbf{S}_j $$
 
 
+## Results 
+
+
 
 

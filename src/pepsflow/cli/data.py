@@ -34,7 +34,7 @@ def data(ctx, folder: str, concise: bool):
 
 
 @data.command(context_settings={"ignore_unknown_options": True})
-@click.argument("folder", type=click.Path())
+@click.argument("folders", type=click.Path(), nargs=-1)
 @click.option("-e", "--energy", is_flag=True, default=False, help="Plot the energy as a function of lambda")
 @click.option("-m", "--magnetization", is_flag=True, default=False, help="Plot the magnetization as a function of lambda")
 @click.option("-xi", "--correlation_length", is_flag=True, default=False, help="Plot the correlation length as a function of lambda")
@@ -43,7 +43,7 @@ def data(ctx, folder: str, concise: bool):
 @click.option("-c", "--energy_convergence", type=click.Path(), default=None, help="Plot the energy convergence as a function of epoch. Has to be a .json file.")
 @click.option("-chi", "--energy_chi", is_flag=True, default=False, help="Plot the converged energy as a function of 1/chi of all .json files in the folder.")
 @click.pass_context
-def plot(ctx, folder, **kwargs):
+def plot(ctx, folders, **kwargs):
     """
     Plot the observables of iPEPS models.
 
@@ -51,58 +51,70 @@ def plot(ctx, folder, **kwargs):
     """
     if sum(bool(opt) for opt in kwargs.values()) > 1:
         ctx.fail("Only one option can be selected at a time.")
-
-    readers = [iPEPSReader(os.path.join("data", folder, x)) for x in os.listdir(os.path.join("data", folder))]
+    
+    all_readers: list[list[iPEPSReader]] = []
+    for folder in folders:
+        readers = [iPEPSReader(os.path.join("data", folder, x)) for x in os.listdir(os.path.join("data", folder))]
+        all_readers.append(readers) 
 
     plt.figure(figsize=(6, 4))
 
     if kwargs["magnetization"]:
-        plt.ylabel(r"$\langle M_z \rangle$")
-        plt.xlabel(r"$\lambda$")
-        lams, mags = zip(*[(reader.lam(), reader.magnetization()) for reader in readers])
-        plt.plot(lams, mags, "v-", markersize=4, linewidth=0.5, label=folder)
+        plt.ylabel(r"$m_z$", fontsize=12)
+        plt.xlabel(r"$\lambda$", fontsize=12)
+        symbols = ["o-", "D-"]
+        colors = ["C0", "C2"]
+        for i, readers in enumerate(all_readers):
+            lams, mags = zip(*[(reader.lam(), reader.magnetization()) for reader in readers])
+            plt.plot(lams, mags, symbols[i], color=colors[i], markersize=5, linewidth=0.5, label=folders[i])
+        plt.xlim(2.95, 3.15)
+        plt.ylim(-0.005, 0.45)
+        plt.xticks([2.95, 3.0, 3.05, 3.1, 3.15])
+        plt.minorticks_on()
+        plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(0.025))
+        plt.gca().yaxis.set_minor_locator(plt.MultipleLocator(0.05))
+        plt.tick_params(axis='x', which='minor', length=4)
+        plt.grid(which='both', linestyle='--', linewidth=0.5)
 
     if kwargs["energy"]:
         plt.ylabel(r"$E$")
         plt.xlabel(r"$\lambda$")
-        lams, energies = zip(*[(reader.lam(), reader.energy()) for reader in readers])
-        plt.plot(lams, energies, "v-", markersize=4, linewidth=0.5, label=folder)
+        for i, readers in enumerate(all_readers):
+            lams, energies = zip(*[(reader.lam(), reader.energy()) for reader in readers])
+            plt.plot(lams, energies, "v-", markersize=5, linewidth=0.5, label=rf"${folders[i]}$")
 
     if kwargs["correlation_length"]:
         plt.ylabel(r"$\xi$")
         plt.xlabel(r"$\lambda$")
-        lams, xis = zip(*[(reader.lam(), reader.correlation()) for reader in readers])
-        plt.plot(lams, xis, "v-", markersize=4, linewidth=0.5, label=folder)
-
-    if kwargs["gradient"]:
-        plt.ylabel(r"$E$")
-        plt.xlabel(r"Epoch")
-        files = [os.path.join("data", folder, x) for x in kwargs["gradient"].split(",")]
-        readers = [iPEPSReader(file) for file in files]
-        for reader in readers:
-            losses = reader.losses() 
-            plt.plot(range(len(losses)), losses, "v-", markersize=4, linewidth=0.5, label=reader.file)
-
-    if kwargs["gradient_norm"]:
-        plt.ylabel(r"$\| \nabla E \|$")
-        plt.xlabel(r"Epoch")
-        files = [os.path.join("data", folder, x) for x in kwargs["gradient_norm"].split(",")]
-        readers = [iPEPSReader(file) for file in files]
-        for reader in readers:
-            norms = reader.gradient_norms()
-            plt.plot(range(len(norms)), norms, "v-", markersize=4, linewidth=0.5, label=reader.file)
+        for i, readers in enumerate(all_readers):
+            lams, xis = zip(*[(reader.lam(), reader.correlation()) for reader in readers])
+            plt.plot(lams, xis, "v-", markersize=4, linewidth=0.5, label=folders[i])
 
     if kwargs["energy_chi"]:
         plt.ylabel(r"$E$")
         plt.xlabel(r"$1/\chi$")
-        energies, inv_chis = [], []
-        readers = [reader for reader in readers if "chi" in reader.file]
-        for reader in readers:
-            inv_chis.append(1/reader.iPEPS.args["chi"])
-            energies.append(reader.energy())
-        
-        inv_chis, energies = zip(*sorted(zip(inv_chis, energies), reverse=True))
-        plt.plot(inv_chis, energies, "v-", markersize=4, linewidth=0.5, label=folder)
+        for i, readers in enumerate(all_readers):
+            data = [(1/reader.iPEPS.args["chi"], reader.energy()) for reader in readers if "chi" in reader.file]
+            data.sort(reverse=True)
+            inv_chis, energies = zip(*data)
+            plt.plot(inv_chis, energies, "v-", markersize=4, linewidth=0.5, label=folders[i])
+
+    if kwargs["gradient"]:
+        plt.ylabel(r"$E$")
+        plt.xlabel(r"Epoch")
+        for file in kwargs["gradient"].split(","):
+            reader = iPEPSReader(os.path.join("data", folder, file))
+            losses = reader.losses()
+            plt.plot(range(len(losses)), losses, "v-", markersize=4, linewidth=0.5, label=file)
+
+    if kwargs["gradient_norm"]:
+        plt.ylabel(r"$\| \nabla E \|$")
+        plt.xlabel(r"Epoch")
+        for file in kwargs["gradient_norm"].split(","):
+            reader = iPEPSReader(os.path.join("data", folder, file))
+            norms = reader.gradient_norms()
+            plt.plot(range(len(norms)), norms, "v-", markersize=4, linewidth=0.5, label=reader.file)
+
         
     plt.tight_layout()
     plt.legend()
