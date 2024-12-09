@@ -8,7 +8,9 @@ import shutil
 from rich.console import Console
 from rich.table import Table
 from rich import box
-import json
+import scienceplots
+
+plt.style.use("science")
 
 from pepsflow.iPEPS.reader import iPEPSReader
 from pepsflow.cli.utils import walk_directory
@@ -62,13 +64,12 @@ def plot(ctx, folders, **kwargs):
     if kwargs["magnetization"]:
         plt.ylabel(r"$m_z$", fontsize=12)
         plt.xlabel(r"$\lambda$", fontsize=12)
-        symbols = ["o-", "D-"]
-        colors = ["C0", "C2"]
+        symbols = ["^-", "o-"]
         for i, readers in enumerate(all_readers):
             lams, mags = zip(*[(reader.lam(), reader.magnetization()) for reader in readers])
-            plt.plot(lams, mags, symbols[i], color=colors[i], markersize=5, linewidth=0.5, label=folders[i])
+            plt.plot(lams, mags, symbols[i], markersize=5, linewidth=0.5, label=folders[i])
         plt.xlim(2.95, 3.15)
-        plt.ylim(-0.005, 0.45)
+        plt.ylim(-0.0025, 0.45)
         plt.xticks([2.95, 3.0, 3.05, 3.1, 3.15])
         plt.minorticks_on()
         plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(0.025))
@@ -88,7 +89,9 @@ def plot(ctx, folders, **kwargs):
         plt.xlabel(r"$\lambda$")
         for i, readers in enumerate(all_readers):
             lams, xis = zip(*[(reader.lam(), reader.correlation()) for reader in readers])
-            plt.plot(lams, xis, "v-", markersize=4, linewidth=0.5, label=folders[i])
+            plt.plot(lams, xis, "v-", color="C0", markersize=5, linewidth=0.5, label=f"${folders[i]}$")
+        plt.xlim(2.7, 3.3)
+        plt.grid(linestyle='--', linewidth=0.5)
 
     if kwargs["energy_chi"]:
         plt.ylabel(r"$E$")
@@ -118,6 +121,7 @@ def plot(ctx, folders, **kwargs):
         
     plt.tight_layout()
     plt.legend()
+    plt.savefig("Ising_mz.pdf")
     plt.show()
 
 
