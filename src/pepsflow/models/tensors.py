@@ -71,6 +71,8 @@ class Tensors:
                 return Tensors.H_Ising(kwargs["lam"])
             case "Heisenberg":
                 return Tensors.H_Heisenberg()
+            case "J1J2":
+                return Tensors.H_J1J2()
             case _:
                 raise ValueError(f"Model {model} not recognized.")
 
@@ -84,7 +86,26 @@ class Tensors:
         )
 
     @staticmethod
-    def H_Heisenberg(Jz: float = 1.0, Jxy: float = 1.0) -> torch.Tensor:
+    def H_Heisenberg(lam: float) -> torch.Tensor:
+        """
+        Return the Hamiltonian operator of the Heisenberg model.
+        """
+        sz = torch.complex(Tensors.sz(), torch.zeros_like(Tensors.sz()))
+        res = (
+            2
+            * lam
+            * (
+                torch.kron(sz, sz) / 4
+                + torch.kron(Tensors.sp(), Tensors.sm()) / 2
+                + torch.kron(Tensors.sm(), Tensors.sp()) / 2
+            )
+        )
+        res = res.view(2, 2, 2, 2)
+        res = torch.einsum("abcd,be,df->aecf", res, Tensors.rot_op(), torch.conj(Tensors.rot_op())).real
+        return res.reshape(4, 4)
+
+    @staticmethod
+    def H_J1J2(Jz: float = 1.0, Jxy: float = 1.0) -> torch.Tensor:
         """
         Return the Hamiltonian operator of the Heisenberg model.
         """
@@ -93,6 +114,13 @@ class Tensors:
         return 2 * Jz * torch.kron(sz, 4 * sx @ sz @ sx) - Jxy * (
             torch.kron(sm, 4 * sx @ sp @ sx) + torch.kron(sp, 4 * sx @ sm @ sx)
         )
+
+    @staticmethod
+    def rot_op():
+        """
+        Return the rotation operator.
+        """
+        return torch.matrix_exp(1j * torch.pi * Tensors.sy() / 2)
 
     @staticmethod
     def Mp() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
