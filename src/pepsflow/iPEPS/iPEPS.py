@@ -32,8 +32,12 @@ class iPEPS(torch.nn.Module):
         """
         self.data = {}
         epoch = self.args["start_epoch"]
+
+        # Copy the data from the initial iPEPS tensor network and handle the case when the epoch is -1
         for key in ["params", "losses", "norms", "C", "T"]:
-            self.data[key] = self.initial_ipeps.data[key][: epoch + 1]
+            self.data[key] = self.initial_ipeps.data[key][: epoch + 1] if epoch != -1 else self.initial_ipeps.data[key]
+        if epoch == -1:
+            epoch = len(self.data["params"]) - 1
 
         params = Methods.perturb(self.data["params"][epoch], self.args["perturbation"])
         self.map = self.initial_ipeps.map
