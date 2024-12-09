@@ -57,7 +57,7 @@ $$ H = \sum_{\langle i,j \rangle} \sigma_i^z \sigma_j^z- \lambda \sum_{i} \sigma
 
 *50 warm up steps, 20 gradient steps, chi=30 for D=2 and chi is between 30 and 64 for D=3*
 
-![alt text](figures/Ising_m_z.pdf)
+![alt text](figures/Ising_mz.pdf)
 
 ![alt text](figures/Ising_xi_D2.pdf)
 
