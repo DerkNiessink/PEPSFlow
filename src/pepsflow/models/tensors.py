@@ -86,41 +86,29 @@ class Tensors:
         )
 
     @staticmethod
-    def H_Heisenberg(lam: float) -> torch.Tensor:
+    def H_Heisenberg() -> torch.Tensor:
         """
         Return the Hamiltonian operator of the Heisenberg model.
         """
-        sz = torch.complex(Tensors.sz(), torch.zeros_like(Tensors.sz()))
-        res = (
-            2
-            * lam
-            * (
-                torch.kron(sz, sz) / 4
-                + torch.kron(Tensors.sp(), Tensors.sm()) / 2
-                + torch.kron(Tensors.sm(), Tensors.sp()) / 2
-            )
-        )
-        res = res.view(2, 2, 2, 2)
-        res = torch.einsum("abcd,be,df->aecf", res, Tensors.rot_op(), torch.conj(Tensors.rot_op())).real
-        return res.reshape(4, 4)
+        rot, sz, sp, sm = Tensors.rot_op(), Tensors.sz(), Tensors.sp(), Tensors.sm()
+        H = 0.25 * torch.kron(sz, sz) + 0.5 * (torch.kron(sp, sm) + torch.kron(sm, sp))
+        H = H.view(2, 2, 2, 2)
+        H = torch.einsum("ki,kjcb,ca->ijab", rot, H, rot)
+        return 2 * H.reshape(4, 4)
 
     @staticmethod
-    def H_J1J2(Jz: float = 1.0, Jxy: float = 1.0) -> torch.Tensor:
+    def H_J1J2(J2) -> torch.Tensor:
         """
         Return the Hamiltonian operator of the Heisenberg model.
         """
-        sx, sz, sp, sm = Tensors.sx() * 0.5, Tensors.sz() * 0.5, Tensors.sp(), Tensors.sm()
+        sx, sz, sp, sm = Tensors.sx(), Tensors.sz(), Tensors.sp(), Tensors.sm()
+        H_nn = Tensors.H_Heisenberg()  # Nearest neighbor interaction
 
-        return 2 * Jz * torch.kron(sz, 4 * sx @ sz @ sx) - Jxy * (
-            torch.kron(sm, 4 * sx @ sp @ sx) + torch.kron(sp, 4 * sx @ sm @ sx)
-        )
+        return
 
-    @staticmethod
-    def rot_op():
-        """
-        Return the rotation operator.
-        """
-        return torch.matrix_exp(1j * torch.pi * Tensors.sy() / 2)
+    def rot_op() -> torch.Tensor:
+        """Return the rotation operator."""
+        return torch.tensor([[0, 1], [-1, 0]], dtype=torch.float64)
 
     @staticmethod
     def Mp() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:

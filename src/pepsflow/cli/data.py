@@ -108,7 +108,8 @@ def plot(ctx, folders, **kwargs):
         for file in kwargs["gradient"].split(","):
             reader = iPEPSReader(os.path.join("data", folder, file))
             losses = reader.losses()
-            plt.plot(range(len(losses)), losses, "v-", markersize=4, linewidth=0.5, label=file)
+            plt.plot(range(len(losses)), losses, "v-", markersize=4, linewidth=0.5, label=rf'${file}$')
+        plt.ylim(-0.67, -0.64)
 
     if kwargs["gradient_norm"]:
         plt.ylabel(r"$\| \nabla E \|$")
