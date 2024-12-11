@@ -70,7 +70,7 @@ $$ H = \frac{1}{2} \sum_{\langle i,j \rangle} \Big( \frac{\sigma^+_i \sigma^-_j 
 
 *50 warm up steps, 20 gradient steps, D=3*
 
-![alt text](figures/Heisenberg_D3_opt.pdf)
+![alt text](figures/Heisenberg_D3_opt.png)
 
 
 ### J1-J2 Model
