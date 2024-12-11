@@ -68,6 +68,10 @@ $$ H = \sum_{\langle i,j \rangle} \sigma_i^z \sigma_j^z- \lambda \sum_{i} \sigma
 
 $$ H = \frac{1}{2} \sum_{\langle i,j \rangle} \Big( \frac{\sigma^+_i \sigma^-_j + \sigma^-_i \sigma^+_j}{2} + \sigma^z_i \sigma^z_j \Big) $$
 
+*50 warm up steps, 20 gradient steps, D=3*
+
+![alt text](figures/Heisenberg_D3_opt.pdf)
+
 
 ### J1-J2 Model
 
