@@ -26,4 +26,4 @@ class TestObservables:
         alg = CtmAlg(A, chi=48)
         alg.exe(N=100)
 
-        assert Observables.E(A, Tensors.H_Heisenberg(1), alg.C, alg.T) == pytest.approx(-0.6602310934799582, abs=1e-3)
+        assert Observables.E(A, Tensors.H_Heisenberg(), alg.C, alg.T) == pytest.approx(-0.6602310934799582, abs=1e-3)
