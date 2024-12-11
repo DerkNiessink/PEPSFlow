@@ -29,6 +29,7 @@ class TestiPEPSTrainer:
                 "chi": 4,
                 "Niter": 10,
                 "warmup_steps": 50,
+                "seed": 1,
             }
         )
         trainer = Trainer(
@@ -39,7 +40,6 @@ class TestiPEPSTrainer:
                 "epochs": 25,
                 "threads": 1,
                 "line_search": True,
-                "seed": 1,
                 "log": True,
             },
         )

@@ -19,7 +19,6 @@ class Trainer:
 
     def __init__(self, ipeps: iPEPS, args: dict):
         torch.set_num_threads(args["threads"])
-        torch.random.manual_seed(args["seed"]) if args["seed"] else None
         self.args = args
         self.ipeps = ipeps
         ls = "strong_wolfe" if self.args["line_search"] else None

@@ -71,6 +71,8 @@ class Tensors:
                 return Tensors.H_Ising(kwargs["lam"])
             case "Heisenberg":
                 return Tensors.H_Heisenberg()
+            case "J1J2":
+                return Tensors.H_J1J2()
             case _:
                 raise ValueError(f"Model {model} not recognized.")
 
@@ -84,15 +86,29 @@ class Tensors:
         )
 
     @staticmethod
-    def H_Heisenberg(Jz: float = 1.0, Jxy: float = 1.0) -> torch.Tensor:
+    def H_Heisenberg() -> torch.Tensor:
         """
         Return the Hamiltonian operator of the Heisenberg model.
         """
-        sx, sz, sp, sm = Tensors.sx() * 0.5, Tensors.sz() * 0.5, Tensors.sp(), Tensors.sm()
+        rot, sz, sp, sm = Tensors.rot_op(), Tensors.sz(), Tensors.sp(), Tensors.sm()
+        H = 0.25 * torch.kron(sz, sz) + 0.5 * (torch.kron(sp, sm) + torch.kron(sm, sp))
+        H = H.view(2, 2, 2, 2)
+        H = torch.einsum("ki,kjcb,ca->ijab", rot, H, rot)
+        return 2 * H.reshape(4, 4)
 
-        return 2 * Jz * torch.kron(sz, 4 * sx @ sz @ sx) - Jxy * (
-            torch.kron(sm, 4 * sx @ sp @ sx) + torch.kron(sp, 4 * sx @ sm @ sx)
-        )
+    @staticmethod
+    def H_J1J2(J2) -> torch.Tensor:
+        """
+        Return the Hamiltonian operator of the Heisenberg model.
+        """
+        sx, sz, sp, sm = Tensors.sx(), Tensors.sz(), Tensors.sp(), Tensors.sm()
+        H_nn = Tensors.H_Heisenberg()  # Nearest neighbor interaction
+
+        return
+
+    def rot_op() -> torch.Tensor:
+        """Return the rotation operator."""
+        return torch.tensor([[0, 1], [-1, 0]], dtype=torch.float64)
 
     @staticmethod
     def Mp() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
