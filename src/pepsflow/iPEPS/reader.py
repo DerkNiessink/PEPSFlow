@@ -1,6 +1,6 @@
 import torch
 
-from pepsflow.models.observables import Observables
+from pepsflow.models.tensors import Tensors
 from pepsflow.iPEPS.iPEPS import iPEPS
 
 
@@ -16,6 +16,7 @@ class iPEPSReader:
         self.file = f"{file}.pth" if not file.endswith(".pth") else file
         self.iPEPS: iPEPS = torch.load(self.file, weights_only=False)
         self.iPEPS.eval()
+        self.tensors = Tensors(self.iPEPS.args["dtype"], self.iPEPS.args["device"])
 
     def lam(self) -> float:
         """
@@ -70,7 +71,7 @@ class iPEPSReader:
             float: Magnetization of the iPEPS model.
         """
         A = self.iPEPS.params[self.iPEPS.map]
-        return float(abs(Observables.M(A, self.iPEPS.C, self.iPEPS.T)[2]))
+        return float(abs(self.tensors.M(A, self.iPEPS.C, self.iPEPS.T)[2]))
 
     def correlation(self) -> float:
         """
@@ -79,7 +80,7 @@ class iPEPSReader:
         Returns:
             float: Correlation of the iPEPS model.
         """
-        return float(Observables.xi(self.iPEPS.T))
+        return float(self.tensors.xi(self.iPEPS.T))
 
     def set_to_lowest_energy(self) -> None:
         """
