@@ -2,7 +2,6 @@ import torch
 
 from pepsflow.models.CTM_alg import CtmAlg
 from pepsflow.models.tensors import Methods, Tensors
-from pepsflow.models.observables import Observables
 
 
 class iPEPS(torch.nn.Module):
@@ -27,10 +26,7 @@ class iPEPS(torch.nn.Module):
         self.C, self.T = None, None
         self.data: dict[list, list, list, list, list]
 
-        # Convert the dtype string to a torch dtype
-        dtype = Methods.get_torch_float(self.args["dtype"])
-        self.tensors = Tensors(dtype, args["device"])
-        self.observables = Observables(dtype, args["device"])
+        self.tensors = Tensors(args["dtype"], args["device"])
         self._setup_random() if initial_ipeps is None else self._setup_from_initial_ipeps()
 
     def _setup_from_initial_ipeps(self) -> None:
@@ -138,5 +134,5 @@ class iPEPS(torch.nn.Module):
         alg.exe(N)
 
         # The loss does not have to be computed in the warmup steps
-        loss = None if warmup else self.observables.E(A, self.H, alg.C, alg.T)
+        loss = None if warmup else self.tensors.E(A, self.H, alg.C, alg.T)
         return loss, alg.C.detach(), alg.T.detach()

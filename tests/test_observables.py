@@ -2,7 +2,6 @@ import pytest
 import torch
 import numpy as np
 
-from pepsflow.models.observables import Observables
 from pepsflow.models.CTM_alg import CtmAlg
 from pepsflow.models.tensors import Tensors
 
@@ -18,17 +17,14 @@ class TestObservables:
         alg = CtmAlg(A, chi=16)
         alg.exe(N=100)
 
-        obs = Observables(dtype=torch.float64, device="cpu")
-        tensors = Tensors(dtype=torch.float64, device="cpu")
-        assert obs.E(A, tensors.H_Ising(4), alg.C, alg.T) == pytest.approx(-2.06688, abs=1e-3)
+        tensors = Tensors(dtype="double", device="cpu")
+        assert tensors.E(A, tensors.H_Ising(4), alg.C, alg.T) == pytest.approx(-2.06688, abs=1e-3)
 
     def test_E_Heisenberg(self):
         A = torch.from_numpy(np.loadtxt("tests/Heisenberg_state.txt").reshape(2, 2, 2, 2, 2)).double()
 
         alg = CtmAlg(A, chi=48)
         alg.exe(N=100)
+        tensors = Tensors(dtype="double", device="cpu")
 
-        obs = Observables(dtype=torch.float64, device="cpu")
-        tensors = Tensors(dtype=torch.float64, device="cpu")
-
-        assert obs.E(A, tensors.H_Heisenberg(), alg.C, alg.T) == pytest.approx(-0.6602310934799582, abs=1e-3)
+        assert tensors.E(A, tensors.H_Heisenberg(), alg.C, alg.T) == pytest.approx(-0.6602310934799582, abs=1e-3)
