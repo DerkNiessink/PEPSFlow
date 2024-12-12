@@ -1,64 +1,65 @@
 import numpy as np
-from dataclasses import dataclass
 import torch
 from typing import Sequence
 from scipy.stats import ortho_group
 
 
-@dataclass
 class Tensors:
+    """
+    Class containing tensors needed for iPEPS and computations of observables.
 
-    @staticmethod
-    def random_unitary(d: int) -> torch.Tensor:
+    Args:
+        dtype (torch.dtype): Data type of the tensors.
+        device (torch.device): Device where the tensors
+    """
+
+    def __init__(self, dtype: torch.dtype, device: torch.device):
+        self.dtype = dtype
+        self.dev = device
+
+    def random_unitary(self, d: int) -> torch.Tensor:
         """
         Return a random unitary matrix of size d x d.
         """
-        return torch.Tensor(ortho_group.rvs(d)).double()
+        return torch.tensor(ortho_group.rvs(d), dtype=self.dtype, device=self.dev)
 
-    @staticmethod
-    def sx() -> torch.Tensor:
+    def sx(self) -> torch.Tensor:
         """
         Return the Pauli X matrix.
         """
-        return torch.Tensor([[0, 1], [1, 0]]).double()
+        return torch.tensor([[0, 1], [1, 0]], dtype=self.dtype, device=self.dev)
 
-    @staticmethod
-    def sy() -> torch.Tensor:
+    def sy(self) -> torch.Tensor:
         """
         Return the Pauli Y matrix.
         """
-        return torch.Tensor([[0, -1], [1, 0]]).double()
+        return torch.tensor([[0, -1], [1, 0]], dtype=self.dtype, device=self.dev)
 
-    @staticmethod
-    def sz() -> torch.Tensor:
+    def sz(self) -> torch.Tensor:
         """
         Return the Pauli Z matrix.
         """
-        return torch.Tensor([[1, 0], [0, -1]]).double()
+        return torch.tensor([[1, 0], [0, -1]], dtype=self.dtype, device=self.dev)
 
-    @staticmethod
-    def sp() -> torch.Tensor:
+    def sp(self) -> torch.Tensor:
         """
         Return the raising operator.
         """
-        return torch.Tensor([[0, 1], [0, 0]]).double()
+        return torch.tensor([[0, 1], [0, 0]], dtype=self.dtype, device=self.dev)
 
-    @staticmethod
-    def sm() -> torch.Tensor:
+    def sm(self) -> torch.Tensor:
         """
         Return the lowering operator.
         """
-        return torch.Tensor([[0, 0], [1, 0]]).double()
+        return torch.tensor([[0, 0], [1, 0]], dtype=self.dtype, device=self.dev)
 
-    @staticmethod
-    def I() -> torch.Tensor:
+    def I(self) -> torch.Tensor:
         """
         Return the identity matrix.
         """
-        return torch.eye(2).double()
+        return torch.eye(2, dtype=self.dtype, device=self.dev)
 
-    @staticmethod
-    def Hamiltonian(model: str, **kwargs: dict) -> torch.Tensor:
+    def Hamiltonian(self, model: str, **kwargs: dict) -> torch.Tensor:
         """
         Return the Hamiltonian operator of the specified model.
 
@@ -68,83 +69,74 @@ class Tensors:
         """
         match model:
             case "Ising":
-                return Tensors.H_Ising(kwargs["lam"])
+                return self.H_Ising(kwargs["lam"])
             case "Heisenberg":
-                return Tensors.H_Heisenberg()
+                return self.H_Heisenberg()
             case "J1J2":
-                return Tensors.H_J1J2()
+                return self.H_J1J2()
             case _:
                 raise ValueError(f"Model {model} not recognized.")
 
-    @staticmethod
-    def H_Ising(lam: float) -> torch.Tensor:
+    def H_Ising(self, lam: float) -> torch.Tensor:
         """
         Return the Hamiltonian operator of the Ising model
         """
-        return -torch.kron(Tensors.sz(), Tensors.sz()) - 0.25 * lam * (
-            torch.kron(Tensors.sx(), Tensors.I()) + torch.kron(Tensors.I(), Tensors.sx())
-        )
+        sz, sx, I = self.sz(), self.sx(), self.I()
+        H = -torch.kron(sz, sz) - 0.25 * lam * (torch.kron(sx, I) + torch.kron(I, sx))
+        return H
 
-    @staticmethod
-    def H_Heisenberg() -> torch.Tensor:
+    def H_Heisenberg(self) -> torch.Tensor:
         """
         Return the Hamiltonian operator of the Heisenberg model.
         """
-        rot, sz, sp, sm = Tensors.rot_op(), Tensors.sz(), Tensors.sp(), Tensors.sm()
+        rot, sz, sp, sm = self.rot_op(), self.sz(), self.sp(), self.sm()
         H = 0.25 * torch.kron(sz, sz) + 0.5 * (torch.kron(sp, sm) + torch.kron(sm, sp))
         H = H.view(2, 2, 2, 2)
         H = torch.einsum("ki,kjcb,ca->ijab", rot, H, rot)
         return 2 * H.reshape(4, 4)
 
-    @staticmethod
-    def H_J1J2(J2) -> torch.Tensor:
+    def H_J1J2(self, J2) -> torch.Tensor:
         """
         Return the Hamiltonian operator of the Heisenberg model.
         """
-        sx, sz, sp, sm = Tensors.sx(), Tensors.sz(), Tensors.sp(), Tensors.sm()
-        H_nn = Tensors.H_Heisenberg()  # Nearest neighbor interaction
+        sx, sz, sp, sm = self.sx(), self.sz(), self.sp(), self.sm()
+        H_nn = self.H_Heisenberg()  # Nearest neighbor interaction
 
         return
 
-    def rot_op() -> torch.Tensor:
-        """Return the rotation operator."""
-        return torch.tensor([[0, 1], [-1, 0]], dtype=torch.float64)
+    def rot_op(self) -> torch.Tensor:
+        """
+        Return the rotation operator.
+        """
+        return torch.tensor([[0, 1], [-1, 0]], dtype=self.dtype, device=self.dev)
 
-    @staticmethod
-    def Mp() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def Mp(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Return the operator to measure the magnetization in the (x, y, z) direction.
         """
-        return (
-            torch.kron(Tensors.sx(), torch.eye(2)).double(),
-            torch.kron(torch.Tensor([[0, -1], [1, 0]]), torch.eye(2)).double(),
-            torch.kron(Tensors.sz(), torch.eye(2)).double(),
-        )
+        return (torch.kron(self.sx(), self.I()), torch.kron(self.sy(), self.I()), torch.kron(self.sz(), self.I()))
 
-    @staticmethod
-    def A_random_symmetric(D=2) -> torch.Tensor:
+    def A_random_symmetric(self, D=2) -> torch.Tensor:
         """
         Return a random rank 5 tensor with legs of size d, which has left-right,
         up-down and diagonal symmetry. The legs are ordered as follows:
         A(phy, up, left, down, right).
         """
-        A = torch.rand(size=(2, D, D, D, D), dtype=torch.float64)
+        A = torch.rand(size=(2, D, D, D, D), dtype=self.dtype, device=self.dev)
         A = Methods.symmetrize_rank5(A)
         return A / A.norm()
 
-    @staticmethod
-    def random(shape: tuple) -> torch.Tensor:
+    def random(self, shape: tuple) -> torch.Tensor:
         """
         Return a random tensor of specific shape, which can be either rank 2
         or rank 3. The tensor is symmetric under the exchange of the first two
         indices and the values are normalized.
         """
-        c = torch.rand(size=shape, dtype=torch.float64)
+        c = torch.rand(size=shape, device=self.dev, dtype=self.dtype)
         c = Methods.symmetrize(c)
         return c / c.norm()
 
-    @staticmethod
-    def rho(A: torch.Tensor, C: torch.Tensor, E: torch.Tensor) -> torch.Tensor:
+    def rho(self, A: torch.Tensor, C: torch.Tensor, E: torch.Tensor) -> torch.Tensor:
         """
         Compute the reduced density matrix of a PEPS state.
 
@@ -188,7 +180,6 @@ class Tensors:
         return 0.5 * (Rho + Rho.t())
 
 
-@dataclass
 class Methods:
     """This class contains methods for torch.Tensors, required for the CTM algorithm."""
 
@@ -262,3 +253,18 @@ class Methods:
             converted_tensors.append(tensor)
 
         return tuple(converted_tensors)
+
+    @staticmethod
+    def get_torch_float(dtype: str) -> torch.dtype:
+        """
+        Return the default torch float type.
+        """
+        match dtype:
+            case "half":
+                return torch.float16
+            case "single":
+                return torch.float32
+            case "double":
+                return torch.float64
+            case _:
+                raise ValueError(f"Data type {dtype} not recognized.")

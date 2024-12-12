@@ -30,6 +30,8 @@ class TestiPEPSTrainer:
                 "Niter": 10,
                 "warmup_steps": 50,
                 "seed": 1,
+                "dtype": "double",
+                "device": "cpu",
             }
         )
         trainer = Trainer(
@@ -43,9 +45,7 @@ class TestiPEPSTrainer:
                 "log": True,
             },
         )
-        task = progress.add_task(
-            f"[blue bold]Training iPEPS ({"lam"} = {lam})", total=trainer.args["epochs"], start=False
-        )
+        task = progress.add_task(f"[blue bold]Training iPEPS (lam = {lam})", total=trainer.args["epochs"], start=False)
 
         trainer.exe(progress, task)
         assert ipeps.data["losses"][-1].detach() == pytest.approx(E_exp, abs=1e-4)

@@ -20,12 +20,18 @@ class iPEPS(torch.nn.Module):
         initial_ipeps: "iPEPS" = None,
     ):
         super(iPEPS, self).__init__()
+        self.to(args["device"])
         torch.random.manual_seed(args["seed"]) if args["seed"] else None
         self.args = args
         self.initial_ipeps = initial_ipeps
-        self._setup_random() if initial_ipeps is None else self._setup_from_initial_ipeps()
         self.C, self.T = None, None
         self.data: dict[list, list, list, list, list]
+
+        # Convert the dtype string to a torch dtype
+        dtype = Methods.get_torch_float(self.args["dtype"])
+        self.tensors = Tensors(dtype, args["device"])
+        self.observables = Observables(dtype, args["device"])
+        self._setup_random() if initial_ipeps is None else self._setup_from_initial_ipeps()
 
     def _setup_from_initial_ipeps(self) -> None:
         """
@@ -49,17 +55,17 @@ class iPEPS(torch.nn.Module):
         """
         Setup the iPEPS tensor network with random parameters.
         """
-        A = Tensors.A_random_symmetric(self.args["D"])
+        A = self.tensors.A_random_symmetric(self.args["D"])
         params, self.map = torch.unique(A, return_inverse=True)
         self.data = {"C": [], "T": [], "params": [], "losses": [], "norms": []}
         self.params = torch.nn.Parameter(params)
-        self.H = Tensors.Hamiltonian(self.args["model"], lam=self.args["lam"])
+        self.H = self.tensors.Hamiltonian(self.args["model"], lam=self.args["lam"])
 
     def plant_unitary(self) -> None:
         """
         Plant a unitary matrix on the A tensors of the iPEPS tensor network.
         """
-        U = Tensors.random_unitary(self.args["D"])
+        U = self.tensors.random_unitary(self.args["D"])
         A = self.params[self.map]
         A = torch.einsum("abcde,bf,cg,dh,ei->afghi", A, U, U, U, U)
         params, self.map = torch.unique(A, return_inverse=True)
@@ -132,5 +138,5 @@ class iPEPS(torch.nn.Module):
         alg.exe(N)
 
         # The loss does not have to be computed in the warmup steps
-        loss = None if warmup else Observables.E(A, self.H, alg.C, alg.T)
+        loss = None if warmup else self.observables.E(A, self.H, alg.C, alg.T)
         return loss, alg.C.detach(), alg.T.detach()
