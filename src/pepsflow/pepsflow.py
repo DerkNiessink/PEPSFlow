@@ -86,7 +86,7 @@ def optimize(var_param: tuple[str, str], value: float, args: dict):
     ipeps_params = args["parameters.ipeps"]
     opt_params = args["parameters.optimization"]
 
-    # Read the iPEPS model from a file if specified
+    # Read the iPEPS model from a file if specified and set to the device
     if folders["read"]:
         ipeps = iPEPSReader(path(folders["read"], fn)).iPEPS
         ipeps = iPEPS(args=ipeps_params, initial_ipeps=ipeps)
