@@ -20,7 +20,7 @@ class iPEPS(torch.nn.Module):
     ):
         super(iPEPS, self).__init__()
         self.to(args["device"])
-        torch.random.manual_seed(args["seed"]) if args["seed"] else None
+        torch.manual_seed(args["seed"]) if args["seed"] is not None else None
         self.args = args
         self.initial_ipeps = initial_ipeps
         self.C, self.T = None, None
