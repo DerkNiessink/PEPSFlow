@@ -52,6 +52,8 @@ def params(ctx):
 @click.option("--split/--no-split", default = None, type=bool, help="Keep the tensor in the CTM algorithm split or not.")
 @click.option("-o", "--optimizer", type=str, help="Optimizer to use. Options are 'adam' and 'lbfgs'.")
 @click.option("--seed", type=float, help="Seed for the random generation of tensors.")
+@click.option("--dtype", type=str, help="Data type to use for the tensors. Options are 'half, 'single', and 'double'.")
+@click.option("--device", type=str, help="Device to run the optimization on. Options are 'cpu' and 'cuda'.")
 def set(Niter: int, D: int, **args):
     """
     Set specific parameters for the optimization of the iPEPS tensor network.
