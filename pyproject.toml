@@ -17,6 +17,8 @@ opt-einsum = "^3.4.0"
 pytorch-minimize = "^0.0.2"
 ncg-optimizer = "^0.1.1"
 rich-click = "^1.8.5"
+tensorboard = "^2.18.0"
+torch-tb-profiler = "^0.4.3"
 
 [tool.poetry.scripts]
 pepsflow = "pepsflow.cli.main:cli"
