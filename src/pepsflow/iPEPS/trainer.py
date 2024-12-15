@@ -2,6 +2,7 @@ from pepsflow.iPEPS.iPEPS import iPEPS
 from pepsflow.models.optimizers import Optimizer
 
 import torch
+from datetime import datetime
 import os
 from rich.progress import Progress, TaskID
 
@@ -24,7 +25,8 @@ class Trainer:
         self.opt = Optimizer(
             self.args["optimizer"], self.ipeps.parameters(), lr=self.args["learning_rate"], line_search_fn=ls
         )
-        self.log = lambda msg: open("log.txt", "a").write(msg + "\n") if self.args["log"] else lambda msg: None
+        fn = f"log--{datetime.now().strftime('%H-%M-%S')}.txt"
+        self.log = lambda msg: open(fn, "a").write(msg + "\n") if self.args["log"] else lambda msg: None
 
     def exe(self, progress: Progress = None, task: TaskID = None) -> None:
         """
