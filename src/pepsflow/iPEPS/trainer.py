@@ -4,7 +4,6 @@ from pepsflow.models.optimizers import Optimizer
 import torch
 import os
 from rich.progress import Progress, TaskID
-from rich import print
 
 
 class Trainer:
@@ -25,6 +24,7 @@ class Trainer:
         self.opt = Optimizer(
             self.args["optimizer"], self.ipeps.parameters(), lr=self.args["learning_rate"], line_search_fn=ls
         )
+        self.log = lambda msg: open("log.txt", "a").write(msg + "\n") if self.args["log"] else lambda msg: None
 
     def exe(self, progress: Progress = None, task: TaskID = None) -> None:
         """
@@ -54,21 +54,18 @@ class Trainer:
             for epoch in range(self.args["epochs"]):
                 try:
                     new_loss = self.opt.step(train)
+                    self.log(f"epoch, E, Diff: {epoch, new_loss.item(), abs(new_loss - loss).item()}")
 
-                    if self.args["log"]:
-                        print(f"epoch, E, Diff: {epoch, new_loss.item(), abs(new_loss - loss).item()}")
-
-                    # Save intermediate results
                     self.ipeps.add_data(new_loss, C, T)
                     progress.update(task, advance=1) if progress else None
 
                     if abs(new_loss - loss) < 1e-9:
-                        print(f"[green bold] \nConverged after {epoch} epochs. Saving and quiting training...")
+                        self.log(f"Converged after {epoch} epochs. Saving and quiting training...")
                         break
                     loss = new_loss
 
                 except ValueError:
-                    print("[red bold] NaN in iPEPS tensor detected. Saving and quiting training...")
+                    self.log("NaN in iPEPS tensor detected. Saving and quiting training...")
                     break
 
     def write(self, fn: str) -> None:
@@ -83,4 +80,4 @@ class Trainer:
         if folder and not os.path.exists(folder):
             os.makedirs(folder)
         torch.save(self.ipeps, fn)
-        print(f"[green bold] \nData saved to {fn}")
+        self.log(f"Data saved to {fn}")
