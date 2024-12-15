@@ -42,7 +42,7 @@ class TestiPEPSTrainer:
                 "epochs": 25,
                 "threads": 1,
                 "line_search": True,
-                "log": True,
+                "log": False,
             },
         )
         task = progress.add_task(f"[blue bold]Training iPEPS (lam = {lam})", total=trainer.args["epochs"], start=False)
