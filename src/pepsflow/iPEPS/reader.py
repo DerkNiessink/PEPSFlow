@@ -16,7 +16,9 @@ class iPEPSReader:
         self.file = f"{file}.pth" if not file.endswith(".pth") else file
         self.iPEPS: iPEPS = torch.load(self.file, weights_only=False)
         self.iPEPS.eval()
-        self.tensors = Tensors(self.iPEPS.args["dtype"], self.iPEPS.args["device"])
+        dtype = self.iPEPS.args.get("dtype", "double")
+        device = self.iPEPS.args.get("device", "cpu")
+        self.tensors = Tensors(dtype, device)
 
     def lam(self) -> float:
         """
@@ -34,7 +36,7 @@ class iPEPSReader:
         Returns:
             list: List of losses.
         """
-        return [E.detach() for E in self.iPEPS.data["losses"]]
+        return [E.detach().cpu() for E in self.iPEPS.data["losses"]]
 
     def gradient_norms(self) -> list[float]:
         """
@@ -43,7 +45,7 @@ class iPEPSReader:
         Returns:
             list: List of gradient norms.
         """
-        return self.iPEPS.data["norms"]
+        return [norm.detach().cpu() for norm in self.iPEPS.data["norms"]]
 
     def iPEPS_state(self) -> torch.Tensor:
         """
@@ -52,7 +54,7 @@ class iPEPSReader:
         Returns:
             torch.Tensor: iPEPS state
         """
-        return self.iPEPS.params.detach()
+        return self.iPEPS.params.detach().cpu()
 
     def energy(self) -> float:
         """
@@ -61,7 +63,7 @@ class iPEPSReader:
         Returns:
             float: Energy of the iPEPS model.
         """
-        return float(self.iPEPS.data["losses"][-1].detach())
+        return float(self.iPEPS.data["losses"][-1].detach().cpu())
 
     def magnetization(self) -> float:
         """
@@ -71,7 +73,7 @@ class iPEPSReader:
             float: Magnetization of the iPEPS model.
         """
         A = self.iPEPS.params[self.iPEPS.map]
-        return float(abs(self.tensors.M(A, self.iPEPS.C, self.iPEPS.T)[2]))
+        return float(abs(self.tensors.M(A, self.iPEPS.C, self.iPEPS.T)[2].cpu()))
 
     def correlation(self) -> float:
         """
@@ -80,7 +82,7 @@ class iPEPSReader:
         Returns:
             float: Correlation of the iPEPS model.
         """
-        return float(self.tensors.xi(self.iPEPS.T))
+        return float(self.tensors.xi(self.iPEPS.T).cpu())
 
     def set_to_lowest_energy(self) -> None:
         """

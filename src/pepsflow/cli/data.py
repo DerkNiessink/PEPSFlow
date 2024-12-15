@@ -10,10 +10,8 @@ from rich.table import Table
 from rich import box
 import scienceplots
 
-plt.style.use("science")
-
 from pepsflow.iPEPS.reader import iPEPSReader
-from pepsflow.cli.utils import walk_directory
+from pepsflow.cli.utils import walk_directory, read_cli_config
 
 # fmt: off
 
@@ -51,6 +49,9 @@ def plot(ctx, folders, **kwargs):
 
     FOLDER is the folder containing the iPEPS models.
     """
+    args = read_cli_config()
+    plt.style.use("science") if args["latex"] else None
+
     if sum(bool(opt) for opt in kwargs.values()) > 1:
         ctx.fail("Only one option can be selected at a time.")
     
@@ -82,14 +83,14 @@ def plot(ctx, folders, **kwargs):
         plt.xlabel(r"$\lambda$")
         for i, readers in enumerate(all_readers):
             lams, energies = zip(*[(reader.lam(), reader.energy()) for reader in readers])
-            plt.plot(lams, energies, "v-", markersize=5, linewidth=0.5, label=rf"${folders[i]}$")
+            plt.plot(lams, energies, "v-", markersize=5, linewidth=0.5, label=folders[i])
 
     if kwargs["correlation_length"]:
         plt.ylabel(r"$\xi$")
         plt.xlabel(r"$\lambda$")
         for i, readers in enumerate(all_readers):
             lams, xis = zip(*[(reader.lam(), reader.correlation()) for reader in readers])
-            plt.plot(lams, xis, "v-", color="C0", markersize=5, linewidth=0.5, label=f"${folders[i]}$")
+            plt.plot(lams, xis, "v-", color="C0", markersize=5, linewidth=0.5, label=folders[i])
         plt.xlim(2.7, 3.3)
         plt.grid(linestyle='--', linewidth=0.5)
 
@@ -108,11 +109,12 @@ def plot(ctx, folders, **kwargs):
         for file in kwargs["gradient"].split(","):
             reader = iPEPSReader(os.path.join("data", folder, file))
             losses = reader.losses()
-            plt.plot(range(len(losses)), losses, "v-", markersize=4, linewidth=0.5, label=rf'${file}$')
-        plt.ylim(-0.665, -0.65)
-        plt.xlim(0, 21)
-        plt.xticks(range(int(min(range(len(losses)))), int(max(range(len(losses)))) + 2))
-        plt.grid(linestyle='--', linewidth=0.35)
+            plt.plot(range(len(losses)), losses, "v-", markersize=4, linewidth=0.5, label=file)
+        # plt.ylim(-0.665, -0.65)
+        # plt.xlim(0, 21)
+        plt.xticks(range(0, len(losses) + 1, 2))
+        plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(1))
+        plt.grid(linestyle='--', linewidth=0.35, which='both')
 
     if kwargs["gradient_norm"]:
         plt.ylabel(r"$\| \nabla E \|$")
@@ -120,12 +122,12 @@ def plot(ctx, folders, **kwargs):
         for file in kwargs["gradient_norm"].split(","):
             reader = iPEPSReader(os.path.join("data", folder, file))
             norms = reader.gradient_norms()
-            plt.plot(range(len(norms)), norms, "v-", markersize=4, linewidth=0.5, label=reader.file)
+            label = os.path.basename(reader.file).split('.')[0]
+            plt.plot(range(len(norms)), norms, "v-", markersize=4, linewidth=0.5, label=label)
 
         
     plt.tight_layout()
     plt.legend()
-    plt.savefig("figures/Heisenberg_chi20_opt.png")
     plt.show()
 
 

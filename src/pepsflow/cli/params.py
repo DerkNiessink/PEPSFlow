@@ -39,7 +39,6 @@ def params(ctx):
 @click.option("--model", type=str, help="Model to optimize. Options are 'Ising', 'Heisenberg', and 'J1J2'.")
 @click.option("--chi", type=str, help="One value of comma separated list of values of the bond dimension chi of the CTM algorithm.")
 @click.option("-r","--read", type=str, help="Folder containing iPEPS models and other datafiles to read.")
-@click.option("--gpu/--no-gpu", default=None, type=bool, help="Run the model on the GPU if available.")
 @click.option("--lam", type=str, help="One value of comma separated list of values of the parameter lambda in the tranverse-field Ising model.")
 @click.option("-lr","--learning_rate", type=str, help="One value or comma separated list of values of the learning rate for the optimizer.")
 @click.option("--epochs", type=int, help="Maximum number of epochs to train the model.")
@@ -54,6 +53,7 @@ def params(ctx):
 @click.option("--seed", type=float, help="Seed for the random generation of tensors.")
 @click.option("--dtype", type=str, help="Data type to use for the tensors. Options are 'half, 'single', and 'double'.")
 @click.option("--device", type=str, help="Device to run the optimization on. Options are 'cpu' and 'cuda'.")
+@click.option("--latex/--no-latex", default=None, type=bool, help="Whether to use LaTeX in the plots.")
 def set(Niter: int, D: int, **args):
     """
     Set specific parameters for the optimization of the iPEPS tensor network.

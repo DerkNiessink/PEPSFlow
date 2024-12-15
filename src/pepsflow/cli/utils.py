@@ -3,6 +3,8 @@ from rich.tree import Tree
 from rich.text import Text
 from rich.filesize import decimal
 from rich.markup import escape
+import configparser
+import ast
 
 
 def walk_directory(directory: pathlib.Path, tree: Tree, concise: bool) -> None:
@@ -38,3 +40,23 @@ def walk_directory(directory: pathlib.Path, tree: Tree, concise: bool) -> None:
             text_filename.append(f" ({decimal(file_size)})", "blue")
             icon = "🐍 " if path.suffix == ".py" else "📄 "
             tree.add(Text(icon) + text_filename)
+
+
+def read_cli_config() -> dict:
+    """
+    Read the command line interface parameters from the configuration file.
+
+    Returns:
+        dict: Dictionary containing command line interface parameters.
+    """
+    parser = configparser.ConfigParser()
+    parser.optionxform = lambda option: option  # Preserve the case of the keys
+    parser.read("src/pepsflow/pepsflow.cfg")
+    section = "parameters.cli"
+    args = {}
+    for key, value in parser.items(section):
+        try:
+            args[key] = ast.literal_eval(value)
+        except ValueError:
+            pass
+    return args
