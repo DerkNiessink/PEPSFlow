@@ -104,6 +104,21 @@ class iPEPS(torch.nn.Module):
         _, C, T = self.forward(warmup=True)
         return C, T
 
+    def _get_energy(self, A, C, T) -> torch.Tensor:
+        """
+        Compute the energy of the iPEPS tensor network. Here we take the next-nearest-neighbor
+        (nnn) interaction into account for the J1-J2 model.
+
+        Returns:
+            torch.Tensor: Energy of the iPEPS tensor network.
+        """
+        if self.args["model"] == "J1J2":
+            energy = self.tensors.E_nn(A, self.H, C, T) + self.args["J2"] * self.tensors.E_nnn(A, C, T)
+        else:
+            energy = self.tensors.E_nn(A, self.H, C, T)
+
+        return energy
+
     def forward(
         self, C: torch.Tensor = None, T: torch.Tensor = None, warmup: bool = False
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -134,5 +149,5 @@ class iPEPS(torch.nn.Module):
         alg.exe(N)
 
         # The loss does not have to be computed in the warmup steps
-        loss = None if warmup else self.tensors.E(A, self.H, alg.C, alg.T)
+        loss = None if warmup else self._get_energy(A, alg.C, alg.T)
         return loss, alg.C.detach(), alg.T.detach()
