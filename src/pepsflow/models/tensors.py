@@ -83,7 +83,7 @@ class Tensors:
             case "Heisenberg":
                 return self.H_Heis_rot()
             case "J1J2":
-                return self.H_Heis()
+                return self.H_Heis_rot()
             case _:
                 raise ValueError(f"Model {model} not recognized.")
 
