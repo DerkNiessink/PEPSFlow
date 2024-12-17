@@ -21,7 +21,7 @@ tensorboard = "^2.18.0"
 torch-tb-profiler = "^0.4.3"
 
 [tool.poetry.scripts]
-pepsflow = "pepsflow.cli.main:cli"
+pepsflow = "python -u -m pepsflow.cli.main"
 
 [build-system]
 requires = ["poetry-core"]

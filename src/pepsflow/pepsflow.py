@@ -95,13 +95,12 @@ def optimize(var_param: tuple[str, str], value: float, args: dict):
 
     # Execute the optimization and write the iPEPS model to a file
     trainer = Trainer(ipeps, opt_params)
-    task = progress.add_task(f"[blue bold]Training iPEPS ({key} = {value})", total=opt_params["epochs"], start=False)
 
     # Save the data if the process is interrupted
     save = lambda sig, frame: (trainer.write(path(folders["write"], fn)), exit(0))
     signal.signal(signal.SIGINT, save)
 
-    trainer.exe(progress, task)
+    trainer.exe()
     trainer.write(path(folders["write"], fn))
 
 
