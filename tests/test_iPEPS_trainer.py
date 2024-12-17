@@ -4,16 +4,6 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, MofNCo
 from pepsflow.iPEPS.trainer import Trainer
 from pepsflow.iPEPS.iPEPS import iPEPS
 
-# Global progress bar
-progress = Progress(
-    SpinnerColumn(),
-    TextColumn("[progress.description]{task.description}"),
-    BarColumn(),
-    MofNCompleteColumn(),
-    TextColumn("•"),
-    TimeElapsedColumn(),
-)
-
 
 class TestiPEPSTrainer:
 
@@ -45,7 +35,5 @@ class TestiPEPSTrainer:
                 "log": False,
             },
         )
-        task = progress.add_task(f"[blue bold]Training iPEPS (lam = {lam})", total=trainer.args["epochs"], start=False)
-
-        trainer.exe(progress, task)
+        trainer.exe()
         assert ipeps.data["losses"][-1].detach() == pytest.approx(E_exp, abs=1e-4)
