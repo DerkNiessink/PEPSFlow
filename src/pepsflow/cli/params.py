@@ -36,6 +36,7 @@ def params(ctx):
 @params.command()
 @click.option("-N","--Niter","Niter", type=int, help="Number of iterations in the forward step.")
 @click.option("--D", "D", type=str, help="One value or comma separated list of values of the bulk dimension d of the iPEPS tensor.")
+@click.option("--J2", "J2", type=float, help="Value of the J1 coupling in the J1-J2 model.")
 @click.option("--model", type=str, help="Model to optimize. Options are 'Ising', 'Heisenberg', and 'J1J2'.")
 @click.option("--chi", type=str, help="One value of comma separated list of values of the bond dimension chi of the CTM algorithm.")
 @click.option("-r","--read", type=str, help="Folder containing iPEPS models and other datafiles to read.")
@@ -54,11 +55,11 @@ def params(ctx):
 @click.option("--dtype", type=str, help="Data type to use for the tensors. Options are 'half, 'single', and 'double'.")
 @click.option("--device", type=str, help="Device to run the optimization on. Options are 'cpu' and 'cuda'.")
 @click.option("--latex/--no-latex", default=None, type=bool, help="Whether to use LaTeX in the plots.")
-def set(Niter: int, D: int, **args):
+def set(Niter: int, D: int, J2: float, **args):
     """
     Set specific parameters for the optimization of the iPEPS tensor network.
     """
-    args['Niter'], args['D'] = Niter, D # For case preservation.
+    args['Niter'], args['D'], args['J2'] = Niter, D, J2 # For case preservation.
     config = configparser.ConfigParser()
     config.optionxform = lambda option: option
     file = "src/pepsflow/pepsflow.cfg"

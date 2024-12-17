@@ -17,7 +17,7 @@ class TestCtmAlg:
         alg_split.exe(N=10)
 
         H = tensors.H_Ising(4)
-        E = tensors.E(A, H, alg_classic.C, alg_classic.T)
-        E_split = tensors.E(A, H, alg_split.C, alg_split.T)
+        E = tensors.E_nn(A, H, alg_classic.C, alg_classic.T)
+        E_split = tensors.E_nn(A, H, alg_split.C, alg_split.T)
 
         assert E == pytest.approx(E_split, abs=1e-4)
