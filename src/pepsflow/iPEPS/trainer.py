@@ -5,6 +5,7 @@ import torch
 from datetime import datetime
 import os
 from rich.progress import Progress, TaskID
+import sys
 
 
 class Trainer:
@@ -50,6 +51,7 @@ class Trainer:
 
         loss = 0
         for epoch in range(self.args["epochs"]):
+            sys.stdout.flush()
             try:
                 new_loss = self.opt.step(train)
                 print(f"epoch, E, Diff: {epoch, new_loss.item(), abs(new_loss - loss).item()}")
