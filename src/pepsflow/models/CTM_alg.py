@@ -1,9 +1,7 @@
 import time
 import torch
-from torch.nn.functional import normalize
 
 from pepsflow.models.tensors import Methods
-from pepsflow.models.svd import CustomSVD
 
 norm = Methods.normalize
 symm = Methods.symmetrize
