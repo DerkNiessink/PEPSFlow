@@ -5,6 +5,7 @@ import torch
 from datetime import datetime
 import os
 from rich.progress import Progress, TaskID
+import sys
 
 
 class Trainer:
@@ -25,10 +26,8 @@ class Trainer:
         self.opt = Optimizer(
             self.args["optimizer"], self.ipeps.parameters(), lr=self.args["learning_rate"], line_search_fn=ls
         )
-        fn = f"log--{datetime.now().strftime('%H-%M-%S')}.txt"
-        self.log = lambda msg: open(fn, "a").write(msg + "\n") if self.args["log"] else lambda msg: None
 
-    def exe(self, progress: Progress = None, task: TaskID = None) -> None:
+    def exe(self) -> None:
         """
         Optimize the iPEPS model using the CTM algorithm and the given optimizer.
 
@@ -50,25 +49,25 @@ class Trainer:
             loss.backward()
             return loss
 
-        with progress:
-            progress.start_task(task) if progress else None
-            loss = 0
-            for epoch in range(self.args["epochs"]):
-                try:
-                    new_loss = self.opt.step(train)
-                    self.log(f"epoch, E, Diff: {epoch, new_loss.item(), abs(new_loss - loss).item()}")
+        loss = 0
+        for epoch in range(self.args["epochs"]):
+            sys.stdout.flush()
+            try:
+                new_loss = self.opt.step(train)
+                print(f"epoch, E, Diff: {epoch, new_loss.item(), abs(new_loss - loss).item()}")
 
-                    self.ipeps.add_data(new_loss, C, T)
-                    progress.update(task, advance=1) if progress else None
+                self.ipeps.add_data(new_loss, C, T)
 
-                    if abs(new_loss - loss) < 1e-9:
-                        self.log(f"Converged after {epoch} epochs. Saving and quiting training...")
-                        break
-                    loss = new_loss
-
-                except ValueError:
-                    self.log("NaN in iPEPS tensor detected. Saving and quiting training...")
+                if abs(new_loss - loss) < 1e-9:
+                    sys.stdout.flush()
+                    print(f"Converged after {epoch} epochs. Saving and quiting training...")
                     break
+                loss = new_loss
+
+            except ValueError:
+                sys.stdout.flush()
+                print("NaN in iPEPS tensor detected. Saving and quiting training...")
+                break
 
     def write(self, fn: str) -> None:
         """
@@ -82,4 +81,5 @@ class Trainer:
         if folder and not os.path.exists(folder):
             os.makedirs(folder)
         torch.save(self.ipeps, fn)
-        self.log(f"Data saved to {fn}")
+        sys.stdout.flush()
+        print(f"Data saved to {fn}")
