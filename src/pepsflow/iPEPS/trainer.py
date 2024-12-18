@@ -59,11 +59,13 @@ class Trainer:
                 self.ipeps.add_data(new_loss, C, T)
 
                 if abs(new_loss - loss) < 1e-9:
+                    sys.stdout.flush()
                     print(f"Converged after {epoch} epochs. Saving and quiting training...")
                     break
                 loss = new_loss
 
             except ValueError:
+                sys.stdout.flush()
                 print("NaN in iPEPS tensor detected. Saving and quiting training...")
                 break
 
@@ -79,4 +81,5 @@ class Trainer:
         if folder and not os.path.exists(folder):
             os.makedirs(folder)
         torch.save(self.ipeps, fn)
+        sys.stdout.flush()
         print(f"Data saved to {fn}")
