@@ -37,7 +37,6 @@ class CtmAlg:
         self.split = split
         self.max_chi = chi
         self.chi = D**2 if C is None else C.size(0)  # In both cases we have to let chi grow to max_chi.
-        self.trunc_errors = []
 
         a = torch.einsum("abcde,afghi->bfcidheg", A, A)
         #      /
@@ -168,10 +167,12 @@ class CtmAlg:
         M = M.contiguous().view(self.chi * self.D**2, self.chi * self.D**2)
         #  --o--  [χD², χD²]
 
-        U, s, Vh = CustomSVD.apply(M)
+        s, U = torch.linalg.eigh(M)
         #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
 
-        self.trunc_errors.append(torch.sum(normalize(s, p=1, dim=0)[self.chi :]).float())
+        # Sort the columns of U based on the largest magnitude of s
+        idx = torch.argsort(torch.abs(s), descending=True)
+        U = U[:, idx]
 
         # Let chi grow if the desired chi is not yet reached.
         k = self.chi
