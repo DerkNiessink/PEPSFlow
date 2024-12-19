@@ -177,8 +177,8 @@ def rename(old: str, new: str, server: bool):
 
     OLD is the current folder name. NEW is the new folder name.
     """
+    args = read_cli_config()
     if server:
-        args = read_cli_config()
         with Connection(args["server_address"]) as c:
             c.run(f"cd PEPSFlow && git restore . && git pull", hide=True)
             c.run(f"cd PEPSFlow && source .venv/bin/activate && pepsflow data rename {old} {new}")
