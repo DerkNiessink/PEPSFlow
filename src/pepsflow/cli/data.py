@@ -168,10 +168,10 @@ def plot(ctx, folders, **kwargs):
 
 
 @data.command()
-@click.argument("old", type=str)
-@click.argument("new", type=str)
+@click.argument("old", type=click.Path())
+@click.argument("new", type=click.Path())
 @click.option("-s", "--server", is_flag=True, default=False, help="Wether to rename the folder/filename on the server.")
-def rename(old: str, new: str, server: bool):
+def rename(old: click.Path, new: click.Path, server: bool):
     """
     Rename a folder or filename to a new name.
 
