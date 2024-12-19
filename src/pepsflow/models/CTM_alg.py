@@ -35,6 +35,7 @@ class CtmAlg:
         self.split = split
         self.max_chi = chi
         self.chi = D**2 if C is None else C.size(0)  # In both cases we have to let chi grow to max_chi.
+        self.eigvals_sums = [0]
 
         a = torch.einsum("abcde,afghi->bfcidheg", A, A)
         #      /
@@ -66,15 +67,19 @@ class CtmAlg:
         #  -- o --  [d, D, D, D, D]    OR    -- o --  [D², D², D², D²]
         #    /|                                 |
 
-    def exe(self, N: int = 1):
+    def exe(self, N: int = 1, tol: float = 1e-9):
         """
         Execute the CTM algorithm for N steps.
 
         `N` (int): number of steps to execute the algorithm for. Default is 1.
+        `tol` (float): convergence tolerance. The algorithm is terminated when this tolerance is reached. Default is 1e-9.
         """
         start = time.time()
         for _ in range(N):
             self.split_step() if self.split else self.classic_step()
+            if abs(self.eigvals_sums[-1] - self.eigvals_sums[-2]) < tol:
+                break
+
         self.exe_time = time.time() - start
         if self.split:
             self.T = self.T.view(self.chi, self.D**2, self.chi)
@@ -179,4 +184,8 @@ class CtmAlg:
 
         # Reshape U back in a rank-3 or 4 tensor.
         shape = (k, self.D, self.D, self.chi) if self.split else (k, self.D**2, self.chi)
+
+        # Save the sum of the eigenvalues for convergence check.
+        self.eigvals_sums.append(torch.sum(s))
+
         return U.view(shape)

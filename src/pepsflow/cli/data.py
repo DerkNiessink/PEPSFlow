@@ -72,12 +72,10 @@ def log(folder: str, server = False):
     data = c.get("parameters.folders", "data").strip("'")
     if server:
         with Connection(address) as c:
-            c.run(f"cat PEPSFlow/{data}/{folder}/{folder}.out")
+            c.run(f"cd PEPSFlow && source .venv/bin/activate && pepsflow data log {folder}")
     else:
         with open(f"{data}/{folder}/{folder}.out") as f:
             print(f.read())
-
-
 
 @data.command(context_settings={"ignore_unknown_options": True})
 @click.argument("folders", type=click.Path(), nargs=-1)
@@ -193,26 +191,35 @@ def rename(old: str, new: str):
 
 @data.command()
 @click.argument("path", type=click.Path())
-def remove(path: click.Path):
+@click.option("-s", "--server", is_flag=True, default=False, help="Wether to remove the file or directory from the server.")
+def remove(path: click.Path, server: bool):
     """
     Remove a file or folder from the data directory.
 
     PATH is the file or folder to remove.
     """
-    full_path = os.path.join("data", path) 
-    if os.path.isdir(full_path): 
-        message = f"\nAre you sure you want to remove the folder [red]{path}[/] and all its contents?"
-        remove_func = shutil.rmtree
+    if server:
+        c = ConfigParser()
+        c.read("src/pepsflow/pepsflow.cfg")
+        address = c.get("parameters.cli", "server_address")
+        with Connection(address) as c:
+            c.run(f"cd PEPSFlow && source .venv/bin/activate && pepsflow data remove {path}")   
+            
     else: 
-        message = f"\nAre you sure you want to remove [red]{path}?" 
-        remove_func = os.remove
+        full_path = os.path.join("data", path) 
+        if os.path.isdir(full_path): 
+            message = f"\nAre you sure you want to remove the folder [red]{path}[/] and all its contents?"
+            remove_func = shutil.rmtree
+        else: 
+            message = f"\nAre you sure you want to remove [red]{path}?" 
+            remove_func = os.remove
 
-    print(message)
-    if click.confirm(""):
-        remove_func(full_path)
-        print(f"\nRemoved [red]{path}")
-    else:
-        print("\nCancelled") 
+        print(message)
+        if click.confirm(""):
+            remove_func(full_path)
+            print(f"\nRemoved [red]{path}")
+        else:
+            print("\nCancelled") 
 
 
 @data.command()
