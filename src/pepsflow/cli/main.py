@@ -1,4 +1,8 @@
 import rich_click as click
+from fabric import Connection
+import configparser
+import invoke
+import os
 
 from pepsflow.cli.data import data
 from pepsflow.cli.params import params
@@ -11,6 +15,21 @@ def cli():
     Renormalization Group (CTMRG) algorithm and automatic differentiation.
     """
     pass
+
+
+@cli.command()
+def server():
+    """
+    Inspection of the server using the htop command.
+    """
+    c = configparser.ConfigParser()
+    c.read("src/pepsflow/pepsflow.cfg")
+    address = c.get("parameters.cli", "server_address")
+    try:
+        with Connection(address) as c:
+            c.run("htop", pty=True)
+    except invoke.exceptions.UnexpectedExit:
+        os.system("cls" if os.name == "nt" else "clear")
 
 
 cli.add_command(data)
