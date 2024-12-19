@@ -5,12 +5,11 @@ from rich.tree import Tree
 from rich import print
 import pathlib
 import shutil
-from rich.console import Console, ConsoleOptions
+from rich.console import Console
 from rich.table import Table
 from rich import box
 import scienceplots
 from fabric import Connection
-from configparser import ConfigParser
 import subprocess
 
 from pepsflow.iPEPS.reader import iPEPSReader
@@ -29,15 +28,13 @@ def data(ctx, folder: str, concise: bool, server: bool):
     List the data files in the data folder.
     """
     if ctx.invoked_subcommand is None:
+        args = read_cli_config()
         if server:
-            c = ConfigParser()
-            c.read("src/pepsflow/pepsflow.cfg")
-            address = c.get("parameters.cli", "server_address").strip("'")
-            data_folder = c.get("parameters.folders", "data")
-            with Connection(address) as c:
+            with Connection(args["server_address"]) as c:
+                c.run(f"cd PEPSFlow && git restore . && git pull", hide=True)
                 c.run(f"cd PEPSFlow && source .venv/bin/activate && pepsflow data")
         else:
-            directory = pathlib.Path(data_folder, folder) if folder else pathlib.Path("data")
+            directory = pathlib.Path(args["data"], folder) if folder else args["data"]
             tree = Tree(f"{directory}")
             tree.TREE_GUIDES = [("    ", "|   ", "+-- ", "`-- ")]
             walk_directory(pathlib.Path(directory), tree, concise)
@@ -51,12 +48,9 @@ def copy(folders: str):
 
     FOLDERS are the folders in the data directory to copy 
     """
-    c = ConfigParser()
-    c.read("src/pepsflow/pepsflow.cfg")
-    address = c.get("parameters.cli", "server_address").strip("'")
-    data = c.get("parameters.folders", "data").strip("'")
+    args = read_cli_config()
     for folder in folders:
-        subprocess.run(["scp","-r", f"{address}:PEPSFlow/{data}/{folder}", "data",])
+        subprocess.run(["scp","-r", f"{args['server_address']}:PEPSFlow/{args['data']}/{folder}", args['data']])
 
 @data.command()
 @click.argument("folder", type=click.Path())
@@ -67,15 +61,13 @@ def log(folder: str, server = False):
 
     FOLDER is the folder containing the log file.
     """
-    c = ConfigParser()
-    c.read("src/pepsflow/pepsflow.cfg")
-    address = c.get("parameters.cli", "server_address")
-    data = c.get("parameters.folders", "data").strip("'")
+    args = read_cli_config()
     if server:
-        with Connection(address) as c:
+        with Connection(args["server_address"]) as c:
+            c.run(f"cd PEPSFlow && git restore . && git pull", hide=True)
             c.run(f"cd PEPSFlow && source .venv/bin/activate && pepsflow data log {folder}")
     else:
-        with open(f"{data}/{folder}/{folder}.out") as f:
+        with open(f"{args['data']}/{folder}/{folder}.out") as f:
             print(f.read())
 
 @data.command(context_settings={"ignore_unknown_options": True})
@@ -200,10 +192,9 @@ def remove(path: click.Path, server: bool):
     PATH is the file or folder to remove.
     """
     if server:
-        c = ConfigParser()
-        c.read("src/pepsflow/pepsflow.cfg")
-        address = c.get("parameters.cli", "server_address").strip("'")
-        with Connection(address) as c:
+        args = read_cli_config()
+        with Connection(args["server_address"]) as c:
+            c.run(f"cd PEPSFlow && git restore . && git pull", hide=True)
             c.run(f"cd PEPSFlow && source .venv/bin/activate && pepsflow data remove {path}")   
             
     else: 

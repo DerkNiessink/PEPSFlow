@@ -7,6 +7,7 @@ import ast
 from fabric import Connection
 import subprocess
 
+from pepsflow.cli.utils import read_cli_config
 import pepsflow.pepsflow as pepsflow
 
 # fmt: off
@@ -87,20 +88,14 @@ def optimize(server: bool = False):
     Optimize the iPEPS tensor network with the specified parameters in the configuration file.
     """
     if server:
-        c = configparser.ConfigParser()
-        c.read("src/pepsflow/pepsflow.cfg")
-        address = c.get("parameters.cli", "server_address").strip("'")
-        data = c.get("parameters.folders", "data")
-        write = c.get("parameters.folders", "write")
-
-        print("Copying pepsflow.cfg to the server...")
-        subprocess.run(["scp", "src/pepsflow/pepsflow.cfg", f"{address}:PEPSFlow/src/pepsflow/pepsflow.cfg"])
-        with Connection(address) as c:
-            print("Pulling the latest changes from the repository...")
-            c.run(f"cd PEPSFlow && git pull") 
+        args = read_cli_config()
+ 
+        subprocess.run(["scp", "src/pepsflow/pepsflow.cfg", f"{args['server_address']}:PEPSFlow/src/pepsflow/pepsflow.cfg"])
+        with Connection(args['server_address']) as c:
+            c.run(f"cd PEPSFlow && git restore . && git pull", hide=True)
             print("Running the optimization...")
-            c.run(f"mkdir -p PEPSFlow/data/{write}")
-            c.run(f"cd PEPSFlow && source .venv/bin/activate && nohup pepsflow params optimize > {data}/{write}/{write}.out 2>&1" )
+            c.run(f"mkdir -p PEPSFlow/data/{args['write']}")
+            c.run(f"cd PEPSFlow && source .venv/bin/activate && nohup pepsflow params optimize > {args['data']}/{args['write']}/{args['write']}.out 2>&1" )
     else: 
         pepsflow.optimize_parallel()
 

@@ -23,34 +23,6 @@ pepsflow = "pepsflow.cli.main:cli"
 [tool.poetry.group.dev.dependencies]
 poethepoet = "^0.31.1"
 
-[tool.poe.env]
-ADDRESS = "derk@146.50.52.194"
-DATA = "data"
-
-[tool.poe.tasks.copy]
-help = "Copy the write directory from the server to the local machine."
-shell = """
-set WRITE `python -c "import configparser;c=configparser.ConfigParser();c.read('src/pepsflow/pepsflow.cfg');print(c.get('parameters.folders', 'write'))"` 
-echo ${WRITE}
-#scp -r ${ADDRESS}:PEPSFlow/${DATA}/${WRITE} ${DATA}
-"""
-interpreter = "posix"
-
-[tool.poe.tasks.log]
-help = "Print the log file in the write directory on the server."
-shell = """
-ssh ${ADDRESS} "cat PEPSFlow/${DATA}/${WRITE}/${WRITE}.out"
-"""
-interpreter = "posix"
-
-[tool.poe.tasks.optimize]
-help = "Optimize the iPEPS tensor network with the specified parameters in the configuration file on the server."
-shell = """
-scp src/pepsflow/pepsflow.cfg ${ADDRESS}:PEPSFlow/src/pepsflow/pepsflow.cfg
-ssh ${ADDRESS} "cd PEPSFlow && mkdir -p ${DATA}/${WRITE} && source .venv/bin/activate && nohup pepsflow params optimize > ${DATA}/${WRITE}/${WRITE}.out 2>&1 &"
-"""
-interpreter = "posix"
-
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

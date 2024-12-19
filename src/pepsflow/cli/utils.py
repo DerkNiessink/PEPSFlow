@@ -27,13 +27,12 @@ def walk_directory(directory: pathlib.Path, tree: Tree, concise: bool) -> None:
         if path.name.startswith("."):
             continue
         if path.is_dir():
-            # style = "dim" if path.name.startswith("__") else ""
             branch = tree.add(f"{escape(path.name)}")
             walk_directory(path, branch, concise)
         elif not concise:
             text_filename = Text(path.name)
             file_size = path.stat().st_size
-            text_filename.append(f" ({decimal(file_size)})", "blue")
+            text_filename.append(f" ({decimal(file_size)})")
             tree.add(text_filename)
 
 
@@ -45,13 +44,12 @@ def read_cli_config() -> dict:
         dict: Dictionary containing command line interface parameters.
     """
     parser = configparser.ConfigParser()
-    parser.optionxform = lambda option: option  # Preserve the case of the keys
+    parser.optionxform = str  # Preserve the case of the keys
     parser.read("src/pepsflow/pepsflow.cfg")
-    section = "parameters.cli"
+    sections = ["parameters.cli", "parameters.folders"]
     args = {}
-    for key, value in parser.items(section):
-        try:
-            args[key] = ast.literal_eval(value)
-        except ValueError:
-            pass
+    for section in sections:
+        for key, value in parser.items(section):
+            value = value.strip("'") if "'" in value else value
+            args[key] = value
     return args
