@@ -170,10 +170,10 @@ def plot(ctx, folders, **kwargs):
 @data.command()
 @click.argument("old", type=str)
 @click.argument("new", type=str)
-@click.option("-s", "--server", is_flag=True, default=False, help="Wether to rename the folder on the server.")
+@click.option("-s", "--server", is_flag=True, default=False, help="Wether to rename the folder/filename on the server.")
 def rename(old: str, new: str, server: bool):
     """
-    Rename a folder name to a new name.
+    Rename a folder or filename to a new name.
 
     OLD is the current folder name. NEW is the new folder name.
     """
@@ -186,11 +186,15 @@ def rename(old: str, new: str, server: bool):
     for dirpath, dirnames, filenames in os.walk(args["data"]):
         if os.path.basename(dirpath) == old:
             os.rename(dirpath, os.path.join(os.path.dirname(dirpath), new))
+            print(f"\nRenamed [red]{old}[/] to [green]{new}")
             break
         for filename in filenames:
             if filename == old:
                 os.rename(os.path.join(dirpath, filename), os.path.join(dirpath, new))
+                print(f"\nRenamed [red]{old}[/] to [green]{new}")
                 break
+        
+        
 
 
 @data.command()
