@@ -182,16 +182,16 @@ def rename(old: str, new: str, server: bool):
         with Connection(args["server_address"]) as c:
             c.run(f"cd PEPSFlow && git restore . && git pull", hide=True)
             c.run(f"cd PEPSFlow && source .venv/bin/activate && pepsflow data rename {old} {new}")
-
-    old_path = os.path.join(args["data"], old)
-    new_path = os.path.join(args["data"], new)
-    
-    if os.path.exists(old_path):
-        os.rename(old_path, new_path)
-        print(f"\nRenamed [red]{old}[/] to [green]{new}")
     else:
-        print(f"\n[red]Error:[/] The path [red]{old}[/] does not exist.")
+        old_path = os.path.join(args["data"], old)
+        new_path = os.path.join(args["data"], new)
         
+        if os.path.exists(old_path):
+            os.rename(old_path, new_path)
+            print(f"\nRenamed [red]{old}[/] to [green]{new}")
+        else:
+            print(f"\n[red]Error:[/] The path [red]{old}[/] does not exist.")
+            
         
 
 
