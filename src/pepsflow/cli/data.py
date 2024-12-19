@@ -170,12 +170,19 @@ def plot(ctx, folders, **kwargs):
 @data.command()
 @click.argument("old", type=str)
 @click.argument("new", type=str)
-def rename(old: str, new: str):
+@click.option("-s", "--server", is_flag=True, default=False, help="Wether to rename the folder on the server.")
+def rename(old: str, new: str, server: bool):
     """
     Rename a folder name to a new name.
 
     OLD is the current folder name. NEW is the new folder name.
     """
+    if server:
+        args = read_cli_config()
+        with Connection(args["server_address"]) as c:
+            c.run(f"cd PEPSFlow && git restore . && git pull", hide=True)
+            c.run(f"cd PEPSFlow && source .venv/bin/activate && pepsflow data rename {old} {new}")
+
     for dirpath, dirnames, filenames in os.walk("data"):
         if os.path.basename(dirpath) == old:
             os.rename(dirpath, os.path.join("data", new))
