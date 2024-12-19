@@ -24,7 +24,7 @@ def server():
     """
     c = configparser.ConfigParser()
     c.read("src/pepsflow/pepsflow.cfg")
-    address = c.get("parameters.cli", "server_address")
+    address = c.get("parameters.cli", "server_address").strip("'")
     try:
         with Connection(address) as c:
             c.run("htop", pty=True)

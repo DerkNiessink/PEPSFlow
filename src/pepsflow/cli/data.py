@@ -5,7 +5,7 @@ from rich.tree import Tree
 from rich import print
 import pathlib
 import shutil
-from rich.console import Console
+from rich.console import Console, ConsoleOptions
 from rich.table import Table
 from rich import box
 import scienceplots
@@ -32,13 +32,14 @@ def data(ctx, folder: str, concise: bool, server: bool):
         if server:
             c = ConfigParser()
             c.read("src/pepsflow/pepsflow.cfg")
-            address = c.get("parameters.cli", "server_address")
+            address = c.get("parameters.cli", "server_address").strip("'")
             data_folder = c.get("parameters.folders", "data")
             with Connection(address) as c:
                 c.run(f"cd PEPSFlow && source .venv/bin/activate && pepsflow data")
         else:
             directory = pathlib.Path(data_folder, folder) if folder else pathlib.Path("data")
             tree = Tree(f"{directory}")
+            tree.TREE_GUIDES = [("    ", "|   ", "+-- ", "`-- ")]
             walk_directory(pathlib.Path(directory), tree, concise)
             print(tree)
 
@@ -52,7 +53,7 @@ def copy(folders: str):
     """
     c = ConfigParser()
     c.read("src/pepsflow/pepsflow.cfg")
-    address = c.get("parameters.cli", "server_address")
+    address = c.get("parameters.cli", "server_address").strip("'")
     data = c.get("parameters.folders", "data").strip("'")
     for folder in folders:
         subprocess.run(["scp","-r", f"{address}:PEPSFlow/{data}/{folder}", "data",])
@@ -101,7 +102,7 @@ def plot(ctx, folders, **kwargs):
     
     all_readers: list[list[iPEPSReader]] = []
     for folder in folders:
-        readers = [iPEPSReader(os.path.join("data", folder, x)) for x in os.listdir(os.path.join("data", folder))]
+        readers = [iPEPSReader(os.path.join("data", folder, x)) for x in os.listdir(os.path.join("data", folder)) if x.endswith(".pth")]
         all_readers.append(readers) 
 
     plt.figure(figsize=(6, 4))
@@ -154,10 +155,10 @@ def plot(ctx, folders, **kwargs):
             reader = iPEPSReader(os.path.join("data", folder, file))
             losses = reader.losses()
             plt.plot(range(len(losses)), losses, "v-", markersize=4, linewidth=0.5, label=file)
-        plt.ylim( -0.4911, -0.4909)
-        plt.xlim(80, 100)
+        #plt.ylim( -0.4911, -0.4909)
+        #plt.xlim(80, 100)
         #plt.xticks(range(0, len(losses) + 1, 2))
-        plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(1))
+        #plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(1))
         plt.grid(linestyle='--', linewidth=0.35, which='both')
 
     if kwargs["gradient_norm"]:
@@ -201,7 +202,7 @@ def remove(path: click.Path, server: bool):
     if server:
         c = ConfigParser()
         c.read("src/pepsflow/pepsflow.cfg")
-        address = c.get("parameters.cli", "server_address")
+        address = c.get("parameters.cli", "server_address").strip("'")
         with Connection(address) as c:
             c.run(f"cd PEPSFlow && source .venv/bin/activate && pepsflow data remove {path}")   
             

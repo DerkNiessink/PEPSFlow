@@ -89,7 +89,7 @@ def optimize(server: bool = False):
     if server:
         c = configparser.ConfigParser()
         c.read("src/pepsflow/pepsflow.cfg")
-        address = c.get("parameters.cli", "server_address")
+        address = c.get("parameters.cli", "server_address").strip("'")
         data = c.get("parameters.folders", "data")
         write = c.get("parameters.folders", "write")
 
