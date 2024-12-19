@@ -9,6 +9,9 @@ from rich.console import Console
 from rich.table import Table
 from rich import box
 import scienceplots
+from fabric import Connection
+from configparser import ConfigParser
+import subprocess
 
 from pepsflow.iPEPS.reader import iPEPSReader
 from pepsflow.cli.utils import walk_directory, read_cli_config
@@ -20,17 +23,60 @@ from pepsflow.cli.utils import walk_directory, read_cli_config
 @click.pass_context
 @click.option("--folder", "-f", default = None, type=str, help="Show the data files in the folder.")
 @click.option("--concise", "-c", is_flag=True, default = False, help="Only show the folder names.")
-def data(ctx, folder: str, concise: bool):
+@click.option("--server", "-s", is_flag=True, default = False, help="Show the data files in the server.")
+def data(ctx, folder: str, concise: bool, server: bool):
     """
     List the data files in the data folder.
     """
     if ctx.invoked_subcommand is None:
-        directory = pathlib.Path("data", folder) if folder else pathlib.Path("data")
-        tree = Tree(
-        f":open_file_folder: {directory}",
-        )
-        walk_directory(pathlib.Path(directory), tree, concise)
-        print(tree)
+        if server:
+            c = ConfigParser()
+            c.read("src/pepsflow/pepsflow.cfg")
+            address = c.get("parameters.cli", "server_address")
+            data_folder = c.get("parameters.folders", "data")
+            with Connection(address) as c:
+                c.run(f"cd PEPSFlow && source .venv/bin/activate && pepsflow data")
+        else:
+            directory = pathlib.Path(data_folder, folder) if folder else pathlib.Path("data")
+            tree = Tree(f"{directory}")
+            walk_directory(pathlib.Path(directory), tree, concise)
+            print(tree)
+
+@data.command()
+@click.argument("folders", type=click.Path(), nargs=-1)
+def copy(folders: str):
+    """
+    Copy the data files from the server to the local machine.
+
+    FOLDERS are the folders in the data directory to copy 
+    """
+    c = ConfigParser()
+    c.read("src/pepsflow/pepsflow.cfg")
+    address = c.get("parameters.cli", "server_address")
+    data = c.get("parameters.folders", "data").strip("'")
+    for folder in folders:
+        subprocess.run(["scp","-r", f"{address}:PEPSFlow/{data}/{folder}", "data",])
+
+@data.command()
+@click.argument("folder", type=click.Path())
+@click.option("--server", "-s", is_flag=True, default=False, help="Wether to print the log file from the server.")
+def log(folder: str, server = False):
+    """
+    Show the log file of the data folder.
+
+    FOLDER is the folder containing the log file.
+    """
+    c = ConfigParser()
+    c.read("src/pepsflow/pepsflow.cfg")
+    address = c.get("parameters.cli", "server_address")
+    data = c.get("parameters.folders", "data").strip("'")
+    if server:
+        with Connection(address) as c:
+            c.run(f"cat PEPSFlow/{data}/{folder}/{folder}.out")
+    else:
+        with open(f"{data}/{folder}/{folder}.out") as f:
+            print(f.read())
+
 
 
 @data.command(context_settings={"ignore_unknown_options": True})
@@ -47,7 +93,7 @@ def plot(ctx, folders, **kwargs):
     """
     Plot the observables of iPEPS models.
 
-    FOLDER is the folder containing the iPEPS models.
+    FOLDERS are the folders containing the iPEPS models.
     """
     args = read_cli_config()
     plt.style.use("science") if args["latex"] else None
@@ -110,9 +156,9 @@ def plot(ctx, folders, **kwargs):
             reader = iPEPSReader(os.path.join("data", folder, file))
             losses = reader.losses()
             plt.plot(range(len(losses)), losses, "v-", markersize=4, linewidth=0.5, label=file)
-        # plt.ylim(-0.665, -0.65)
-        # plt.xlim(0, 21)
-        plt.xticks(range(0, len(losses) + 1, 2))
+        plt.ylim( -0.4911, -0.4909)
+        plt.xlim(80, 100)
+        #plt.xticks(range(0, len(losses) + 1, 2))
         plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(1))
         plt.grid(linestyle='--', linewidth=0.35, which='both')
 
@@ -124,8 +170,7 @@ def plot(ctx, folders, **kwargs):
             norms = reader.gradient_norms()
             label = os.path.basename(reader.file).split('.')[0]
             plt.plot(range(len(norms)), norms, "v-", markersize=4, linewidth=0.5, label=label)
-
-        
+  
     plt.tight_layout()
     plt.legend()
     plt.show()

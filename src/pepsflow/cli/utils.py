@@ -27,19 +27,14 @@ def walk_directory(directory: pathlib.Path, tree: Tree, concise: bool) -> None:
         if path.name.startswith("."):
             continue
         if path.is_dir():
-            style = "dim" if path.name.startswith("__") else ""
-            branch = tree.add(
-                f"[bold]:open_file_folder: {escape(path.name)}",
-                style=style,
-                guide_style=style,
-            )
+            # style = "dim" if path.name.startswith("__") else ""
+            branch = tree.add(f"{escape(path.name)}")
             walk_directory(path, branch, concise)
         elif not concise:
             text_filename = Text(path.name)
             file_size = path.stat().st_size
             text_filename.append(f" ({decimal(file_size)})", "blue")
-            icon = "🐍 " if path.suffix == ".py" else "📄 "
-            tree.add(Text(icon) + text_filename)
+            tree.add(text_filename)
 
 
 def read_cli_config() -> dict:

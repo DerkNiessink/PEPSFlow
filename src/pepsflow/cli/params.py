@@ -4,6 +4,8 @@ from rich.console import Console
 from rich.table import Table
 from rich import box
 import ast
+from fabric import Connection
+import subprocess
 
 import pepsflow.pepsflow as pepsflow
 
@@ -79,11 +81,28 @@ def set(Niter: int, D: int, J2: float, **args):
 
 
 @params.command()
-def optimize():
+@click.option("--server", "-s", is_flag=True, help="Whether to run the optimization on thea server.")
+def optimize(server: bool = False):
     """
     Optimize the iPEPS tensor network with the specified parameters in the configuration file.
     """
-    pepsflow.optimize_parallel()
+    if server:
+        c = configparser.ConfigParser()
+        c.read("src/pepsflow/pepsflow.cfg")
+        address = c.get("parameters.cli", "server_address")
+        data = c.get("parameters.folders", "data")
+        write = c.get("parameters.folders", "write")
+
+        print("Copying pepsflow.cfg to the server...")
+        subprocess.run(["scp", "src/pepsflow/pepsflow.cfg", f"{address}:PEPSFlow/src/pepsflow/pepsflow.cfg"])
+        with Connection(address) as c:
+            print("Pulling the latest changes from the repository...")
+            c.run(f"cd PEPSFlow && git pull") 
+            print("Running the optimization...")
+            c.run(f"mkdir -p PEPSFlow/data/{write}")
+            c.run(f"cd PEPSFlow && source .venv/bin/activate && nohup pepsflow params optimize > {data}/{write}/{write}.out 2>&1" )
+    else: 
+        pepsflow.optimize_parallel()
 
 
 @params.command()
