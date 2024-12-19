@@ -183,10 +183,14 @@ def rename(old: str, new: str, server: bool):
             c.run(f"cd PEPSFlow && git restore . && git pull", hide=True)
             c.run(f"cd PEPSFlow && source .venv/bin/activate && pepsflow data rename {old} {new}")
 
-    for dirpath, dirnames, filenames in os.walk("data"):
+    for dirpath, dirnames, filenames in os.walk(args["data"]):
         if os.path.basename(dirpath) == old:
-            os.rename(dirpath, os.path.join("data", new))
+            os.rename(dirpath, os.path.join(os.path.dirname(dirpath), new))
             break
+        for filename in filenames:
+            if filename == old:
+                os.rename(os.path.join(dirpath, filename), os.path.join(dirpath, new))
+                break
 
 
 @data.command()
