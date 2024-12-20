@@ -247,12 +247,10 @@ def info(folder: click.Path, file: click.Path, state: bool, lam: bool, energy: b
     console.print("\n")
     table = Table(title=f"iPEPS Information for Folder: {folder}", box=box.MINIMAL_DOUBLE_HEAD)
     
-    print_all = not any([lam, energy, magnetization, correlation, losses, state])
-
     table.add_column("Filename", justify="right", no_wrap=True, style="blue bold")
-    if energy or print_all: table.add_column("Energy", justify="right")
-    if magnetization or print_all: table.add_column("Magnetization", justify="right")
-    if correlation or print_all: table.add_column("Correlation", justify="right")
+    if energy: table.add_column("Energy", justify="right")
+    if magnetization: table.add_column("Magnetization", justify="right")
+    if correlation: table.add_column("Correlation", justify="right")
     if losses: table.add_column("Losses", justify="left")
     if state: table.add_column("State", justify="left")
     if params: table.add_column("iPEPS Parameters", justify="left")
@@ -260,11 +258,12 @@ def info(folder: click.Path, file: click.Path, state: bool, lam: bool, energy: b
     filenames = [file] if file else os.listdir(os.path.join("data", folder))
     
     for i, f in enumerate(filenames):
+        if not f.endswith(".pth"): continue
         reader = iPEPSReader(os.path.join("data", folder, f))
         row = [f]
-        if energy or print_all: row.append(f"{reader.energy()}")
-        if magnetization or print_all: row.append(f"{reader.magnetization()}")
-        if correlation or print_all: row.append(f"{reader.correlation()}")
+        if energy: row.append(f"{reader.energy()}")
+        if magnetization: row.append(f"{reader.magnetization()}")
+        if correlation: row.append(f"{reader.correlation()}")
         if losses: row.append(f"{reader.losses()}")
         if state: row.append(f"{reader.iPEPS_state()}")
         if params: row.append(f"{reader.iPEPS.args}")

@@ -308,7 +308,7 @@ class Tensors:
         #  T =  o --  [χ, D², χ]
         #       |
 
-        Rho = self.rho(A, C, T)
+        Rho = self.rho_nn(A, C, T)
         M = lambda pauli_op: torch.mm(Rho, torch.kron(self.I(), pauli_op)).trace() / Rho.trace()
         #   ___
         #  |___|        ___
