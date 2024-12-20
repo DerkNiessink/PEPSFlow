@@ -229,49 +229,52 @@ def remove(path: click.Path, server: bool):
 
 @data.command()
 @click.argument("folder", type=click.Path())
+@click.option("-s", "--server", is_flag=True, default=False, help="Wether to show the contents of the folder on the server.")
 @click.option("-f", "--file", default=None, type=click.Path(), help="File containing data, if not specified, all files in the folder are printed.")
-@click.option("-s", "--state", is_flag=True, default=False, help="Print the iPEPS state.")
-@click.option("-l", "--lam", is_flag=True, default=False, help="Print the lambda value.")
+@click.option("-st", "--state", is_flag=True, default=False, help="Print the iPEPS state.")
 @click.option("-e", "--energy", is_flag=True, default=False, help="Print the energy.")
 @click.option("-m", "--magnetization", is_flag=True, default=False, help="Print the magnetization.")
 @click.option("-xi", "--correlation", is_flag=True, default=False, help="Print the correlation.")
 @click.option("-o", "--losses", is_flag=True, default=False, help="Print the losses.")
 @click.option("-p", "--params", is_flag=True, default=False, help="Print the parameters of the iPEPS model.")
-def info(folder: click.Path, file: click.Path, state: bool, lam: bool, energy: bool, magnetization: bool, correlation: bool, losses: bool, params: bool):
+def info(folder: click.Path, server: bool, file: click.Path, state: bool, energy: bool, magnetization: bool, correlation: bool, losses: bool, params: bool):
     """
     Print the information of the iPEPS models in the specified FOLDER.
 
     FOLDER contains the iPEPS models.
     """
-    console = Console()
-    console.print("\n")
-    table = Table(title=f"iPEPS Information for Folder: {folder}", box=box.MINIMAL_DOUBLE_HEAD)
-    
-    table.add_column("Filename", justify="right", no_wrap=True, style="blue bold")
-    if energy: table.add_column("Energy", justify="right")
-    if magnetization: table.add_column("Magnetization", justify="right")
-    if correlation: table.add_column("Correlation", justify="right")
-    if losses: table.add_column("Losses", justify="left")
-    if state: table.add_column("State", justify="left")
-    if params: table.add_column("iPEPS Parameters", justify="left")
+    if server:
+        args = read_cli_config()
+        with Connection(args["server_address"]) as c:
+            c.run(f"cd PEPSFlow && git restore . && git pull", hide=True)
+            c.run(f"cd PEPSFlow && source .venv/bin/activate && pepsflow data info {folder}")
+    else:
+        table = Table(title=f"iPEPS Information for Folder: {folder}", box=box.ASCII_DOUBLE_HEAD)
+        
+        table.add_column("Filename", justify="right", no_wrap=True, style="blue bold")
+        if energy: table.add_column("Energy", justify="right")
+        if magnetization: table.add_column("Magnetization", justify="right")
+        if correlation: table.add_column("Correlation", justify="right")
+        if losses: table.add_column("Losses", justify="left")
+        if state: table.add_column("State", justify="left")
+        if params: table.add_column("iPEPS Parameters", justify="left")
 
-    filenames = [file] if file else os.listdir(os.path.join("data", folder))
-    
-    for i, f in enumerate(filenames):
-        if not f.endswith(".pth"): continue
-        reader = iPEPSReader(os.path.join("data", folder, f))
-        row = [f]
-        if energy: row.append(f"{reader.energy()}")
-        if magnetization: row.append(f"{reader.magnetization()}")
-        if correlation: row.append(f"{reader.correlation()}")
-        if losses: row.append(f"{reader.losses()}")
-        if state: row.append(f"{reader.iPEPS_state()}")
-        if params: row.append(f"{reader.iPEPS.args}")
-        style = "grey50" if i % 2 != 0 else "grey78"
-        table.add_row(*row, style=style)
+        filenames = [file] if file else os.listdir(os.path.join("data", folder))
+        
+        for i, f in enumerate(filenames):
+            if not f.endswith(".pth"): continue
+            reader = iPEPSReader(os.path.join("data", folder, f))
+            row = [f]
+            if energy: row.append(f"{reader.energy()}")
+            if magnetization: row.append(f"{reader.magnetization()}")
+            if correlation: row.append(f"{reader.correlation()}")
+            if losses: row.append(f"{reader.losses()}")
+            if state: row.append(f"{reader.iPEPS_state()}")
+            if params: row.append(f"{reader.iPEPS.args}")
+            style = "grey50" if i % 2 != 0 else "grey78"
+            table.add_row(*row, style=style)
 
-    console.print(table)
-    console.print("\n")
+        print(table)
 
 
 @data.command()
