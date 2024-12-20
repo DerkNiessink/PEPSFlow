@@ -4,7 +4,6 @@ from rich.text import Text
 from rich.filesize import decimal
 from rich.markup import escape
 import configparser
-import ast
 
 
 def walk_directory(directory: pathlib.Path, tree: Tree, concise: bool) -> None:
@@ -45,7 +44,7 @@ def read_cli_config() -> dict:
     """
     parser = configparser.ConfigParser()
     parser.optionxform = str  # Preserve the case of the keys
-    parser.read("src/pepsflow/pepsflow.cfg")
+    parser.read("pepsflow.cfg")
     sections = ["parameters.cli", "parameters.folders"]
     args = {}
     for section in sections:
