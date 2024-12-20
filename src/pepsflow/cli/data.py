@@ -237,7 +237,7 @@ def remove(path: click.Path, server: bool):
 @click.option("-xi", "--correlation", is_flag=True, default=False, help="Print the correlation.")
 @click.option("-o", "--losses", is_flag=True, default=False, help="Print the losses.")
 @click.option("-p", "--params", is_flag=True, default=False, help="Print the parameters of the iPEPS model.")
-def info(folder: click.Path, server: bool, file: click.Path, state: bool, energy: bool, magnetization: bool, correlation: bool, losses: bool, params: bool):
+def info(folder: click.Path, server: bool, **kwargs):
     """
     Print the information of the iPEPS models in the specified FOLDER.
 
@@ -247,30 +247,30 @@ def info(folder: click.Path, server: bool, file: click.Path, state: bool, energy
         args = read_cli_config()
         with Connection(args["server_address"]) as c:
             c.run(f"cd PEPSFlow && git restore . && git pull", hide=True)
-            c.run(f"cd PEPSFlow && source .venv/bin/activate && pepsflow data info {folder}")
+            c.run(f"cd PEPSFlow && source .venv/bin/activate && pepsflow data info {folder} {' '.join([f'--{key}' for key, value in kwargs.items() if value])}")
     else:
         table = Table(title=f"iPEPS Information for Folder: {folder}", box=box.ASCII_DOUBLE_HEAD)
         
         table.add_column("Filename", justify="right", no_wrap=True, style="blue bold")
-        if energy: table.add_column("Energy", justify="right")
-        if magnetization: table.add_column("Magnetization", justify="right")
-        if correlation: table.add_column("Correlation", justify="right")
-        if losses: table.add_column("Losses", justify="left")
-        if state: table.add_column("State", justify="left")
-        if params: table.add_column("iPEPS Parameters", justify="left")
+        if kwargs["energy"]: table.add_column("Energy", justify="right")
+        if kwargs["magnetization"]: table.add_column("Magnetization", justify="right")
+        if kwargs["correlation"]: table.add_column("Correlation", justify="right")
+        if kwargs["losses"]: table.add_column("Losses", justify="left")
+        if kwargs["state"]: table.add_column("State", justify="left")
+        if kwargs["params"]: table.add_column("iPEPS Parameters", justify="left")
 
-        filenames = [file] if file else os.listdir(os.path.join("data", folder))
+        filenames = [kwargs["file"]] if kwargs["file"] else os.listdir(os.path.join("data", folder))
         
         for i, f in enumerate(filenames):
             if not f.endswith(".pth"): continue
             reader = iPEPSReader(os.path.join("data", folder, f))
             row = [f]
-            if energy: row.append(f"{reader.energy()}")
-            if magnetization: row.append(f"{reader.magnetization()}")
-            if correlation: row.append(f"{reader.correlation()}")
-            if losses: row.append(f"{reader.losses()}")
-            if state: row.append(f"{reader.iPEPS_state()}")
-            if params: row.append(f"{reader.iPEPS.args}")
+            if kwargs["energy"]: row.append(f"{reader.energy()}")
+            if kwargs["magnetization"]: row.append(f"{reader.magnetization()}")
+            if kwargs["correlation"]: row.append(f"{reader.correlation()}")
+            if kwargs["losses"]: row.append(f"{reader.losses()}")
+            if kwargs["state"]: row.append(f"{reader.iPEPS_state()}")
+            if kwargs["params"]: row.append(f"{reader.iPEPS.args}")
             style = "grey50" if i % 2 != 0 else "grey78"
             table.add_row(*row, style=style)
 
