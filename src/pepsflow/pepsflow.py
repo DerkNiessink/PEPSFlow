@@ -44,7 +44,7 @@ def read_config() -> tuple[dict, tuple[str, str]]:
     """
     parser = configparser.ConfigParser()
     parser.optionxform = lambda option: option  # Preserve the case of the keys
-    parser.read("src/pepsflow/pepsflow.cfg")
+    parser.read("pepsflow.cfg")
 
     var_param = None
     args = {section: {} for section in parser.sections()}

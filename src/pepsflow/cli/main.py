@@ -23,7 +23,7 @@ def server():
     Inspection of the server using the htop command.
     """
     c = configparser.ConfigParser()
-    c.read("src/pepsflow/pepsflow.cfg")
+    c.read("pepsflow.cfg")
     address = c.get("parameters.cli", "server_address").strip("'")
     try:
         with Connection(address) as c:
