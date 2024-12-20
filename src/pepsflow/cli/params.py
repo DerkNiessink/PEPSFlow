@@ -21,7 +21,7 @@ def params(ctx):
     if ctx.invoked_subcommand is None:
         config = configparser.ConfigParser()
         config.optionxform = lambda option: option # Preserve case
-        config.read("src/pepsflow/pepsflow.cfg")
+        config.read("pepsflow.cfg")
         console = Console()
         table = Table(title="PEPSFLOW parameters", title_justify="center", box=box.SIMPLE)
         table.add_column("Parameter", no_wrap=True, justify="left")
@@ -65,8 +65,7 @@ def set(Niter: int, D: int, J2: float, **args):
     args['Niter'], args['D'], args['J2'] = Niter, D, J2 # For case preservation.
     config = configparser.ConfigParser()
     config.optionxform = lambda option: option
-    file = "src/pepsflow/pepsflow.cfg"
-    config.read(file)
+    config.read("pepsflow.cfg")
 
     for section in config.sections():
         for param, value in args.items():
@@ -78,7 +77,7 @@ def set(Niter: int, D: int, J2: float, **args):
 
                 config[section][param] = str(value)
 
-    with open(file, 'w') as configfile: config.write(configfile)
+    with open("pepsflow.cfg", 'w') as configfile: config.write(configfile)
 
 
 @params.command()
@@ -90,9 +89,8 @@ def optimize(server: bool = False):
     if server:
         args = read_cli_config()
         data, write = args['data'], args['write']
-        subprocess.run(["scp", "src/pepsflow/pepsflow.cfg", f"{args['server_address']}:PEPSFlow/src/pepsflow/pepsflow.cfg"])
+        subprocess.run(["scp", "pepsflow.cfg", f"{args['server_address']}:PEPSFlow/pepsflow.cfg"])
         with Connection(args['server_address']) as c:
-            c.run(f"cd PEPSFlow && git restore . && git pull", hide=True)
             print("Running the optimization...")
             c.run(f"mkdir -p PEPSFlow/{data}/{write}")
             c.run(f"cd PEPSFlow && source .venv/bin/activate && nohup pepsflow params optimize > {data}/{write}/{write}.out 2>&1")
