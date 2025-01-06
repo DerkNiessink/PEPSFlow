@@ -74,10 +74,12 @@ class CtmAlg:
         `N` (int): number of steps to execute the algorithm for. Default is 1.
         `tol` (float): convergence tolerance. The algorithm is terminated when this tolerance is reached. Default is 1e-9.
         """
+        self.Niter = N
         start = time.time()
-        for _ in range(N):
+        for i in range(N):
             self.split_step() if self.split else self.classic_step()
             if abs(self.eigvals_sums[-1] - self.eigvals_sums[-2]) < tol:
+                self.Niter = i
                 break
 
         self.exe_time = time.time() - start

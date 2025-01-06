@@ -2,9 +2,7 @@ from pepsflow.iPEPS.iPEPS import iPEPS
 from pepsflow.models.optimizers import Optimizer
 
 import torch
-from datetime import datetime
 import os
-from rich.progress import Progress, TaskID
 import sys
 
 
@@ -44,8 +42,8 @@ class Trainer:
             """
             nonlocal C, T
             self.opt.zero_grad()
-            C, T = self.ipeps.warmup()
-            loss, C, T = self.ipeps.forward(C, T)
+            C, T = self.ipeps.do_warmup_steps()
+            loss, C, T = self.ipeps.do_gradient_steps(C, T)
             loss.backward()
             return loss
 
@@ -58,7 +56,7 @@ class Trainer:
 
                 self.ipeps.add_data(new_loss, C, T)
 
-                if abs(new_loss - loss) < 1e-9:
+                if abs(new_loss - loss) < 1e-10:
                     sys.stdout.flush()
                     print(f"Converged after {epoch} epochs. Saving and quiting training...")
                     break
