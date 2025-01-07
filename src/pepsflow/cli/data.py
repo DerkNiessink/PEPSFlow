@@ -5,10 +5,8 @@ from rich.tree import Tree
 from rich import print
 import pathlib
 import shutil
-from rich.console import Console
 from rich.table import Table
 from rich import box
-import scienceplots
 from fabric import Connection
 import subprocess
 
@@ -87,7 +85,9 @@ def plot(ctx, folders, **kwargs):
     FOLDERS are the folders containing the iPEPS models.
     """
     args = read_cli_config()
-    plt.style.use("science") if args["latex"] else None
+    if args["latex"]:
+        import scienceplots
+        plt.style.use("science")
 
     if sum(bool(opt) for opt in kwargs.values()) > 1:
         ctx.fail("Only one option can be selected at a time.")
