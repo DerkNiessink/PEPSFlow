@@ -40,15 +40,20 @@ def data(ctx, folder: str, concise: bool, server: bool):
 
 @data.command()
 @click.argument("folders", type=click.Path(), nargs=-1)
-def copy(folders: str):
+@click.option("-s", "--server", is_flag=True, default=False, help="Wether to copy the data files from the server.")
+def copy(folders: str, server: bool):
     """
-    Copy the data files from the server to the local machine.
+    Copy the data files from the server to the local machine, or vice versa if the --server flag is used.
 
     FOLDERS are the folders in the data directory to copy 
     """
     args = read_cli_config()
     for folder in folders:
-        subprocess.run(["scp","-r", f"{args['server_address']}:PEPSFlow/{args['data']}/{folder}", args['data']])
+        if server:
+            subprocess.run(["scp","-r", f"{args['data']}/{folder}", f"{args['server_address']}:PEPSFlow/{args['data']}"])
+        else:
+            subprocess.run(["scp","-r", f"{args['server_address']}:PEPSFlow/{args['data']}/{folder}", args['data']])
+            
 
 @data.command()
 @click.argument("folder", type=click.Path())
@@ -75,8 +80,9 @@ def log(folder: str, server = False):
 @click.option("-xi", "--correlation_length", is_flag=True, default=False, help="Plot the correlation length as a function of lambda")
 @click.option("-g", "--gradient", type=str, default=None, help="Plot the gradient as a function of epoch. Has to be a .pth file.")
 @click.option("-n", "--gradient_norm", type=str, default=None, help="Plot the gradient norm as a function of epoch. Has to be a .pth file.")
-@click.option("-c", "--energy_convergence", type=click.Path(), default=None, help="Plot the energy convergence as a function of epoch. Has to be a .json file.")
-@click.option("-chi", "--energy_chi", is_flag=True, default=False, help="Plot the converged energy as a function of 1/chi of all .json files in the folder.")
+@click.option("-c", "--energy_convergence", type=click.Path(), default=None, help="Plot the energy convergence as a function of epoch. Has to be a .pth file.")
+@click.option("-chi", "--energy_chi", is_flag=True, default=False, help="Plot the converged energy as a function of 1/chi of all .pth files in the folder.")
+@click.option("-ctm", "--ctmsteps", type=click.Path(), default=None, help="Plot the number of CTM warmup steps each epoch. Has to be a .pth file.")
 @click.pass_context
 def plot(ctx, folders, **kwargs):
     """
@@ -106,9 +112,9 @@ def plot(ctx, folders, **kwargs):
         for i, readers in enumerate(all_readers):
             lams, mags = zip(*[(reader.lam(), reader.magnetization()) for reader in readers])
             plt.plot(lams, mags, symbols[i], markersize=5, linewidth=0.5, label=folders[i])
-        plt.xlim(2.95, 3.15)
-        plt.ylim(-0.0025, 0.45)
-        plt.xticks([2.95, 3.0, 3.05, 3.1, 3.15])
+        #plt.xlim(2.95, 3.15)
+        #plt.ylim(-0.0025, 0.45)
+        #plt.xticks([2.95, 3.0, 3.05, 3.1, 3.15])
         plt.minorticks_on()
         plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(0.025))
         plt.gca().yaxis.set_minor_locator(plt.MultipleLocator(0.05))
@@ -161,6 +167,15 @@ def plot(ctx, folders, **kwargs):
             norms = reader.gradient_norms()
             label = os.path.basename(reader.file).split('.')[0]
             plt.plot(range(len(norms)), norms, "v-", markersize=4, linewidth=0.5, label=label)
+
+    if kwargs["ctmsteps"]:
+        plt.ylabel(r"CTM Steps")
+        plt.xlabel(r"Epoch")
+        for file in kwargs["ctmsteps"].split(","):
+            reader = iPEPSReader(os.path.join("data", folder, file))
+            ctm_steps = reader.ctm_steps()
+            label = os.path.basename(reader.file).split('.')[0]
+            plt.plot(range(len(ctm_steps)), ctm_steps, "v-", markersize=4, linewidth=0.5, label=label)
   
     plt.tight_layout()
     plt.legend()
@@ -237,6 +252,7 @@ def remove(path: click.Path, server: bool):
 @click.option("-xi", "--correlation", is_flag=True, default=False, help="Print the correlation.")
 @click.option("-o", "--losses", is_flag=True, default=False, help="Print the losses.")
 @click.option("-p", "--params", is_flag=True, default=False, help="Print the parameters of the iPEPS model.")
+@click.option("-c", "--ctmsteps", is_flag=True, default=False, help="Print the number of CTM warmup steps each epoch.")
 def info(folder: click.Path, server: bool, **kwargs):
     """
     Print the information of the iPEPS models in the specified FOLDER.
@@ -258,6 +274,7 @@ def info(folder: click.Path, server: bool, **kwargs):
         if kwargs["losses"]: table.add_column("Losses", justify="left")
         if kwargs["state"]: table.add_column("State", justify="left")
         if kwargs["params"]: table.add_column("iPEPS Parameters", justify="left")
+        if kwargs["ctmsteps"]: table.add_column("CTM Steps", justify="left")
 
         filenames = [kwargs["file"]] if kwargs["file"] else os.listdir(os.path.join("data", folder))
         
@@ -271,6 +288,7 @@ def info(folder: click.Path, server: bool, **kwargs):
             if kwargs["losses"]: row.append(f"{reader.losses()}")
             if kwargs["state"]: row.append(f"{reader.iPEPS_state()}")
             if kwargs["params"]: row.append(f"{reader.iPEPS.args}")
+            if kwargs["ctmsteps"]: row.append(f"{reader.ctm_steps()}")
             style = "grey50" if i % 2 != 0 else "grey78"
             table.add_row(*row, style=style)
 

@@ -84,6 +84,15 @@ class iPEPSReader:
         """
         return float(self.tensors.xi(self.iPEPS.T).cpu())
 
+    def ctm_steps(self) -> list:
+        """
+        Get the number of CTM steps before convergence of each epoch for the iPEPS model
+
+        Returns:
+            list: List of number of CTM steps.
+        """
+        return self.iPEPS.data["Niter_warmup"]
+
     def set_to_lowest_energy(self) -> None:
         """
         Set the iPEPS model to the state with the lowest energy.
