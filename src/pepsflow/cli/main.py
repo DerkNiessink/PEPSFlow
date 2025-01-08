@@ -1,11 +1,8 @@
 import rich_click as click
-from fabric import Connection
-import configparser
-import invoke
-import os
 
 from pepsflow.cli.data import data
 from pepsflow.cli.params import params
+from pepsflow.cli.server import server
 
 
 @click.group()
@@ -17,23 +14,9 @@ def cli():
     pass
 
 
-@cli.command()
-def server():
-    """
-    Inspection of the server using the htop command.
-    """
-    c = configparser.ConfigParser()
-    c.read("pepsflow.cfg")
-    address = c.get("parameters.cli", "server_address").strip("'")
-    try:
-        with Connection(address) as c:
-            c.run("htop", pty=True)
-    except invoke.exceptions.UnexpectedExit:
-        os.system("cls" if os.name == "nt" else "clear")
-
-
 cli.add_command(data)
 cli.add_command(params)
+cli.add_command(server)
 
 
 if __name__ == "__main__":

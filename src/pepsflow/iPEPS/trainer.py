@@ -28,10 +28,6 @@ class Trainer:
     def exe(self) -> None:
         """
         Optimize the iPEPS model using the CTM algorithm and the given optimizer.
-
-        Args:
-            progress (Progress): Rich Progress object to track the progress of the optimization.
-            task (TaskID): Task ID of the progress object.
         """
         C, T = None, None
 

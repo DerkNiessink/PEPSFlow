@@ -77,6 +77,8 @@ def optimize(var_param: tuple[str, str], value: float, args: dict):
         value (float): Value of the variational parameter.
         args (dict): folder, ipeps, and optimization parameters.
     """
+    print(f"PID of the task: {os.getpid()}")
+
     # Set the value of the variational parameter
     section, key = var_param
     args[section][key] = value

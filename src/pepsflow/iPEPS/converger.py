@@ -24,7 +24,7 @@ class Converger:
         algorithm. This method can only be called after reading the data.
         """
         with torch.no_grad():
-            E, C, T = self.ipeps.forward()
+            E, C, T = self.ipeps.do_warmup_steps()
         self.ipeps.add_data(E, C, T)
 
     def write(self, fn: str) -> None:
