@@ -42,3 +42,4 @@ def kill(pid: str):
     address = conf.get("parameters.cli", "server_address").strip("'")
     with Connection(address) as c:
         c.run(f"kill -SIGINT {pid}")
+    print(f"Process {pid} killed.")
