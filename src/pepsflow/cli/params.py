@@ -58,6 +58,8 @@ def params(ctx):
 @click.option("--dtype", type=str, help="Data type to use for the tensors. Options are 'half, 'single', and 'double'.")
 @click.option("--device", type=str, help="Device to run the optimization on. Options are 'cpu' and 'cuda'.")
 @click.option("--latex/--no-latex", default=None, type=bool, help="Whether to use LaTeX in the plots.")
+@click.option("--server_address", type=str, help="Address of the server to run the optimization on.")
+@click.option("-save/-no-save","--save_intermediate/--no-save_intermediate", type=bool, help="Whether to save the intermediate states of the optimization.")
 def set(Niter: int, D: int, J2: float, **args):
     """
     Set specific parameters for the optimization of the iPEPS tensor network.

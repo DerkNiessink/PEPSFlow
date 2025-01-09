@@ -16,7 +16,18 @@ class TestiPEPSTrainer:
     )
     def test_trainer(self, E_exp, epochs, l, J2, sp, dev, m, D, dt, chi, N):
         ipeps_args = dict(
-            model=m, D=D, dtype=dt, device=dev, lam=l, J2=J2, split=sp, seed=1, chi=chi, warmup_steps=1, Niter=N
+            model=m,
+            D=D,
+            dtype=dt,
+            device=dev,
+            lam=l,
+            J2=J2,
+            split=sp,
+            seed=1,
+            chi=chi,
+            warmup_steps=1,
+            Niter=N,
+            save_intermediate=False,
         )
         train_args = dict(optimizer="lbfgs", learning_rate=1, epochs=epochs, threads=1, line_search=True, log=False)
         trainer = Trainer(iPEPS(ipeps_args), train_args)

@@ -21,8 +21,9 @@ class iPEPS(torch.nn.Module):
     ):
         super(iPEPS, self).__init__()
         self.to(args["device"])
-        torch.manual_seed(args["seed"]) if args["seed"] is not None else None
-        np.random.seed(args["seed"]) if args["seed"] is not None else None
+        if args["seed"] is not None:
+            torch.manual_seed(args["seed"])
+            np.random.seed(args["seed"])
         self.args = args
         self.initial_ipeps = initial_ipeps
         self.C, self.T = None, None
@@ -83,8 +84,9 @@ class iPEPS(torch.nn.Module):
         self.data["params"].append(self.params.clone().detach())
         squared_norm = sum(p.data.norm(2) ** 2 for p in self.parameters() if p.grad is not None)
         self.data["norms"].append(torch.sqrt(squared_norm) if isinstance(squared_norm, torch.Tensor) else squared_norm)
-        self.data["C"].append(C)
-        self.data["T"].append(T)
+        if self.args["save_intermediate"]:  # Do not save the corner and edge tensors to save a lot of memory
+            self.data["C"].append(C)
+            self.data["T"].append(T)
         self.data["Niter_warmup"].append(self.Niter_warmup)
         self.C, self.T = C, T
 
