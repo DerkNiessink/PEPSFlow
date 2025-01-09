@@ -92,10 +92,3 @@ class iPEPSReader:
             list: List of number of CTM steps.
         """
         return self.iPEPS.data["Niter_warmup"]
-
-    def set_to_lowest_energy(self) -> None:
-        """
-        Set the iPEPS model to the state with the lowest energy.
-        """
-        self.iPEPS.set_to_lowest_energy()
-        torch.save(self.iPEPS, self.file)

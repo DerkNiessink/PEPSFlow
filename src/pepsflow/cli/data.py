@@ -145,6 +145,7 @@ def plot(ctx, folders, **kwargs):
             data.sort(reverse=True)
             inv_chis, energies = zip(*data)
             plt.plot(inv_chis, energies, "v-", markersize=4, linewidth=0.5, label=folders[i])
+        plt.grid(linestyle='--', linewidth=0.35)
 
     if kwargs["gradient"]:
         plt.ylabel(r"$E$")
@@ -176,9 +177,14 @@ def plot(ctx, folders, **kwargs):
             ctm_steps = reader.ctm_steps()
             label = os.path.basename(reader.file).split('.')[0]
             plt.plot(range(len(ctm_steps)), ctm_steps, "v-", markersize=4, linewidth=0.5, label=label)
+        plt.xlim(0, 110)
+        plt.grid(linestyle='--', linewidth=0.35)
+        plt.gca().yaxis.get_major_locator().set_params(integer=True)
+        #plt.ylim(5, 31)
   
     plt.tight_layout()
-    plt.legend()
+    #plt.legend()
+    #plt.savefig("figures/convergence_Heisenberg_D5.pdf")
     plt.show()
 
 

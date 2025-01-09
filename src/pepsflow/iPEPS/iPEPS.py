@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 from pepsflow.models.CTM_alg import CtmAlg
 from pepsflow.models.tensors import Methods, Tensors
@@ -21,9 +22,11 @@ class iPEPS(torch.nn.Module):
         super(iPEPS, self).__init__()
         self.to(args["device"])
         torch.manual_seed(args["seed"]) if args["seed"] is not None else None
+        np.random.seed(args["seed"]) if args["seed"] is not None else None
         self.args = args
         self.initial_ipeps = initial_ipeps
         self.C, self.T = None, None
+        self.Niter_warmup = None
         self.data: dict[list, list, list, list, list]
 
         self.tensors = Tensors(args["dtype"], args["device"])
@@ -84,15 +87,6 @@ class iPEPS(torch.nn.Module):
         self.data["T"].append(T)
         self.data["Niter_warmup"].append(self.Niter_warmup)
         self.C, self.T = C, T
-
-    def set_to_lowest_energy(self) -> None:
-        """
-        Set the iPEPS tensor network to the state with the lowest energy.
-        """
-        i = self.data["losses"].index(min(self.data["losses"]))
-        self.params = torch.nn.Parameter(self.data["params"][i])
-        for key in ["params", "losses", "norms", "C", "T"]:
-            self.data[key] = self.data[key][: i + 1]
 
     def do_warmup_steps(self) -> tuple[torch.Tensor, torch.Tensor]:
         """

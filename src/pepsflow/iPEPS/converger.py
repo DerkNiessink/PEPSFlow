@@ -16,7 +16,7 @@ class Converger:
 
     def __init__(self, ipeps: iPEPS, args: dict):
         self.ipeps = iPEPS(args, ipeps)
-        # self.ipeps.plant_unitary()
+        self.ipeps.plant_unitary()
 
     def exe(self) -> None:
         """
@@ -24,8 +24,9 @@ class Converger:
         algorithm. This method can only be called after reading the data.
         """
         with torch.no_grad():
-            E, C, T = self.ipeps.do_warmup_steps()
+            E, C, T = self.ipeps.do_gradient_steps(self.ipeps.C, self.ipeps.T)
         self.ipeps.add_data(E, C, T)
+        print(f"chi, E: {self.ipeps.args['chi'], E.item()}")
 
     def write(self, fn: str) -> None:
         """
