@@ -102,7 +102,7 @@ def optimize(server: bool = False):
 
 @params.command()
 @click.argument("filename", type=str)
-def converge(filename: str):
+def evaluate(filename: str):
     """
     Converge the iPEPS tensor network with the specified parameters in the configuration file.
 
