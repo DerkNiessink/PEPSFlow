@@ -1,5 +1,6 @@
 import time
 import torch
+import scipy.sparse.linalg
 
 from pepsflow.models.tensors import Methods
 
@@ -16,6 +17,8 @@ class CtmAlg:
         chi (int): bond dimension of the edge and corner tensors. Default is 2.
         C (torch.Tensor): initial corner tensor for the CTM algorithm. Default is None
         T (torch.Tensor): initial edge tensor for the CTM algorithm. Default is None
+        split (bool): whether to split the edge tensor or not. Default is False
+        iterative (bool): whether to use iterative methods for the eigenvalue decompostion or not. Default is False
     """
 
     #            /
@@ -29,13 +32,22 @@ class CtmAlg:
     #   T =  o --  [χ, D², χ]
     #        |
 
-    def __init__(self, A: torch.Tensor, chi: int, C: torch.Tensor = None, T: torch.Tensor = None, split: bool = False):
+    def __init__(
+        self,
+        A: torch.Tensor,
+        chi: int,
+        C: torch.Tensor = None,
+        T: torch.Tensor = None,
+        split: bool = False,
+        iterative: bool = False,
+    ):
         D = A.size(1)
         self.D = D
         self.split = split
         self.max_chi = chi
         self.chi = D**2 if C is None else C.size(0)  # In both cases we have to let chi grow to max_chi.
         self.eigvals_sums = [0]
+        self.iterative = iterative
 
         a = torch.einsum("abcde,afghi->bfcidheg", A, A)
         #      /
@@ -172,17 +184,18 @@ class CtmAlg:
         M = M.contiguous().view(self.chi * self.D**2, self.chi * self.D**2)
         #  --o--  [χD², χD²]
 
-        s, U = torch.linalg.eigh(M)
-        #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
-
-        # Sort the columns of U based on the largest magnitude of s
-        idx = torch.argsort(torch.abs(s), descending=True)
-        U = U[:, idx]
-
         # Let chi grow if the desired chi is not yet reached.
         k = self.chi
         self.chi = min(self.chi * self.D**2, self.max_chi)
-        U = U[:, : self.chi]
+
+        if self.iterative and M.device.type == "cpu":
+            s, U = scipy.sparse.linalg.eigsh(M.cpu().detach().numpy(), k=self.chi)
+            s, U = torch.from_numpy(s), torch.from_numpy(U)
+        else:
+            s, U = torch.linalg.eigh(M)
+            # Sort the eigenvectors by the absolute value of the eigenvalues and keep the χ largest ones.
+            U = U[:, torch.argsort(torch.abs(s), descending=True)[: self.chi]]
+        #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
 
         # Reshape U back in a rank-3 or 4 tensor.
         shape = (k, self.D, self.D, self.chi) if self.split else (k, self.D**2, self.chi)

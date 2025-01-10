@@ -61,6 +61,69 @@ class iPEPS(torch.nn.Module):
         self.params = torch.nn.Parameter(params)
         self.H = self.tensors.Hamiltonian(self.args["model"], lam=self.args["lam"])
 
+    def _get_energy(self, A, C, T) -> torch.Tensor:
+        """
+        Compute the energy of the iPEPS tensor network. Here we take the next-nearest-neighbor
+        (nnn) interaction into account for the J1-J2 model.
+
+        Returns:
+            torch.Tensor: Energy of the iPEPS tensor network.
+        """
+        if self.args["model"] == "J1J2":
+            energy = self.tensors.E_nn(A, self.H, C, T) + self.args["J2"] * self.tensors.E_nnn(A, C, T)
+        else:
+            energy = self.tensors.E_nn(A, self.H, C, T)
+
+        return energy
+
+    def _forward(
+        self, N: int, iterative: bool, C: torch.Tensor = None, T: torch.Tensor = None
+    ) -> tuple[torch.Tensor, CtmAlg]:
+        """
+        Compute the energy of the iPEPS tensor network by performing the following steps:
+        1. Map the parameters to a symmetric rank-5 iPEPS tensor.
+        2. Execute the CTM (Corner Transfer Matrix) algorithm to compute the corner (C) and edge (T) tensors.
+
+        Args:
+            N (int): Number of CTM steps to perform.
+            C (torch.Tensor): Initial corner tensor for the CTM algorithm. Default is None.
+            T (torch.Tensor): Initial edge tensor for the CTM algorithm. Default is None.
+
+        Returns:
+            tuple: iPEPS tensor A and the CTM algorithm object containing the corner and edge tensors.
+        """
+        A = self.params[self.map]
+        A = A / A.norm()
+        alg = CtmAlg(A, self.args["chi"], C, T, self.args["split"], iterative)
+        alg.exe(N)
+        return A, alg
+
+    def do_warmup_steps(self) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Warmup the iPEPS tensor network by performing the CTM algorithm.
+
+        Returns:
+            tuple: Corner tensor and edge tensor
+        """
+        A, alg = self._forward(N=self.args["warmup_steps"], iterative=True)
+        self.Niter_warmup = alg.Niter
+        return alg.C, alg.T
+
+    def do_gradient_steps(self, C: torch.Tensor, T: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Take gradient steps in the optimization of the iPEPS tensor network.
+
+        Args:
+            C (torch.Tensor): Initial corner tensor for the CTM algorithm.
+            T (torch.Tensor): Initial edge tensor for the CTM algorithm.
+
+        Returns:
+            tuple: Loss, corner tensor, and edge tensor
+        """
+        A, alg = self._forward(N=self.args["Niter"], C=C, T=T, iterative=False)
+        loss = self._get_energy(A, alg.C, alg.T)
+        return loss, alg.C, alg.T
+
     def plant_unitary(self) -> None:
         """
         Plant a unitary matrix on the A tensors of the iPEPS tensor network.
@@ -89,80 +152,3 @@ class iPEPS(torch.nn.Module):
             self.data["T"].append(T)
         self.data["Niter_warmup"].append(self.Niter_warmup)
         self.C, self.T = C, T
-
-    def do_warmup_steps(self) -> tuple[torch.Tensor, torch.Tensor]:
-        """
-        Warmup the iPEPS tensor network by performing the CTM algorithm.
-
-        Returns:
-            tuple: Corner tensor and edge tensor
-        """
-        _, C, T = self._forward(warmup=True)
-        return C, T
-
-    def do_gradient_steps(self, C: torch.Tensor, T: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """
-        Take gradient steps in the optimization of the iPEPS tensor network.
-
-        Args:
-            C (torch.Tensor): Initial corner tensor for the CTM algorithm.
-            T (torch.Tensor): Initial edge tensor for the CTM algorithm.
-
-        Returns:
-            tuple: Loss, corner tensor, and edge tensor
-        """
-        loss, C, T = self._forward(self.C, self.T, warmup=False)
-        return loss, C, T
-
-    def _get_energy(self, A, C, T) -> torch.Tensor:
-        """
-        Compute the energy of the iPEPS tensor network. Here we take the next-nearest-neighbor
-        (nnn) interaction into account for the J1-J2 model.
-
-        Returns:
-            torch.Tensor: Energy of the iPEPS tensor network.
-        """
-        if self.args["model"] == "J1J2":
-            energy = self.tensors.E_nn(A, self.H, C, T) + self.args["J2"] * self.tensors.E_nnn(A, C, T)
-        else:
-            energy = self.tensors.E_nn(A, self.H, C, T)
-
-        return energy
-
-    def _forward(
-        self, C: torch.Tensor = None, T: torch.Tensor = None, warmup: bool = False
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """
-        Compute the energy of the iPEPS tensor network by performing the following steps:
-        1. Map the parameters to a symmetric rank-5 iPEPS tensor.
-        2. Execute the CTM (Corner Transfer Matrix) algorithm to compute the corner (C) and edge (T) tensors.
-        3. Compute the loss as the energy expectation value using the Hamiltonian H, the symmetrized tensor,
-           and the corner and edge tensors from the CTM algorithm.
-
-        Args:
-            C (torch.Tensor): Initial corner tensor for the CTM algorithm. Default is None.
-            T (torch.Tensor): Initial edge tensor for the CTM algorithm. Default is None.
-            warmup (bool): Flag to indicate if the warmup steps should be executed. Default is False.
-
-        Returns:
-            torch.Tensor: The loss, representing the energy expectation value, the corner tensor, and edge tensor.
-        """
-        A = self.params[self.map]
-        A = A / A.norm()
-
-        if torch.isnan(self.params).any():
-            raise ValueError("NaN in the iPEPS tensor.")
-
-        alg = CtmAlg(A, self.args["chi"], C, T, self.args["split"])
-
-        N = self.args["warmup_steps"] if warmup else self.args["Niter"]
-        alg.exe(N)
-
-        # The loss does not have to be computed in the warmup steps
-        if warmup:
-            loss = None
-            self.Niter_warmup = alg.Niter
-        else:
-            loss = self._get_energy(A, alg.C, alg.T)
-
-        return loss, alg.C.detach(), alg.T.detach()
