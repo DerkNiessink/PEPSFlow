@@ -104,7 +104,7 @@ def optimize(server: bool = False):
 @click.argument("filename", type=str)
 def evaluate(filename: str):
     """
-    Converge the iPEPS tensor network with the specified parameters in the configuration file.
+    Evaluate the iPEPS tensor network with the specified parameters in the configuration file.
 
     FILENAME is the data file to read from.
     """
