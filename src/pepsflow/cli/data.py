@@ -10,7 +10,7 @@ from rich import box
 from fabric import Connection
 import subprocess
 
-from pepsflow.iPEPS.reader import iPEPSReader
+from pepsflow.ipeps.reader import Reader
 from pepsflow.cli.utils import walk_directory, read_cli_config
 
 # fmt: off
@@ -98,9 +98,9 @@ def plot(ctx, folders, **kwargs):
     if sum(bool(opt) for opt in kwargs.values()) > 1:
         ctx.fail("Only one option can be selected at a time.")
     
-    all_readers: list[list[iPEPSReader]] = []
+    all_readers: list[list[Reader]] = []
     for folder in folders:
-        readers = [iPEPSReader(os.path.join("data", folder, x)) for x in os.listdir(os.path.join("data", folder)) if x.endswith(".pth")]
+        readers = [Reader(os.path.join("data", folder, x)) for x in os.listdir(os.path.join("data", folder)) if x.endswith(".pth")]
         all_readers.append(readers) 
 
     plt.figure(figsize=(6, 4))
@@ -151,7 +151,7 @@ def plot(ctx, folders, **kwargs):
         plt.ylabel(r"$E$")
         plt.xlabel(r"Epoch")
         for file in kwargs["gradient"].split(","):
-            reader = iPEPSReader(os.path.join("data", folder, file))
+            reader = Reader(os.path.join("data", folder, file))
             losses = reader.losses()
             plt.plot(range(len(losses)), losses, "v-", markersize=4, linewidth=0.5, label=file)
         #plt.ylim( -0.4911, -0.4909)
@@ -164,7 +164,7 @@ def plot(ctx, folders, **kwargs):
         plt.ylabel(r"$\| \nabla E \|$")
         plt.xlabel(r"Epoch")
         for file in kwargs["gradient_norm"].split(","):
-            reader = iPEPSReader(os.path.join("data", folder, file))
+            reader = Reader(os.path.join("data", folder, file))
             norms = reader.gradient_norms()
             label = os.path.basename(reader.file).split('.')[0]
             plt.plot(range(len(norms)), norms, "v-", markersize=4, linewidth=0.5, label=label)
@@ -173,7 +173,7 @@ def plot(ctx, folders, **kwargs):
         plt.ylabel(r"CTM Steps")
         plt.xlabel(r"Epoch")
         for file in kwargs["ctmsteps"].split(","):
-            reader = iPEPSReader(os.path.join("data", folder, file))
+            reader = Reader(os.path.join("data", folder, file))
             ctm_steps = reader.ctm_steps()
             label = os.path.basename(reader.file).split('.')[0]
             plt.plot(range(len(ctm_steps)), ctm_steps, "v-", markersize=4, linewidth=0.5, label=label)
@@ -286,7 +286,7 @@ def info(folder: click.Path, server: bool, **kwargs):
         
         for i, f in enumerate(filenames):
             if not f.endswith(".pth"): continue
-            reader = iPEPSReader(os.path.join("data", folder, f))
+            reader = Reader(os.path.join("data", folder, f))
             row = [f]
             if kwargs["energy"]: row.append(f"{reader.energy()}")
             if kwargs["magnetization"]: row.append(f"{reader.magnetization()}")
@@ -299,18 +299,3 @@ def info(folder: click.Path, server: bool, **kwargs):
             table.add_row(*row, style=style)
 
         print(table)
-
-
-@data.command()
-@click.argument("folder", type=click.Path())
-@click.option("-f", "--file", default=None, type=click.Path(), help="File containing data, if not specified, all files in the folder are set to the lowest energy.")
-def lowest(folder: click.Path, file: click.Path):
-    """
-    Set the last epoch of the iPEPS model to the lowest energy.
-
-    FOLDER contains the iPEPS models.
-    """
-    filenames = [file] if file else os.listdir(os.path.join("data", folder))
-    for f in filenames:
-        reader = iPEPSReader(os.path.join("data", folder, f))
-        reader.set_to_lowest_energy()

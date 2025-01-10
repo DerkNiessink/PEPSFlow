@@ -97,7 +97,7 @@ def optimize(server: bool = False):
             c.run(f"mkdir -p PEPSFlow/{data}/{write}")
             c.run(f"cd PEPSFlow && source .venv/bin/activate && nohup pepsflow params optimize > {data}/{write}/{write}.out 2>&1 & disown", pty=False)
     else: 
-        pepsflow.optimize_parallel()
+        pepsflow.minimize_parallel()
 
 
 @params.command()
@@ -108,4 +108,4 @@ def converge(filename: str):
 
     FILENAME is the data file to read from.
     """
-    pepsflow.converge_parallel(filename)
+    pepsflow.evaluate_parallel(filename)
