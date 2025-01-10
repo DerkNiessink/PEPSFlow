@@ -124,6 +124,21 @@ class iPEPS(torch.nn.Module):
         loss = self._get_energy(A, alg.C, alg.T)
         return loss, alg.C, alg.T
 
+    def do_evaluation(self, C: torch.Tensor, T: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Evaluate the iPEPS tensor network by performing the CTM algorithm.
+
+        Args:
+            C (torch.Tensor): Initial corner tensor for the CTM algorithm.
+            T (torch.Tensor): Initial edge tensor for the CTM algorithm.
+
+        Returns:
+            tuple: Loss, corner tensor, and edge tensor
+        """
+        A, alg = self._forward(N=self.args["Niter"], C=C, T=T, iterative=True)
+        loss = self._get_energy(A, alg.C, alg.T)
+        return loss, alg.C, alg.T
+
     def plant_unitary(self) -> None:
         """
         Plant a unitary matrix on the A tensors of the iPEPS tensor network.

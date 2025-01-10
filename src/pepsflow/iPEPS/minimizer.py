@@ -1,4 +1,4 @@
-from pepsflow.iPEPS.iPEPS import iPEPS
+from pepsflow.ipeps.ipeps import iPEPS
 from pepsflow.models.optimizers import Optimizer
 
 import torch
@@ -6,14 +6,13 @@ import os
 import sys
 
 
-class Trainer:
+class Minimizer:
     """
-    Class to train the iPEPS model using automatic differentiation for different
-    values of lambda.
+    Class to minimize the energy of the iPEPS model using automatic differentiation.
 
     Args:
-        opt_args (dict): Dictionary containing the arguments for the optimization process.
-        ipeps_args (dict): Dictionary containing the arguments for the iPEPS model.
+        ipeps (iPEPS): iPEPS model to optimize.
+        args (dict): Dictionary containing the arguments for the optimization process.
     """
 
     def __init__(self, ipeps: iPEPS, args: dict):
@@ -25,17 +24,13 @@ class Trainer:
             self.args["optimizer"], self.ipeps.parameters(), lr=self.args["learning_rate"], line_search_fn=ls
         )
 
-    def exe(self) -> None:
+    def minimize(self) -> None:
         """
-        Optimize the iPEPS model using the CTM algorithm and the given optimizer.
+        Minimize the energy of the iPEPS model using the CTM algorithm and the given optimizer.
         """
         C, T = None, None
 
         def train() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-            """
-            Do one step in the CTM algorithm, compute the loss, and do the
-            backward pass where the gradients are computed.
-            """
             nonlocal C, T
             self.opt.zero_grad()
             C, T = self.ipeps.do_warmup_steps()

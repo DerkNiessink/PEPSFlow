@@ -1,4 +1,4 @@
-from pepsflow.iPEPS.trainer import Trainer
+from pepsflow.iPEPS.minimizer import Trainer
 from pepsflow.iPEPS.iPEPS import iPEPS
 from pepsflow.iPEPS.reader import iPEPSReader
 

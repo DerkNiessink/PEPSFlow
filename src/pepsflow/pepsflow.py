@@ -2,36 +2,14 @@ import configparser
 import multiprocessing as mp
 import os
 import ast
-from rich.progress import Progress, TextColumn, SpinnerColumn, MofNCompleteColumn, TimeElapsedColumn, BarColumn
 import signal
 
-from pepsflow.iPEPS.trainer import Trainer
-from pepsflow.iPEPS.converger import Converger
-from pepsflow.iPEPS.iPEPS import iPEPS
-from pepsflow.iPEPS.reader import iPEPSReader
+from pepsflow.ipeps.minimizer import Minimizer
+from pepsflow.ipeps.evaluater import Evaluater
+from pepsflow.ipeps.ipeps import iPEPS
+from pepsflow.ipeps.reader import Reader
 
-progress = Progress(
-    SpinnerColumn(),
-    TextColumn("[progress.description]{task.description}"),
-    BarColumn(),
-    MofNCompleteColumn(),
-    TextColumn("•"),
-    TimeElapsedColumn(),
-)
-
-
-def path(folder: str, file: str) -> str:
-    """
-    Return the path to the file in the folder.
-
-    Args:
-        folder (str): Folder containing the file.
-        file (str): Filename.
-
-    Returns:
-        str: Path to the file.
-    """
-    return os.path.join("data", folder, file)
+path = lambda folder, file: os.path.join("data", folder, file)
 
 
 def read_config() -> tuple[dict, tuple[str, str]]:
@@ -68,7 +46,7 @@ def read_config() -> tuple[dict, tuple[str, str]]:
     return args, var_param
 
 
-def optimize(var_param: tuple[str, str], value: float, args: dict):
+def minimize(var_param: tuple[str, str], value: float, args: dict):
     """
     Optimize the iPEPS model for a single value the variational parameter.
 
@@ -90,23 +68,23 @@ def optimize(var_param: tuple[str, str], value: float, args: dict):
 
     # Read the iPEPS model from a file if specified and set to the device
     if folders["read"]:
-        ipeps = iPEPSReader(path(folders["read"], fn)).iPEPS
+        ipeps = Reader(path(folders["read"], fn)).ipeps
         ipeps = iPEPS(args=ipeps_params, initial_ipeps=ipeps)
     else:
         ipeps = iPEPS(ipeps_params)
 
     # Execute the optimization and write the iPEPS model to a file
-    trainer = Trainer(ipeps, opt_params)
+    minimizer = Minimizer(ipeps, opt_params)
 
     # Save the data if the process is interrupted
-    save = lambda sig, frame: (trainer.write(path(folders["write"], fn)), exit(0))
+    save = lambda sig, frame: (minimizer.write(path(folders["write"], fn)), exit(0))
     signal.signal(signal.SIGINT, save)
 
-    trainer.exe()
-    trainer.write(path(folders["write"], fn))
+    minimizer.minimize()
+    minimizer.write(path(folders["write"], fn))
 
 
-def converge(var_param, value: float, args: dict, read_fn: str):
+def evaluate(var_param, value: float, args: dict, read_fn: str):
     """
     Compute the energy if a converged iPEPS state for a given bond dimension using the CTMRG
     algorithm.
@@ -127,20 +105,20 @@ def converge(var_param, value: float, args: dict, read_fn: str):
 
     folders, ipeps_params = args["parameters.folders"], args["parameters.ipeps"]
 
-    ipeps = iPEPSReader(path(folders["read"], read_fn)).iPEPS
+    ipeps = Reader(path(folders["read"], read_fn)).ipeps
 
     # Execute the convergence and write the data to a file
-    conv = Converger(ipeps, ipeps_params)
+    evaluater = Evaluater(ipeps, ipeps_params)
 
     # Save the data if the process is interrupted
-    save = lambda sig, frame: (conv.write(path(folders["write"], write_fn)), exit(0))
+    save = lambda sig, frame: (evaluater.write(path(folders["write"], write_fn)), exit(0))
     signal.signal(signal.SIGINT, save)
 
-    conv.exe()
-    conv.write(path(folders["write"], write_fn))
+    evaluater.evaluate()
+    evaluater.write(path(folders["write"], write_fn))
 
 
-def optimize_parallel():
+def minimize_parallel():
     """
     Optimize the iPEPS model for a list of values of the variational parameter.
     """
@@ -150,10 +128,10 @@ def optimize_parallel():
     num_processes = len(var_param_values)
 
     with mp.Pool(num_processes) as pool:
-        pool.starmap(optimize, [(var_param, value, args.copy()) for value in var_param_values])
+        pool.starmap(minimize, [(var_param, value, args.copy()) for value in var_param_values])
 
 
-def converge_parallel(read_fn: str):
+def evaluate_parallel(read_fn: str):
     """
     Compute the energy if a converged iPEPS state for a list of bond dimensions using the CTMRG
     algorithm.
@@ -167,4 +145,4 @@ def converge_parallel(read_fn: str):
     num_processes = len(var_param_values)
 
     with mp.Pool(num_processes) as pool:
-        pool.starmap(converge, [(var_param, value, args.copy(), read_fn) for value in var_param_values])
+        pool.starmap(evaluate, [(var_param, value, args.copy(), read_fn) for value in var_param_values])

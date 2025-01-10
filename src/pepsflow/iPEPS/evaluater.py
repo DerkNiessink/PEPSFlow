@@ -1,11 +1,11 @@
-from pepsflow.iPEPS.iPEPS import iPEPS
+from pepsflow.ipeps.ipeps import iPEPS
 
 import torch
 import os
 from rich import print
 
 
-class Converger:
+class Evaluater:
     """
     Class to compute the converged energies of a PEPS state for different values of chi.
 
@@ -18,13 +18,13 @@ class Converger:
         self.ipeps = iPEPS(args, ipeps)
         self.ipeps.plant_unitary()
 
-    def exe(self) -> None:
+    def evaluate(self) -> None:
         """
-        Compute the energy if a converged iPEPS state for a given bond dimension using the CTMRG
-        algorithm. This method can only be called after reading the data.
+        Compute the energy of a converged iPEPS state for a given bond dimension using the CTMRG
+        algorithm.
         """
         with torch.no_grad():
-            E, C, T = self.ipeps.do_gradient_steps(self.ipeps.C, self.ipeps.T)
+            E, C, T = self.ipeps.do_evaluation(self.ipeps.C, self.ipeps.T)
         self.ipeps.add_data(E, C, T)
         print(f"chi, E: {self.ipeps.args['chi'], E.item()}")
 

@@ -1,10 +1,10 @@
 import pytest
 
-from pepsflow.iPEPS.trainer import Trainer
-from pepsflow.iPEPS.iPEPS import iPEPS
+from pepsflow.ipeps.minimizer import Minimizer
+from pepsflow.ipeps.ipeps import iPEPS
 
 
-class TestiPEPSTrainer:
+class TestMinimizer:
 
     @pytest.mark.parametrize(
         "E_exp, epochs, l, J2, sp, dev, m, D, dt, chi, N",
@@ -29,8 +29,8 @@ class TestiPEPSTrainer:
             Niter=N,
             save_intermediate=False,
         )
-        train_args = dict(optimizer="lbfgs", learning_rate=1, epochs=epochs, threads=1, line_search=True, log=False)
-        trainer = Trainer(iPEPS(ipeps_args), train_args)
+        minimize_args = dict(optimizer="lbfgs", learning_rate=1, epochs=epochs, threads=1, line_search=True, log=False)
+        minimizer = Minimizer(iPEPS(ipeps_args), minimize_args)
 
-        trainer.exe()
-        assert trainer.ipeps.data["losses"][-1].cpu().detach() == pytest.approx(E_exp, abs=1e-3)
+        minimizer.minimize()
+        assert minimizer.ipeps.data["losses"][-1].cpu().detach() == pytest.approx(E_exp, abs=1e-3)

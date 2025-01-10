@@ -3,7 +3,7 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 
-from pepsflow.iPEPS.trainer import iPEPSTrainer
+from pepsflow.iPEPS.minimizer import iPEPSTrainer
 
 args = {
     "chi": 32,
