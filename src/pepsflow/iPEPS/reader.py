@@ -1,7 +1,7 @@
 import torch
 
 from pepsflow.models.tensors import Tensors
-from pepsflow.ipeps.ipeps import iPEPS
+from pepsflow.iPEPS.iPEPS import iPEPS
 
 
 class Reader:

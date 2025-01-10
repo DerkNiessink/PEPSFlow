@@ -10,7 +10,7 @@ from rich import box
 from fabric import Connection
 import subprocess
 
-from pepsflow.ipeps.reader import Reader
+from pepsflow.iPEPS.reader import Reader
 from pepsflow.cli.utils import walk_directory, read_cli_config
 
 # fmt: off

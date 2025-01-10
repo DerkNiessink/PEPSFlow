@@ -1,4 +1,4 @@
-from pepsflow.ipeps.ipeps import iPEPS
+from pepsflow.iPEPS.iPEPS import iPEPS
 from pepsflow.models.optimizers import Optimizer
 
 import torch

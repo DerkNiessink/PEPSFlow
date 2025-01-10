@@ -4,10 +4,10 @@ import os
 import ast
 import signal
 
-from pepsflow.ipeps.minimizer import Minimizer
-from pepsflow.ipeps.evaluater import Evaluater
-from pepsflow.ipeps.ipeps import iPEPS
-from pepsflow.ipeps.reader import Reader
+from pepsflow.iPEPS.minimizer import Minimizer
+from pepsflow.iPEPS.evaluater import Evaluater
+from pepsflow.iPEPS.iPEPS import iPEPS
+from pepsflow.iPEPS.reader import Reader
 
 path = lambda folder, file: os.path.join("data", folder, file)
 

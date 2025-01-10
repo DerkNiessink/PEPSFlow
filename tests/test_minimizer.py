@@ -1,7 +1,7 @@
 import pytest
 
-from pepsflow.ipeps.minimizer import Minimizer
-from pepsflow.ipeps.ipeps import iPEPS
+from pepsflow.iPEPS.minimizer import Minimizer
+from pepsflow.iPEPS.iPEPS import iPEPS
 
 
 class TestMinimizer:

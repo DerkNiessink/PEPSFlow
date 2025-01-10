@@ -1,4 +1,4 @@
-from pepsflow.ipeps.ipeps import iPEPS
+from pepsflow.iPEPS.iPEPS import iPEPS
 
 import torch
 import os
