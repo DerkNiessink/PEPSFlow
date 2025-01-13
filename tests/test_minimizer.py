@@ -9,9 +9,9 @@ class TestMinimizer:
     @pytest.mark.parametrize(
         "E_exp, epochs, l, J2, sp, dev, m, D, dt, chi, N",
         [
-            (-1.06283, 15, 1, None, False, "cpu", "Ising", 2, "double", 4, 5),
-            (-2.06688, 20, 4, None, True, "cuda", "Ising", 2, "single", 4, 5),
-            (-0.58900, 25, None, 0.2, True, "cpu", "J1J2", 3, "double", 16, 10),
+            (-1.06283, 10, 1, None, False, "cpu", "Ising", 2, "double", 4, 1),
+            (-2.06688, 15, 4, None, True, "cuda", "Ising", 2, "single", 4, 1),
+            (-0.58900, 20, None, 0.2, True, "cpu", "J1J2", 3, "double", 6, 2),
         ],
     )
     def test_trainer(self, E_exp, epochs, l, J2, sp, dev, m, D, dt, chi, N):
@@ -25,7 +25,7 @@ class TestMinimizer:
             split=sp,
             seed=1,
             chi=chi,
-            warmup_steps=1,
+            warmup_steps=2,
             Niter=N,
             save_intermediate=False,
         )

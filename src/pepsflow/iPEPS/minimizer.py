@@ -28,13 +28,11 @@ class Minimizer:
         """
         Minimize the energy of the iPEPS model using the CTM algorithm and the given optimizer.
         """
-        C, T = None, None
 
         def train() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-            nonlocal C, T
             self.opt.zero_grad()
             C, T = self.ipeps.do_warmup_steps()
-            loss, C, T = self.ipeps.do_gradient_steps(C, T)
+            loss = self.ipeps.do_gradient_steps(C, T)
             loss.backward()
             return loss
 
@@ -45,7 +43,7 @@ class Minimizer:
                 new_loss = self.opt.step(train)
                 print(f"epoch, E, Diff: {epoch, new_loss.item(), abs(new_loss - loss).item()}")
 
-                self.ipeps.add_data(new_loss, C, T)
+                self.ipeps.add_data(new_loss, C=None, T=None)
 
                 if abs(new_loss - loss) < 1e-10:
                     sys.stdout.flush()

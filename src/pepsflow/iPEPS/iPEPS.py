@@ -77,7 +77,7 @@ class iPEPS(torch.nn.Module):
         return energy
 
     def _forward(
-        self, N: int, iterative: bool, C: torch.Tensor = None, T: torch.Tensor = None
+        self, N: int, grad: bool, C: torch.Tensor = None, T: torch.Tensor = None
     ) -> tuple[torch.Tensor, CtmAlg]:
         """
         Compute the energy of the iPEPS tensor network by performing the following steps:
@@ -86,6 +86,7 @@ class iPEPS(torch.nn.Module):
 
         Args:
             N (int): Number of CTM steps to perform.
+            grad (bool): Whether to compute the gradients for the parameters or not.
             C (torch.Tensor): Initial corner tensor for the CTM algorithm. Default is None.
             T (torch.Tensor): Initial edge tensor for the CTM algorithm. Default is None.
 
@@ -94,6 +95,10 @@ class iPEPS(torch.nn.Module):
         """
         A = self.params[self.map]
         A = A / A.norm()
+        # Set requires_grad based on the grad argument
+        A = A.detach() if not grad else A
+        # Use iterative methods for the eigenvalue decomposition if not computing gradients
+        iterative = False if grad else True
         alg = CtmAlg(A, self.args["chi"], C, T, self.args["split"], iterative)
         alg.exe(N)
         return A, alg
@@ -105,7 +110,7 @@ class iPEPS(torch.nn.Module):
         Returns:
             tuple: Corner tensor and edge tensor
         """
-        A, alg = self._forward(N=self.args["warmup_steps"], iterative=True)
+        A, alg = self._forward(N=self.args["warmup_steps"], grad=False)
         self.Niter_warmup = alg.Niter
         return alg.C, alg.T
 
@@ -120,9 +125,9 @@ class iPEPS(torch.nn.Module):
         Returns:
             tuple: Loss, corner tensor, and edge tensor
         """
-        A, alg = self._forward(N=self.args["Niter"], C=C, T=T, iterative=False)
+        A, alg = self._forward(N=self.args["Niter"], C=C, T=T, grad=True)
         loss = self._get_energy(A, alg.C, alg.T)
-        return loss, alg.C, alg.T
+        return loss
 
     def do_evaluation(self, C: torch.Tensor, T: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
@@ -135,7 +140,7 @@ class iPEPS(torch.nn.Module):
         Returns:
             tuple: Loss, corner tensor, and edge tensor
         """
-        A, alg = self._forward(N=self.args["Niter"], C=C, T=T, iterative=True)
+        A, alg = self._forward(N=self.args["Niter"], C=C, T=T, grad=False)
         loss = self._get_energy(A, alg.C, alg.T)
         return loss, alg.C, alg.T
 
