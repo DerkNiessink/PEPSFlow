@@ -35,7 +35,7 @@ class Reader:
         Returns:
             list: List of losses.
         """
-        return [E.detach().cpu() for E in self.ipeps.data["losses"]]
+        return self.ipeps.data["losses"]
 
     def gradient_norms(self) -> list[float]:
         """
@@ -48,7 +48,8 @@ class Reader:
 
     def iPEPS_state(self) -> torch.Tensor:
         """
-        Get the iPEPS state from the iPEPS model.
+        Get the iPEPS state from the iPEPS model. These values are NOT mapped to their
+        original positions.
 
         Returns:
             torch.Tensor: iPEPS state
@@ -62,7 +63,7 @@ class Reader:
         Returns:
             float: Energy of the iPEPS model.
         """
-        return float(self.ipeps.data["losses"][-1].detach().cpu())
+        return self.ipeps.data["losses"][-1]
 
     def magnetization(self) -> float:
         """
@@ -72,7 +73,8 @@ class Reader:
             float: Magnetization of the iPEPS model.
         """
         A = self.ipeps.params[self.ipeps.map]
-        return float(abs(self.tensors.M(A, self.ipeps.C, self.ipeps.T)[2].cpu()))
+        C, T = self.ipeps.do_evaluation()
+        return float(abs(self.tensors.M(A, C, T)[2].cpu()))
 
     def correlation(self) -> float:
         """
@@ -81,7 +83,8 @@ class Reader:
         Returns:
             float: Correlation of the iPEPS model.
         """
-        return float(self.tensors.xi(self.ipeps.T).cpu())
+        C, T = self.ipeps.do_evaluation()
+        return float(self.tensors.xi(T).cpu())
 
     def ctm_steps(self) -> list:
         """

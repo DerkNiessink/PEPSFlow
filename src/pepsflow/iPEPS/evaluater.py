@@ -24,8 +24,9 @@ class Evaluater:
         algorithm.
         """
         with torch.no_grad():
-            E, C, T = self.ipeps.do_evaluation(self.ipeps.C, self.ipeps.T)
-        self.ipeps.add_data(E, C, T)
+            C, T = self.ipeps.do_evaluation()
+        E = self.ipeps.get_E(C, T, grad=False)
+        self.ipeps.add_data(E.item())
         print(f"chi, E: {self.ipeps.args['chi'], E.item()}")
 
     def write(self, fn: str) -> None:

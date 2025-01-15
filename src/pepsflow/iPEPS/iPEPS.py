@@ -26,59 +26,46 @@ class iPEPS(torch.nn.Module):
             np.random.seed(args["seed"])
         self.args = args
         self.initial_ipeps = initial_ipeps
-        self.C, self.T = None, None
-        self.Niter_warmup = None
-        self.data: dict[list, list, list, list, list]
-
         self.tensors = Tensors(args["dtype"], args["device"])
         self._setup_random() if initial_ipeps is None else self._setup_from_initial_ipeps()
 
-    def _setup_from_initial_ipeps(self) -> None:
+    def _setup_from_initial_ipeps(self):
         """
         Setup the iPEPS tensor network from the initial data.
         """
-        self.data = {}
-        epoch = self.args["start_epoch"]
-
-        # Copy the data from the initial iPEPS tensor network and handle the case when the epoch is -1
-        for key in ["params", "losses", "norms", "C", "T", "Niter_warmup"]:
-            self.data[key] = self.initial_ipeps.data[key][: epoch + 1] if epoch != -1 else self.initial_ipeps.data[key]
-        if epoch == -1:
-            epoch = len(self.data["params"]) - 1
-
-        params = Methods.perturb(self.data["params"][epoch], self.args["perturbation"])
-        self.map = self.initial_ipeps.map
+        self.data = self.initial_ipeps.data
+        params = Methods.perturb(self.initial_ipeps.params.detach(), self.args["perturbation"])
         self.params = torch.nn.Parameter(params)
+        self.map = self.initial_ipeps.map
         self.H = self.initial_ipeps.H
 
-    def _setup_random(self) -> None:
+    def _setup_random(self):
         """
         Setup the iPEPS tensor network with random parameters.
         """
         A = self.tensors.A_random_symmetric(self.args["D"])
         params, self.map = torch.unique(A, return_inverse=True)
-        self.data = {"C": [], "T": [], "params": [], "losses": [], "norms": [], "Niter_warmup": []}
+        self.data = {"losses": [], "norms": [], "Niter_warmup": []}
         self.params = torch.nn.Parameter(params)
         self.H = self.tensors.Hamiltonian(self.args["model"], lam=self.args["lam"])
 
-    def _get_energy(self, A, C, T) -> torch.Tensor:
+    def get_E(self, C: torch.Tensor, T: torch.Tensor, grad: bool) -> torch.Tensor:
         """
-        Compute the energy of the iPEPS tensor network. Here we take the next-nearest-neighbor
+        Compute and set the energy of the iPEPS tensor network. Here we take the next-nearest-neighbor
         (nnn) interaction into account for the J1-J2 model.
-
-        Returns:
-            torch.Tensor: Energy of the iPEPS tensor network.
         """
+        A = self.params[self.map]
+        A = A.detach() if not grad else A
+        E_nn = self.tensors.E_nn(A, self.H, C, T)
         if self.args["model"] == "J1J2":
-            energy = self.tensors.E_nn(A, self.H, C, T) + self.args["J2"] * self.tensors.E_nnn(A, C, T)
+            E = E_nn + self.args["J2"] * self.tensors.E_nnn(A, C, T)
         else:
-            energy = self.tensors.E_nn(A, self.H, C, T)
-
-        return energy
+            E = E_nn
+        return E
 
     def _forward(
         self, N: int, grad: bool, C: torch.Tensor = None, T: torch.Tensor = None
-    ) -> tuple[torch.Tensor, CtmAlg]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Compute the energy of the iPEPS tensor network by performing the following steps:
         1. Map the parameters to a symmetric rank-5 iPEPS tensor.
@@ -87,11 +74,8 @@ class iPEPS(torch.nn.Module):
         Args:
             N (int): Number of CTM steps to perform.
             grad (bool): Whether to compute the gradients for the parameters or not.
-            C (torch.Tensor): Initial corner tensor for the CTM algorithm. Default is None.
-            T (torch.Tensor): Initial edge tensor for the CTM algorithm. Default is None.
-
-        Returns:
-            tuple: iPEPS tensor A and the CTM algorithm object containing the corner and edge tensors.
+            C (torch.Tensor): Corner tensor of the iPEPS tensor network.
+            T (torch.Tensor): Edge tensor of the iPEPS tensor network.
         """
         A = self.params[self.map]
         A = A / A.norm()
@@ -101,50 +85,42 @@ class iPEPS(torch.nn.Module):
         iterative = False if grad else True
         alg = CtmAlg(A, self.args["chi"], C, T, self.args["split"], iterative)
         alg.exe(N)
-        return A, alg
+        return alg.C, alg.T
 
     def do_warmup_steps(self) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Warmup the iPEPS tensor network by performing the CTM algorithm.
 
         Returns:
-            tuple: Corner tensor and edge tensor
+            C (torch.Tensor): Corner tensor of the iPEPS tensor network, wich does not require gradients.
+            T (torch.Tensor): Edge tensor of the iPEPS tensor network, wich does not require gradients.
         """
-        A, alg = self._forward(N=self.args["warmup_steps"], grad=False)
-        self.Niter_warmup = alg.Niter
-        return alg.C, alg.T
+        C, T = self._forward(N=self.args["warmup_steps"], grad=False)
+        return C, T
 
-    def do_gradient_steps(self, C: torch.Tensor, T: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def do_gradient_steps(self, C: torch.Tensor, T: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Take gradient steps in the optimization of the iPEPS tensor network.
 
-        Args:
-            C (torch.Tensor): Initial corner tensor for the CTM algorithm.
-            T (torch.Tensor): Initial edge tensor for the CTM algorithm.
-
         Returns:
-            tuple: Loss, corner tensor, and edge tensor
+            C (torch.Tensor): Corner tensor of the iPEPS tensor network, wich requires gradients.
+            T (torch.Tensor): Edge tensor of the iPEPS tensor network, wich requires gradients.
         """
-        A, alg = self._forward(N=self.args["Niter"], C=C, T=T, grad=True)
-        loss = self._get_energy(A, alg.C, alg.T)
-        return loss
+        C, T = self._forward(N=self.args["Niter"], grad=True, C=C, T=T)
+        return C, T
 
-    def do_evaluation(self, C: torch.Tensor, T: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def do_evaluation(self) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Evaluate the iPEPS tensor network by performing the CTM algorithm.
 
-        Args:
-            C (torch.Tensor): Initial corner tensor for the CTM algorithm.
-            T (torch.Tensor): Initial edge tensor for the CTM algorithm.
-
         Returns:
-            tuple: Loss, corner tensor, and edge tensor
+            C (torch.Tensor): Corner tensor of the iPEPS tensor network, wich does not require gradients.
+            T (torch.Tensor): Edge tensor of the iPEPS tensor network, wich does not require gradients.
         """
-        A, alg = self._forward(N=self.args["Niter"], C=C, T=T, grad=False)
-        loss = self._get_energy(A, alg.C, alg.T)
-        return loss, alg.C, alg.T
+        C, T = self._forward(N=self.args["Niter"], grad=False)
+        return C, T
 
-    def plant_unitary(self) -> None:
+    def plant_unitary(self):
         """
         Plant a unitary matrix on the A tensors of the iPEPS tensor network.
         """
@@ -154,21 +130,15 @@ class iPEPS(torch.nn.Module):
         params, self.map = torch.unique(A, return_inverse=True)
         self.params = torch.nn.Parameter(params)
 
-    def add_data(self, loss: torch.Tensor, C: torch.Tensor, T: torch.Tensor) -> None:
+    def add_data(self, E: torch.Tensor = None, Niter_warmup: int = None):
         """
-        Add the loss, corner, and edge tensors to the data dictionary.
+        Add data of the energy, norm and number of warmup iterations to the iPEPS tensor network.
 
         Args:
-            loss (torch.Tensor): Loss value of the optimization step.
-            C (torch.Tensor): Corner tensor of the iPEPS tensor network.
-            T (torch.Tensor): Edge tensor of the iPEPS tensor network.
+            E (torch.Tensor): Energy of the iPEPS tensor network.
+            Niter_warmup (int): Number of warmup iterations.
         """
-        self.data["losses"].append(loss)
-        self.data["params"].append(self.params.clone().detach())
+        self.data["losses"].append(E)
         squared_norm = sum(p.data.norm(2) ** 2 for p in self.parameters() if p.grad is not None)
         self.data["norms"].append(torch.sqrt(squared_norm) if isinstance(squared_norm, torch.Tensor) else squared_norm)
-        if self.args["save_intermediate"]:  # Do not save the corner and edge tensors to save a lot of memory
-            self.data["C"].append(C)
-            self.data["T"].append(T)
-        self.data["Niter_warmup"].append(self.Niter_warmup)
-        self.C, self.T = C, T
+        self.data["Niter_warmup"].append(Niter_warmup)

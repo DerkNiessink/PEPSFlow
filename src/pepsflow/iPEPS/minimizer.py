@@ -29,32 +29,27 @@ class Minimizer:
         Minimize the energy of the iPEPS model using the CTM algorithm and the given optimizer.
         """
 
-        def train() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        def train() -> torch.Tensor:
             self.opt.zero_grad()
-            C, T = self.ipeps.do_warmup_steps()
-            loss = self.ipeps.do_gradient_steps(C, T)
+            C_warmup, T_warmup = self.ipeps.do_warmup_steps()
+            C, T = self.ipeps.do_gradient_steps(C_warmup, T_warmup)
+            loss = self.ipeps.get_E(C, T, grad=True)
             loss.backward()
             return loss
 
         loss = 0
         for epoch in range(self.args["epochs"]):
             sys.stdout.flush()
-            try:
-                new_loss = self.opt.step(train)
-                print(f"epoch, E, Diff: {epoch, new_loss.item(), abs(new_loss - loss).item()}")
 
-                self.ipeps.add_data(new_loss, C=None, T=None)
+            new_loss: torch.Tensor = self.opt.step(train)
+            print(f"epoch, E, Diff: {epoch, new_loss.item(), abs(new_loss - loss).item()}")
+            self.ipeps.add_data(new_loss.item())
 
-                if abs(new_loss - loss) < 1e-10:
-                    sys.stdout.flush()
-                    print(f"Converged after {epoch} epochs. Saving and quiting training...")
-                    break
-                loss = new_loss
-
-            except ValueError:
+            if abs(new_loss - loss) < 1e-10:
                 sys.stdout.flush()
-                print("NaN in iPEPS tensor detected. Saving and quiting training...")
+                print(f"Converged after {epoch} epochs. Saving and quiting training...")
                 break
+            loss = new_loss
 
     def write(self, fn: str) -> None:
         """

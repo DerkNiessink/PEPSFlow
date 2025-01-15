@@ -310,7 +310,7 @@ def info(folder: click.Path, server: bool, **kwargs):
             if kwargs["correlation"]: row.append(f"{reader.correlation()}")
             if kwargs["losses"]: row.append(f"{reader.losses()}")
             if kwargs["state"]: row.append(f"{reader.iPEPS_state()}")
-            if kwargs["params"]: row.append(f"{reader.iPEPS.args}")
+            if kwargs["params"]: row.append(f"{reader.ipeps.args}")
             if kwargs["ctmsteps"]: row.append(f"{reader.ctm_steps()}")
             style = "grey50" if i % 2 != 0 else "grey78"
             table.add_row(*row, style=style)

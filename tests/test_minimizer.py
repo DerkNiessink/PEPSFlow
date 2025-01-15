@@ -30,7 +30,7 @@ class TestMinimizer:
             save_intermediate=False,
         )
         minimize_args = dict(optimizer="lbfgs", learning_rate=1, epochs=epochs, threads=1, line_search=True, log=False)
-        minimizer = Minimizer(iPEPS(ipeps_args), minimize_args)
+        min = Minimizer(iPEPS(ipeps_args), minimize_args)
+        min.minimize()
 
-        minimizer.minimize()
-        assert minimizer.ipeps.data["losses"][-1].cpu().detach() == pytest.approx(E_exp, abs=1e-3)
+        assert min.ipeps.data["losses"][-1] == pytest.approx(E_exp, abs=1e-3)
