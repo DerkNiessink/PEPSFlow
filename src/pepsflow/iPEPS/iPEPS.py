@@ -2,7 +2,7 @@ import torch
 import numpy as np
 
 from pepsflow.models.CTM_alg import CtmAlg
-from pepsflow.models.tensors import Methods, Tensors
+from pepsflow.models.tensors import Tensors
 
 
 class iPEPS(torch.nn.Module):
@@ -34,8 +34,7 @@ class iPEPS(torch.nn.Module):
         Setup the iPEPS tensor network from the initial data.
         """
         self.data = self.initial_ipeps.data
-        params = Methods.perturb(self.initial_ipeps.params.detach(), self.args["perturbation"])
-        self.params = torch.nn.Parameter(params)
+        self.params = torch.nn.Parameter(self.initial_ipeps.params.detach())
         self.map = self.initial_ipeps.map
         self.H = self.initial_ipeps.H
 
@@ -43,9 +42,9 @@ class iPEPS(torch.nn.Module):
         """
         Setup the iPEPS tensor network with random parameters.
         """
+        self.data = {"losses": [], "norms": [], "Niter_warmup": []}
         A = self.tensors.A_random_symmetric(self.args["D"])
         params, self.map = torch.unique(A, return_inverse=True)
-        self.data = {"losses": [], "norms": [], "Niter_warmup": []}
         self.params = torch.nn.Parameter(params)
         self.H = self.tensors.Hamiltonian(self.args["model"], lam=self.args["lam"])
 

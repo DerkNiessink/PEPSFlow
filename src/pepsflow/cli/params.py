@@ -46,12 +46,10 @@ def params(ctx):
 @click.option("--lam", type=str, help="One value of comma separated list of values of the parameter lambda in the tranverse-field Ising model.")
 @click.option("-lr","--learning_rate", type=str, help="One value or comma separated list of values of the learning rate for the optimizer.")
 @click.option("--epochs", type=int, help="Maximum number of epochs to train the model.")
-@click.option("-per", "--perturbation", type=float, help="Amount of perturbation to apply to the initial state.")
 @click.option("-w", "--write", type=str, help="Folder to save the iPEPS model in.")
 @click.option("--threads", type=int, help="Number of threads to use for the optimization. Each thread runs on a separate CPU core.")
 @click.option("-ws", "--warmup_steps", type=int, help="Number of warmup steps to perform in the CTM algorithm before starting the optimization. This is only applicable if no previous data file is given.")
 @click.option("-ls/-no-ls", "--line_search/--no-line_search", default=None, type=bool, help="Use Wolfe line search in the LBFGS optimizer.")
-@click.option("-s", "--start_epoch", type=int, help="Epoch to start the optimization from. This is only applicable if a previous data file is given. If -1, the optimization starts from the last epoch.")
 @click.option("--split/--no-split", default = None, type=bool, help="Keep the tensor in the CTM algorithm split or not.")
 @click.option("-o", "--optimizer", type=str, help="Optimizer to use. Options are 'adam' and 'lbfgs'.")
 @click.option("--seed", type=float, help="Seed for the random generation of tensors.")
@@ -59,7 +57,6 @@ def params(ctx):
 @click.option("--device", type=str, help="Device to run the optimization on. Options are 'cpu' and 'cuda'.")
 @click.option("--latex/--no-latex", default=None, type=bool, help="Whether to use LaTeX in the plots.")
 @click.option("--server_address", type=str, help="Address of the server to run the optimization on.")
-@click.option("-save/-no-save","--save_intermediate/--no-save_intermediate", type=bool, help="Whether to save the intermediate states of the optimization.")
 def set(Niter: int, D: int, J2: float, **args):
     """
     Set specific parameters for the optimization of the iPEPS tensor network.
