@@ -14,11 +14,7 @@ class iPEPS(torch.nn.Module):
         start_ipeps (dict): iPEPS tensor network to start from.
     """
 
-    def __init__(
-        self,
-        args: dict,
-        initial_ipeps: "iPEPS" = None,
-    ):
+    def __init__(self, args: dict, initial_ipeps: "iPEPS" = None):
         super(iPEPS, self).__init__()
         self.to(args["device"])
         if args["seed"] is not None:

@@ -152,11 +152,11 @@ def plot(ctx, folders, **kwargs):
     if kwargs["gradient"]:
         plt.ylabel(r"$E$")
         plt.xlabel(r"Epoch")
-        for file, steps in zip(kwargs["gradient"].split(","), [2, 3, 4, 8, 16]):
+        for file in kwargs["gradient"].split(","):
             reader = Reader(os.path.join("data", folder, file))
             losses = np.array(reader.losses())
             losses = abs(losses + 0.668967) 
-            plt.plot(range(len(losses)), losses, "-", linewidth=1, label=rf"$N_g={steps}$")
+            plt.plot(range(len(losses)), losses, "-", linewidth=1, label=file)
         #plt.ylim( -0.4911, -0.4909)
         #plt.xlim(60, 142)
         #plt.ylim(6*10**(-4), 2*10**(-4))
@@ -170,12 +170,11 @@ def plot(ctx, folders, **kwargs):
         plt.ylabel(r"$|E - E_0|$")
         plt.xlabel(r"$N_g$")
         final_energies, steps = [], [] 
-        data = [(reader.ipeps.args["Niter"], reader.losses()[-1] + 0.668967) for reader in readers if "Niter" in reader.file]
+        data = [(reader.ipeps.args["Niter"], reader.losses()[-1]) for reader in readers if "Niter" in reader.file]
         data.sort()
         steps, final_energies = zip(*data)
         plt.plot(steps, final_energies, "v-", markersize=4, linewidth=0.5)
-        plt.ylim(0)
-        
+
 
     if kwargs["gradient_norm"]:
         plt.ylabel(r"$\| \nabla E \|$")
