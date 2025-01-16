@@ -84,6 +84,7 @@ def log(folder: str, server = False):
 @click.option("-c", "--energy_convergence", type=click.Path(), default=None, help="Plot the energy convergence as a function of epoch. Has to be a .pth file.")
 @click.option("-chi", "--energy_chi", is_flag=True, default=False, help="Plot the converged energy as a function of 1/chi of all .pth files in the folder.")
 @click.option("-ctm", "--ctmsteps", type=click.Path(), default=None, help="Plot the number of CTM warmup steps each epoch. Has to be a .pth file.")
+@click.option("-ep", "--epochs", is_flag=True, default=False, help="Plot the number of epochs as a function of the number of gradient steps.")
 @click.option("-f", "--final_energies", is_flag=True, default=False, help="Plot the final energy as a function of the number of gradient steps.")
 @click.pass_context
 def plot(ctx, folders, **kwargs):
@@ -155,7 +156,7 @@ def plot(ctx, folders, **kwargs):
         for file in kwargs["gradient"].split(","):
             reader = Reader(os.path.join("data", folder, file))
             losses = np.array(reader.losses())
-            losses = abs(losses + 0.668967) 
+            losses = abs(losses + 0.4948685190401174) 
             plt.plot(range(len(losses)), losses, "-", linewidth=1, label=file)
         #plt.ylim( -0.4911, -0.4909)
         #plt.xlim(60, 142)
@@ -167,13 +168,21 @@ def plot(ctx, folders, **kwargs):
         plt.legend()
 
     if kwargs["final_energies"]:
-        plt.ylabel(r"$|E - E_0|$")
+        for i, readers in enumerate(all_readers):
+            final_energies, steps = [], [] 
+            data = [(reader.ipeps.args["Niter"], reader.losses()[-1]) for reader in readers if "Niter" in reader.file]
+            data.sort()
+            steps, final_energies = zip(*data)
+            final_energies = abs(np.array(final_energies) + 0.4948685190401174) 
+            chi = readers[0].ipeps.args["chi"]
+            plt.plot(steps, final_energies, "v-", markersize=4, linewidth=0.5, label = f"$ \chi = {chi} $")
+        plt.ylabel(r"$\log(|E - E_0|)$")
         plt.xlabel(r"$N_g$")
-        final_energies, steps = [], [] 
-        data = [(reader.ipeps.args["Niter"], reader.losses()[-1]) for reader in readers if "Niter" in reader.file]
-        data.sort()
-        steps, final_energies = zip(*data)
-        plt.plot(steps, final_energies, "v-", markersize=4, linewidth=0.5)
+        plt.grid(linestyle='--', linewidth=0.35, which='both')
+        plt.legend()
+        plt.gca().xaxis.set_major_locator(plt.MultipleLocator(1))
+        plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(1))
+        plt.yscale("log")
 
 
     if kwargs["gradient_norm"]:
@@ -197,6 +206,20 @@ def plot(ctx, folders, **kwargs):
         plt.grid(linestyle='--', linewidth=0.35)
         plt.gca().yaxis.get_major_locator().set_params(integer=True)
         #plt.ylim(5, 31)
+
+    if kwargs["epochs"]:
+        for i, readers in enumerate(all_readers):
+            final_energies, steps = [], [] 
+            data = [(reader.ipeps.args["Niter"], len(reader.losses())) for reader in readers if "Niter" in reader.file]
+            data.sort()
+            steps, epochs = zip(*data)
+            chi = readers[0].ipeps.args["chi"]
+            plt.plot(steps, epochs, "v-", markersize=4, linewidth=0.5, label = f"$ \chi = {chi} $")
+        plt.ylabel(r"N")
+        plt.xlabel(r"$N_g$")
+        plt.grid(linestyle='--', linewidth=0.35)
+        plt.legend()
+
   
     plt.tight_layout()
     #plt.legend()

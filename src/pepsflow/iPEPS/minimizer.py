@@ -3,6 +3,7 @@ from pepsflow.models.optimizers import Optimizer
 
 import torch
 import os
+import sys
 
 
 class Minimizer:
@@ -40,10 +41,12 @@ class Minimizer:
         for epoch in range(self.args["epochs"]):
 
             new_loss: torch.Tensor = self.opt.step(train)
+            sys.stdout.flush()
             print(f"epoch, E, Diff: {epoch, new_loss.item(), abs(new_loss - loss).item()}")
             self.ipeps.add_data(new_loss.item())
 
             if abs(new_loss - loss) < 1e-10:
+                sys.stdout.flush()
                 print(f"Converged after {epoch} epochs. Saving and quiting training...")
                 break
             loss = new_loss
@@ -60,4 +63,5 @@ class Minimizer:
         if folder and not os.path.exists(folder):
             os.makedirs(folder)
         torch.save(self.ipeps, fn)
+        sys.stdout.flush()
         print(f"Data saved to {fn}")
