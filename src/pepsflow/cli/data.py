@@ -1,5 +1,6 @@
 import rich_click as click
 import matplotlib.pyplot as plt
+import matplotlib
 import os
 from rich.tree import Tree
 from rich import print
@@ -85,7 +86,8 @@ def log(folder: str, server = False):
 @click.option("-chi", "--energy_chi", is_flag=True, default=False, help="Plot the converged energy as a function of 1/chi of all .pth files in the folder.")
 @click.option("-ctm", "--ctmsteps", type=click.Path(), default=None, help="Plot the number of CTM warmup steps each epoch. Has to be a .pth file.")
 @click.option("-ep", "--epochs", is_flag=True, default=False, help="Plot the number of epochs as a function of the number of gradient steps.")
-@click.option("-f", "--final_energies", is_flag=True, default=False, help="Plot the final energy as a function of the number of gradient steps.")
+@click.option("-f", "--final_energies", is_flag=True, default=False, help="Plot the final energy as a function of the number of gradient and warmup steps")
+@click.option("-w", "--warmup_steps", is_flag=True, default=False, help="Plot the final energy as a function of the number of warmup steps")
 @click.pass_context
 def plot(ctx, folders, **kwargs):
     """
@@ -168,21 +170,30 @@ def plot(ctx, folders, **kwargs):
         plt.legend()
 
     if kwargs["final_energies"]:
+        heatmap_data = np.zeros((41, 17))
         for i, readers in enumerate(all_readers):
-            final_energies, steps = [], [] 
-            data = [(reader.ipeps.args["Niter"], reader.losses()[-1]) for reader in readers if "Niter" in reader.file]
-            data.sort()
-            steps, final_energies = zip(*data)
+            final_energies, steps = [], []
+            warmup_steps = [int(reader.ipeps.args["warmup_steps"]/5) for reader in readers] 
+            gradient_steps = [reader.ipeps.args["Niter"] for reader in readers]
+            final_energies = [reader.losses()[-1] for reader in readers]
             final_energies = abs(np.array(final_energies) + 0.4948685190401174) 
             chi = readers[0].ipeps.args["chi"]
-            plt.plot(steps, final_energies, "v-", markersize=4, linewidth=0.5, label = f"$ \chi = {chi} $")
-        plt.ylabel(r"$\log(|E - E_0|)$")
+
+            for warmup, gradient, energy in zip(warmup_steps, gradient_steps, final_energies):
+                heatmap_data[warmup, gradient] = energy
+        plt.imshow(heatmap_data, origin='lower', aspect='auto', cmap='YlOrRd', norm=matplotlib.colors.LogNorm())
+        plt.colorbar(label=r"$\log(|E - E_0|)$")
         plt.xlabel(r"$N_g$")
-        plt.grid(linestyle='--', linewidth=0.35, which='both')
-        plt.legend()
+        plt.ylabel(r"$N_w$")
+        plt.title(r"Heatmap of final energies for iPEPS states ($D = 4, \chi =10$)")
         plt.gca().xaxis.set_major_locator(plt.MultipleLocator(1))
-        plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(1))
-        plt.yscale("log")
+        plt.gca().yaxis.set_major_locator(plt.MultipleLocator(1))
+        plt.xlim(0, 11)
+        plt.ylim(-1, 9)
+        plt.gca().xaxis.set_minor_locator(plt.NullLocator())
+        plt.gca().yaxis.set_minor_locator(plt.NullLocator())
+        plt.yticks(ticks= range(10), labels = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45])
+
 
 
     if kwargs["gradient_norm"]:
@@ -209,7 +220,6 @@ def plot(ctx, folders, **kwargs):
 
     if kwargs["epochs"]:
         for i, readers in enumerate(all_readers):
-            final_energies, steps = [], [] 
             data = [(reader.ipeps.args["Niter"], len(reader.losses())) for reader in readers if "Niter" in reader.file]
             data.sort()
             steps, epochs = zip(*data)
@@ -218,6 +228,21 @@ def plot(ctx, folders, **kwargs):
         plt.ylabel(r"N")
         plt.xlabel(r"$N_g$")
         plt.grid(linestyle='--', linewidth=0.35)
+        plt.legend()
+
+    if kwargs["warmup_steps"]:
+        for i, readers in enumerate(all_readers):
+            data = [(reader.ipeps.args["warmup_steps"], reader.losses()[-1]) for reader in readers if "warmup_steps" in reader.file]
+            data.sort()
+            steps, energies = zip(*data)
+            energies = np.array(energies) + 0.4948685190401174
+            chi = readers[0].ipeps.args["chi"]
+            plt.plot(steps, energies, "v-", markersize=3.5, linewidth=1, label = f"$ \chi = {chi} $")
+        plt.ylabel(r"$\log(E - E_0)$")
+        plt.xlabel(r"$N_w$")
+        plt.yscale("log")
+        plt.grid(linestyle='--', linewidth=0.35)
+        plt.xlim(-1, 31)
         plt.legend()
 
   
