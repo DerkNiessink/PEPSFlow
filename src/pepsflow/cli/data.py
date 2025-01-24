@@ -153,12 +153,12 @@ def plot(ctx, folders, **kwargs):
         plt.grid(linestyle='--', linewidth=0.35)
 
     if kwargs["gradient"]:
-        plt.ylabel(r"$E$")
+        plt.ylabel(r"$\log|E - E_0|$")
         plt.xlabel(r"Epoch")
         for file in kwargs["gradient"].split(","):
             reader = Reader(os.path.join("data", folder, file))
             losses = np.array(reader.losses())
-            losses = abs(losses + 0.4948685190401174) 
+            losses = abs(losses + 0.49105775959620757) 
             plt.plot(range(len(losses)), losses, "-", linewidth=1, label=file)
         #plt.ylim( -0.4911, -0.4909)
         #plt.xlim(60, 142)
@@ -176,24 +176,25 @@ def plot(ctx, folders, **kwargs):
             warmup_steps = [int(reader.ipeps.args["warmup_steps"]/5) for reader in readers] 
             gradient_steps = [reader.ipeps.args["Niter"] for reader in readers]
             final_energies = [reader.losses()[-1] for reader in readers]
-            final_energies = abs(np.array(final_energies) + 0.4948685190401174) 
+            final_energies = abs(np.array(final_energies) + 0.4948685190401174)
             chi = readers[0].ipeps.args["chi"]
 
             for warmup, gradient, energy in zip(warmup_steps, gradient_steps, final_energies):
                 heatmap_data[warmup, gradient] = energy
-        plt.imshow(heatmap_data, origin='lower', aspect='auto', cmap='YlOrRd', norm=matplotlib.colors.LogNorm())
-        plt.colorbar(label=r"$\log(|E - E_0|)$")
-        plt.xlabel(r"$N_g$")
-        plt.ylabel(r"$N_w$")
-        plt.title(r"Heatmap of final energies for iPEPS states ($D = 4, \chi =10$)")
+        plt.imshow(heatmap_data, origin='lower', aspect='auto', cmap='YlOrRd', norm=matplotlib.colors.LogNorm(vmax=10**(-2), vmin=10**(-3)))
+        cbar = plt.colorbar(label=r"$|E - E_0|$")
+        cbar.ax.tick_params(which='minor', labelsize=0)
+        cbar.ax.yaxis.label.set_size(14)  # Increase the label size
+        plt.xlabel(r"$N_g$", fontsize=14)
+        plt.ylabel(r"$N_w$", fontsize=14)
+        #plt.title(r"Heatmap of final energies for iPEPS states ($D = 4, \chi =10$)")
         plt.gca().xaxis.set_major_locator(plt.MultipleLocator(1))
         plt.gca().yaxis.set_major_locator(plt.MultipleLocator(1))
-        plt.xlim(0, 11)
-        plt.ylim(-1, 9)
+        plt.xlim(0.5, 10.5)
+        plt.ylim(-0.5, 8.5)
         plt.gca().xaxis.set_minor_locator(plt.NullLocator())
         plt.gca().yaxis.set_minor_locator(plt.NullLocator())
-        plt.yticks(ticks= range(10), labels = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45])
-
+        plt.yticks(ticks= range(9), labels = [0, 5, 10, 15, 20, 25, 30, 35, 40])
 
 
     if kwargs["gradient_norm"]:
@@ -224,7 +225,7 @@ def plot(ctx, folders, **kwargs):
             data.sort()
             steps, epochs = zip(*data)
             chi = readers[0].ipeps.args["chi"]
-            plt.plot(steps, epochs, "v-", markersize=4, linewidth=0.5, label = f"$ \chi = {chi} $")
+            plt.plot(steps, epochs, "v-", markersize=4, linewidth=0.5, label = rf"$ \chi = {chi} $")
         plt.ylabel(r"N")
         plt.xlabel(r"$N_g$")
         plt.grid(linestyle='--', linewidth=0.35)
@@ -235,20 +236,20 @@ def plot(ctx, folders, **kwargs):
             data = [(reader.ipeps.args["warmup_steps"], reader.losses()[-1]) for reader in readers if "warmup_steps" in reader.file]
             data.sort()
             steps, energies = zip(*data)
-            energies = np.array(energies) + 0.4948685190401174
-            chi = readers[0].ipeps.args["chi"]
-            plt.plot(steps, energies, "v-", markersize=3.5, linewidth=1, label = f"$ \chi = {chi} $")
-        plt.ylabel(r"$\log(E - E_0)$")
-        plt.xlabel(r"$N_w$")
-        plt.yscale("log")
+            energies = np.array(energies) +0.4948685190401174
+            chi = readers[-1].ipeps.args["chi"] 
+            plt.plot(steps, energies, "v-", markersize=4.5, linewidth=1.3, label = rf"$ \chi = {chi} $")
+        plt.ylabel(r"$\log|E - E_0|$", fontsize=14)
+        plt.xlabel(r"$N_w$", fontsize=14)
         plt.grid(linestyle='--', linewidth=0.35)
-        plt.xlim(-1, 31)
-        plt.legend()
-
+        plt.legend(fontsize=13)
+        plt.yscale("log")
+        plt.xlim(-1, 41)
+        plt.ylim(10**(-3.7), 10**(-2))
   
     plt.tight_layout()
     #plt.legend()
-    #plt.savefig("figures/convergence_J2_05_D4.pdf")
+    #plt.savefig("figures/optimization_chi30_D3_warmup2.png")
     plt.show()
 
 
