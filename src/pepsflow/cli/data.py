@@ -244,8 +244,8 @@ def plot(ctx, folders, **kwargs):
         plt.grid(linestyle='--', linewidth=0.35)
         plt.legend(fontsize=13)
         plt.yscale("log")
-        plt.xlim(-1, 41)
-        plt.ylim(10**(-3.7), 10**(-2))
+        #plt.xlim(-1, 41)
+        #plt.ylim(10**(-3.7), 10**(-2))
   
     plt.tight_layout()
     #plt.legend()
