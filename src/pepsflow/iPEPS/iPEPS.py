@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 
-from pepsflow.models.CTM_alg import CtmAlg
+from pepsflow.models.ctm import CtmSymmetric
 from pepsflow.models.tensors import Tensors
 
 
@@ -78,7 +78,7 @@ class iPEPS(torch.nn.Module):
         A = A.detach() if not grad else A
         # Use iterative methods for the eigenvalue decomposition if not computing gradients
         iterative = False if grad else True
-        alg = CtmAlg(A, self.args["chi"], C, T, self.args["split"], iterative)
+        alg = CtmSymmetric(A, self.args["chi"], C, T, self.args["split"], iterative)
         alg.exe(N)
         return alg.C, alg.T
 

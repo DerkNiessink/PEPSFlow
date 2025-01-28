@@ -61,7 +61,7 @@ class Tensors:
 
     def A_random_symmetric(self, D=2) -> torch.Tensor:
         """
-        Return a random rank 5 tensor with legs of size d, which has left-right,
+        Return a random rank 5 tensor with legs of size D, which has left-right,
         up-down and diagonal symmetry. The legs are ordered as follows:
         A(phy, up, left, down, right).
         """
