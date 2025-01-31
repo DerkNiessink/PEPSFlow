@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import torch
 import scipy.sparse.linalg
-import numpy as np
+import matplotlib.pyplot as plt
 
 from pepsflow.models.tensors import Methods
 
@@ -270,7 +270,7 @@ class CtmGeneral(Ctm):
 
     def _step(self) -> None:
 
-        (P4, P4_tilde) = self._new_P4() # [χ, D², χD²], [χ, D², χD²]
+        P4, P4_tilde = self._new_P2_P4() # [χ, D², χD²], [χ, D², χD²]
 
         # Let chi grow if the desired chi is not yet reached.
         self.chi = min(self.chi * self.D**2, self.max_chi)
@@ -301,11 +301,11 @@ class CtmGeneral(Ctm):
         return abs(self.sv_sums4[-1] - self.sv_sums4[-2]) < tol
         #return all(abs(sv_sums[-1] - sv_sums[-2]) < tol for sv_sums in [self.sv_sums1, self.sv_sums2, self.sv_sums3, self.sv_sums4])
 
-    def _new_P4(self) -> tuple[torch.Tensor, torch.Tensor]:
+    def _new_P2_P4(self) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Compute the new projector P4, which is used for a left move in the renormalization step.
         """
-        
+
         R = torch.einsum(
             "ab,cda,bef,dghe,ijkg,lmj,nic,ln->fhkm", 
             self.C1, self.T1, self.T4, self.a, self.a, self.T2, self.T1, self.C2
@@ -334,54 +334,54 @@ class CtmGeneral(Ctm):
         #  |_____|   [χ, D², χ, D²]   🡺   |_____|   [χ, D², χD²]
         #                                     |
 
-        R = torch.randn(self.chi, self.D**2, self.chi*self.D**2)
-        R_tilde = torch.randn(self.chi, self.D**2, self.chi*self.D**2)
-
-        M = torch.einsum("abc,abd->cd", R, R_tilde)
+        A = torch.einsum("abc,abd->cd", R, R_tilde)
         #   __|__  
         #  |_____|
         #  |_|___    🡺   --o--   [χD², χD²]
         #  |_____|   
         #     |  
 
-        U, s, Vh = torch.linalg.svd(M)
-        print(s)
-        #s = s[:self.chi]
-        #U, Vh = U[:, :self.chi], Vh[:self.chi, :]
-        #U,s, Vh= scipy.sparse.linalg.svds(M.numpy(), k=15, which='LM')
-        #U, s, Vh = torch.tensor(U.copy()), torch.tensor(s.copy()), torch.tensor(Vh.copy())
-
-
-        s_inv = torch.linalg.inv(torch.diag(s))
+        U, s, Vh = torch.linalg.svd(A)
+        s = torch.diag(s)
         #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
-        #print(torch.einsum("abc,dc,de,fe,ghf->abgh", R_tilde, Vh, s_inv, U, R))
 
+        U, s, Vh = U[:, :self.chi], s[:self.chi, :self.chi], Vh[:self.chi, :]
+        # --<|---o---|>--   🡺   [χD², χ], [χ, χ], [χ, χD²]
 
-        P4_tilde = torch.einsum("abc,dc,de->abe", R_tilde, Vh, torch.sqrt(s_inv))
-        P4 = torch.einsum("ab,cb,dec->dea", torch.sqrt(s_inv), U, R)
+        P4_tilde = torch.einsum("abc,cd,de->abe", R_tilde, Vh.T, torch.sqrt(torch.linalg.inv(s)))
+        P4 = torch.einsum("ab,bc,dec->dea", torch.sqrt(torch.linalg.inv(s)), U.T, R)
         #  |_|___  
         #  |_____| R~       [χ, D², χD²]
         #    _|_
-        #   \___/  V        [χD², χD²]
+        #   \___/  V        [χD², χ]
         #     |                               |___|        
-        #     o    s^(-1/2) [χD², χD²]        \___/  P~  [χ, D², χD²] 
+        #     o    s^(-1/2) [χ, χ]            \___/  P~  [χ, D², χ] 
         #     |                                 | 
-        #     .                           🡺    .                         ≈ Identity
+        #     .                           🡺    .                     
         #     .                                 .
         #     |                                _|_
-        #     o    s^(-1/2) [χD², χD²]        /___\  P   [χ, D², χD²] 
+        #     o    s^(-1/2) [χ, χ]            /___\  P   [χ, D², χ] 
         #    _|_                              |   |
-        #   /___\  U†       [χD², χD²]          
+        #   /___\  U†       [χ, χD²]          
         #   __|__
-        #  |_____| R        [χD², D², χ]
+        #  |_____| R        [χ, D², χD²]
         #  | |
 
         self.sv_sums4.append(torch.sum(s))
 
-        Q_ = torch.einsum("abc,dec->abde", P4_tilde, P4)
-        print(Q_)
-       
-        return P4, P4_tilde 
+        B = torch.einsum("abc,abd,efd,efg->cg", R, P4_tilde, P4, R_tilde)
+        #   __|__  
+        #  |_____|
+        #  |_|
+        #  \_/
+        #   |        🡺   --o--   [χD², χD²]
+        #  /_\
+        #  |_|___    
+        #  |_____|   
+        #     |  
+
+        self.diff = torch.norm(A - B) / torch.norm(A)
+        return P4, P4_tilde
 
 
 

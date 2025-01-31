@@ -4,6 +4,7 @@ from pepsflow.models.tensors import Tensors
 import pytest
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class TestCtmAlg:
@@ -28,5 +29,14 @@ class TestCtmAlg:
 
         tensors = Tensors(dtype="double", device="cpu")
         A = torch.from_numpy(np.loadtxt("tests/Heisenberg_state.txt").reshape(2, 2, 2, 2, 2)).double()
-        alg = CtmGeneral(A, chi=6)
-        alg.exe(N=1)
+
+        chi_list = [chi for chi in range(1, 20)]
+        norm_diff_list = []
+        for chi in chi_list:
+            alg = CtmGeneral(A, chi=chi)
+            alg.exe(N=1)
+            norm_diff_list.append(alg.diff)
+
+        print(norm_diff_list)
+        plt.plot(chi_list, norm_diff_list)
+        plt.show()
