@@ -27,16 +27,19 @@ class TestCtmAlg:
 
     def test_general(self):
 
-        tensors = Tensors(dtype="double", device="cpu")
         A = torch.from_numpy(np.loadtxt("tests/Heisenberg_state.txt").reshape(2, 2, 2, 2, 2)).double()
 
-        chi_list = [chi for chi in range(1, 20)]
+        chi_list = [chi for chi in range(2, 20)]
         norm_diff_list = []
         for chi in chi_list:
             alg = CtmGeneral(A, chi=chi)
             alg.exe(N=1)
-            norm_diff_list.append(alg.diff)
+            norm_diff_list.append(alg.diff4)
 
         print(norm_diff_list)
         plt.plot(chi_list, norm_diff_list)
+        plt.yscale("log")
+        plt.xlabel(r"$\chi$")
+        plt.ylabel("Norm difference")
+        plt.gca().xaxis.set_major_locator(plt.MaxNLocator(integer=True))
         plt.show()

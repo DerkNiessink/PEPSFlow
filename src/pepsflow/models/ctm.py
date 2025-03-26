@@ -269,16 +269,60 @@ class CtmGeneral(Ctm):
 
 
     def _step(self) -> None:
+        
+        R_up = torch.einsum(
+            "ab,cda,bef,dghe,ijkg,lmj,nic,ln->fhkm", 
+            self.C1, self.T1, self.T4, self.a, self.a, self.T2, self.T1, self.C2
+        )
+        #  C1 -- T1 -- T1-- C2         _____    
+        #  |     |     |    |    🡺   |_____|   [χ, D², D², χ]
+        #  T4 -- a --- a -- T2        | | | |
+        #  |     |     |    |
 
-        P4, P4_tilde = self._new_P2_P4() # [χ, D², χD²], [χ, D², χD²]
+        R_down = torch.einsum(
+            "ab,cda,efb,ghcf,ijkh,lmj,knd,mn->egil", 
+            self.C4, self.T3, self.T4, self.a, self.a, self.T2, self.T3, self.C3
+        )
+        #  |     |     |    |
+        #  T4 -- a --  a -- T2        |_|_|_|    
+        #  |     |     |    |    🡺   |_____|   [χ, D², D², χ] 
+        #  C4 -- T3 -- T3 --C3       
 
-        # Let chi grow if the desired chi is not yet reached.
-        self.chi = min(self.chi * self.D**2, self.max_chi)
+        R_left = torch.einsum(
+            "ab,bcd,aef,eghc,hijk,jlm,dkn,nm->fgil",
+            self.C1, self.T4, self.T1, self.a, self.a, self.T3, self.T4, self.C4
+        )
+        #  C1 -- T1--  
+        #  |     |            ____
+        #  T4 -- a --        |  |_
+        #  |     |      🡺   |  |_   [χ, D², D², χ] 
+        #  T4 -- a --        |__|_
+        #  |     |            
+        #  C4 -- T3--
 
-        P4 = P4[:, :, : self.chi]
-        P4_tilde = P4_tilde[:, :, : self.chi]
+        R_right = torch.einsum(
+            "ab,bcd,efa,fdgh,gijk,jlm,cni,nl->ehkm",
+            self.C2, self.T2, self.T1, self.a, self.a, self.T3, self.T2, self.C3
+        )
+        #  -- T1 --C2
+        #     |    |         ____
+        #  -- a -- T2        _|  |
+        #     |    |    🡺   _|  |   [χ, D², D², χ] 
+        #  -- a -- T2        _|__|
+        #     |    |
+        #  -- T3 --C3
+
+        grown_chi = min(self.chi * self.D**2, self.max_chi)
+        P4, P4_tilde = self._new_P4(R_up, R_down, grown_chi)     # [χ, D², χ], [χ, D², χ]
+        P2, P2_tilde = self._new_P2(R_up, R_down, grown_chi)     # [χ, D², χ],  [D², χ, χ] 
+        P3, P3_tilde = self._new_P3(R_right, R_left, grown_chi)  # [D², χ, χ],  [D², χ, χ] 
+        print(P2.shape, P2_tilde.shape, P3.shape, P3_tilde.shape)
+        #P1, P1_tilde = self._new_P1(R_right, R_left)
+        self.chi = grown_chi
 
         self.T4 = norm(torch.einsum("abc,ade,bfgd,egh->cfh", P4, self.T4, self.a, P4_tilde))
+        #self.C4 = norm(torch.einsum("", P4, self.T4, self.C4, self.T3, self.a, P3))
+
         #  C1 --T1 --|\    /|-- T1--|\    /|-- T1 --C2
         #  |     |   P1|--P1|   |   P1|--P1|   |    |
         #  T4 -- a --|/    \|-- a --|/    \|-- a -- T2
@@ -296,42 +340,23 @@ class CtmGeneral(Ctm):
         #  T4 -- a --|\    /|-- a --|\    /|-- a -- T2                   |              |               |
         #  |     |   |P3--P3|   |   |P3--P3|   |    |                    C4 -- . . . -- T3 -- . . .  -- C3   
         #  C4 --T3 --|/    \|-- T3--|/    \|-- T3-- C3                  [χ, χ]      [D², χ, χ]       [χ, χ]
-    
+
     def _converged(self, tol: float) -> bool:
-        return abs(self.sv_sums4[-1] - self.sv_sums4[-2]) < tol
-        #return all(abs(sv_sums[-1] - sv_sums[-2]) < tol for sv_sums in [self.sv_sums1, self.sv_sums2, self.sv_sums3, self.sv_sums4])
+        return all(abs(sv_sums[-1] - sv_sums[-2]) < tol for sv_sums in [self.sv_sums1, self.sv_sums2, self.sv_sums3, self.sv_sums4])
 
-    def _new_P2_P4(self) -> tuple[torch.Tensor, torch.Tensor]:
+
+    def _new_P4(self, R_up: torch.Tensor, R_down: torch.Tensor, grown_chi: int) -> tuple[torch.Tensor, torch.Tensor]:
         """
-        Compute the new projector P4, which is used for a left move in the renormalization step.
+        Compute the new projector P4.
         """
-
-        R = torch.einsum(
-            "ab,cda,bef,dghe,ijkg,lmj,nic,ln->fhkm", 
-            self.C1, self.T1, self.T4, self.a, self.a, self.T2, self.T1, self.C2
-        )
-        #  C1 -- T1 -- T1-- C2         _____    
-        #  |     |     |    |    🡺   |_____|   [χ, D², D², χ]
-        #  T4 -- a --- a -- T2        | | | |
-        #  |     |     |    |
-
-        R = R.view(self.chi, self.D**2, self.chi*self.D**2)
+        R = R_up.view(self.chi, self.D**2, self.chi*self.D**2)
         #   _____                           __|__
-        #  |_____|   [χ, D², χ, D²]   🡺   |_____|   [χ, D², χD²]
+        #  |_____|   [χ, D², D², χ]   🡺   |_____|   [χ, D², χD²]
         #  | | | |                         | |   
 
-        R_tilde = torch.einsum(
-            "ab,cda,efb,ghcf,ijkh,lmj,knd,mn->egil", 
-            self.C4, self.T3, self.T4, self.a, self.a, self.T2, self.T3, self.C3
-        )
-        #  |     |     |    |
-        #  T4 -- a --  a -- T2        |_|_|_|    
-        #  |     |     |    |    🡺   |_____|   [χ, D², D², χ] 
-        #  C4 -- T3 -- T3 --C3       
-
-        R_tilde = R_tilde.view(self.chi, self.D**2, self.chi*self.D**2)
+        R_tilde = R_down.view(self.chi, self.D**2, self.chi*self.D**2)
         #  |_|_|_|                         |_|___
-        #  |_____|   [χ, D², χ, D²]   🡺   |_____|   [χ, D², χD²]
+        #  |_____|   [χ, D², D², χ]   🡺   |_____|   [χ, D², χD²]
         #                                     |
 
         A = torch.einsum("abc,abd->cd", R, R_tilde)
@@ -345,7 +370,7 @@ class CtmGeneral(Ctm):
         s = torch.diag(s)
         #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
 
-        U, s, Vh = U[:, :self.chi], s[:self.chi, :self.chi], Vh[:self.chi, :]
+        U, s, Vh = U[:, :grown_chi], s[:grown_chi, :grown_chi], Vh[:grown_chi, :]
         # --<|---o---|>--   🡺   [χD², χ], [χ, χ], [χ, χD²]
 
         P4_tilde = torch.einsum("abc,cd,de->abe", R_tilde, Vh.T, torch.sqrt(torch.linalg.inv(s)))
@@ -366,8 +391,7 @@ class CtmGeneral(Ctm):
         #   __|__
         #  |_____| R        [χ, D², χD²]
         #  | |
-
-        self.sv_sums4.append(torch.sum(s))
+        self.sv_sums4.append(torch.sum(s)) 
 
         B = torch.einsum("abc,abd,efd,efg->cg", R, P4_tilde, P4, R_tilde)
         #   __|__  
@@ -380,16 +404,106 @@ class CtmGeneral(Ctm):
         #  |_____|   
         #     |  
 
-        self.diff = torch.norm(A - B) / torch.norm(A)
+        # This should decrease as a function of chi. For testing purposes.
+        self.diff4 = torch.norm(A - B) / torch.norm(A)
+
         return P4, P4_tilde
+    
 
+    def _new_P2(self, R_up: torch.Tensor, R_down: torch.Tensor, grown_chi: int) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Compute the new projector P2
+        """
+        R = R_up.view(self.chi*self.D**2, self.chi, self.D**2)
+        #   _____                           __|__
+        #  |_____|   [χ, D², D², χ]   🡺   |_____|   [χD², D², χ]
+        #  | | | |                             | |
 
+        R_tilde = R_down.view(self.chi*self.D**2, self.chi, self.D**2)
+        #  |_|_|_|                          ___|_|
+        #  |_____|   [χ, D², D², χ]   🡺   |_____|   [χD², D², χ]
+        #                                     |
 
-    def _new_P2(self) -> torch.Tensor:
-        pass
+        A = torch.einsum("abc,dbc->ad", R, R_tilde)
+        #   __|__  
+        #  |_____|
+        #   ___|_|    🡺   --o--   [χD², χD²]
+        #  |_____|   
+        #     |  
 
-    def _new_P3(self) -> torch.Tensor:
-        pass
+        U, s, Vh = torch.linalg.svd(A)
+        s = torch.diag(s)
+        #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
+
+        U, s, Vh = U[:, :grown_chi], s[:grown_chi, :grown_chi], Vh[:grown_chi, :]
+        # --<|---o---|>--   🡺   [χD², χ], [χ, χ], [χ, χD²]
+
+        P2_tilde = torch.einsum("abc,ad,de->bce", R_tilde, Vh.T, torch.sqrt(torch.linalg.inv(s)))
+        P2 = torch.einsum("ab,bc,cde->dea", torch.sqrt(torch.linalg.inv(s)), U.T, R)
+        #   ___|_|  
+        #  |_____| R~       [χD², D², χ]
+        #    _|_
+        #   \___/  V        [χD², χ]
+        #     |                               |___|        
+        #     o    s^(-1/2) [χ, χ]            \___/  P~  [D², χ, χ] 
+        #     |                                 | 
+        #     .                           🡺    .                     
+        #     .                                 .
+        #     |                                _|_
+        #     o    s^(-1/2) [χ, χ]            /___\  P   [χ, D², χ] 
+        #    _|_                              |   |
+        #   /___\  U†       [χ, χD²]          
+        #   __|__
+        #  |_____| R        [χD², D², χ]
+        #      | |
+        self.sv_sums2.append(torch.sum(s)) 
+
+        return P2, P2_tilde
+       
+    def _new_P3(self, R_right: torch.Tensor, R_left: torch.Tensor, grown_chi: int) -> torch.Tensor:
+        """
+        Compute the new projector P3.
+        """
+        R = R_left.view(self.chi*self.D**2, self.D**2, self.chi)
+        #   __ _            __
+        #  |  |_           |  |
+        #  |  |_    🡺   --|  |_   [χD², D², χ]
+        #  |__|_           |__|_
+
+        R_tilde = R_right.view(self.chi*self.D**2, self.D**2, self.chi)
+        #  ____            __
+        #  _|  |          |  |
+        #  _|  |    🡺   _|  |--  [χD², D², χ]
+        #  _|__|         _|__|
+
+        A = torch.einsum("abc,dbc->ad", R, R_tilde)
+        #     __     __
+        #    |  |   |  |
+        #  --|  |_ _|  |--   🡺   --o--   [χD², χD²]
+        #    |__|_ _|__|
+
+        U, s, Vh = torch.linalg.svd(A)
+        s = torch.diag(s)
+        #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
+
+        U, s, Vh = U[:, :grown_chi], s[:grown_chi, :grown_chi], Vh[:grown_chi, :]
+        # --<|---o---|>--   🡺   [χD², χ], [χ, χ], [χ, χD²]
+
+        P3_tilde = torch.einsum("abc,ad,de->bce", R_tilde, Vh.T, torch.sqrt(torch.linalg.inv(s)))
+        P3 = torch.einsum("ab,bc,cde->dea", torch.sqrt(torch.linalg.inv(s)), U.T, R)
+        #     __                                                 __           
+        #    |  |        |\                           /|        |  |          --|\           /|--
+        #   _|  | ------ | | ---- o -- . . -- o ---- | | ------ |  |_   🡺      | |-- . . --| |
+        #   _|__|        |/                           \|        |__|_         --|/           \|--
+        #              
+        #    R~           V      s^(-1/2)  s^(-1/2)        U†        R          P~            P
+        # [χD², D², χ]  [χD², χ]  [χ, χ]   [χ, χ]   [χ, χD²]  [χD², D², χ]    [D², χ, χ]   [D², χ, χ]
+
+        self.sv_sums3.append(torch.sum(s)) 
+
+        return P3, P3_tilde
+
+   
 
     def _new_P1(self) -> torch.Tensor:
         pass
