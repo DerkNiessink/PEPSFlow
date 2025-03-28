@@ -30,6 +30,7 @@ class iPEPS(torch.nn.Module):
         Setup the iPEPS tensor network from the initial data.
         """
         self.data = self.initial_ipeps.data
+        print(self.data)
         self.params = torch.nn.Parameter(self.initial_ipeps.params.detach())
         self.map = self.initial_ipeps.map
         self.H = self.initial_ipeps.H
@@ -65,7 +66,7 @@ class iPEPS(torch.nn.Module):
         self.data["losses"].append(E)
         squared_norm = sum(p.data.norm(2) ** 2 for p in self.parameters() if p.grad is not None)
         self.data["norms"].append(torch.sqrt(squared_norm) if isinstance(squared_norm, torch.Tensor) else squared_norm)
-        self.data["Niter_warmup"].append(Niter_warmup)
+        # self.data["Niter_warmup"].append(Niter_warmup)
 
     def do_warmup_steps(self) -> tuple[torch.Tensor, ...]:
         """
@@ -148,6 +149,6 @@ class iPEPS(torch.nn.Module):
             return alg.C, alg.T
         else:
             C1, C2, C3, C4, T1, T2, T3, T4 = tensors or (None,) * 8
-            alg = CtmGeneral(A, self.args["chi"], C1, C2, C3, C4, T1, T2, T3, T4, self.args["split"], iterative)
+            alg = CtmGeneral(A, self.args["chi"], C=None, T=None, iterative=iterative)
             alg.exe(N)
             return alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4

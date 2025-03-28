@@ -228,7 +228,7 @@ class CtmSymmetric(Ctm):
 
 class CtmGeneral(Ctm):
     """
-    Class for the general Corner Transfer Matrix (CTM) algorithm without rotational symmetry.s
+    Class for the general Corner Transfer Matrix (CTM) algorithm without rotational symmetry.
     """
 
     def __init__(self, *args, **kwargs):
