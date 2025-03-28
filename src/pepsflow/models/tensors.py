@@ -246,7 +246,7 @@ class Tensors:
 
         Rho = torch.einsum(
             "ab,acd,bef,echgij,hmlk,dmn,olp,no,qr,qst,fur,ugvsyz,vkxw,twB,pxA,AB->iyjz",
-            (C1, T4, T1, a, b, T4, T3, C4, C2, T2, T1, b, a, T2, T3, C3),
+            (C1, T4, T1, a, b, T4, T3, C4, C2, T2, T1, a, b, T2, T3, C3),
         ).reshape(d**2, d**2)
         #  C1 -- T1 -- T1 -- C2
         #  |     |     |     |
