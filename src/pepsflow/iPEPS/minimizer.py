@@ -31,9 +31,9 @@ class Minimizer:
 
         def train() -> torch.Tensor:
             self.opt.zero_grad()
-            C_warmup, T_warmup = self.ipeps.do_warmup_steps()
-            C, T = self.ipeps.do_gradient_steps(C_warmup, T_warmup)
-            loss = self.ipeps.get_E(grad=True, C=C, T=T)
+            tensors = self.ipeps.do_warmup_steps()
+            tensors = self.ipeps.do_gradient_steps(tensors)
+            loss = self.ipeps.get_E(grad=True, tensors=tensors)
             loss.backward()
             return loss
 

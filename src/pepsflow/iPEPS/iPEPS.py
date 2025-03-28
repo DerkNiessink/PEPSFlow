@@ -7,7 +7,7 @@ from pepsflow.models.tensors import Tensors
 
 class iPEPS(torch.nn.Module):
     """
-    Class implementing an infinite Projected Entangled Pair State (iPEPS) tensor network.
+    Base class implementing an infinite Projected Entangled Pair State (iPEPS) tensor network.
 
     Args:
         args (dict): Dictionary containing the arguments for the iPEPS model.
@@ -44,94 +44,6 @@ class iPEPS(torch.nn.Module):
         self.params = torch.nn.Parameter(params)
         self.H = self.tensors.Hamiltonian(self.args["model"], lam=self.args["lam"])
 
-    def get_E(self, grad: bool, **tensors: dict[torch.Tensor]) -> torch.Tensor:
-        """
-        Compute and set the energy of the iPEPS tensor network. Here we take the next-nearest-neighbor
-        (nnn) interaction into account for the J1-J2 model.
-        """
-        A = self.params[self.map]
-        A = A.detach() if not grad else A
-
-        # Case when the model is rotationally symmetric
-        if len(tensors.items()) == 2:
-            E_nn = self.tensors.E_nn(A, self.H, tensors["C"], tensors["T"])
-            if self.args["model"] == "J1J2":
-                E = E_nn + self.args["J2"] * self.tensors.E_nnn(A, tensors["C"], tensors["T"])
-            else:
-                E = E_nn
-
-        # Case when the model is general and not rotationally symmetric
-        elif len(tensors.items()) == 8:
-            C1, C2, C3, C4, T1, T2, T3, T4 = tensors.values()
-            E_nn = self.tensors.E_nn_general(A, self.H, C1, C2, C3, C4, T1, T2, T3, T4)
-            if self.args["model"] == "J1J2":
-                E = E_nn + self.args["J2"] * self.tensors.E_nnn_general(A, C1, C2, C3, C4, T1, T2, T3, T4)
-            else:
-                E = E_nn
-
-        else:
-            raise ValueError("Invalid number of tensors provided.")
-
-        return E
-
-    def _forward(
-        self, N: int, grad: bool, C: torch.Tensor = None, T: torch.Tensor = None
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """
-        Compute the energy of the iPEPS tensor network by performing the following steps:
-        1. Map the parameters to a symmetric rank-5 iPEPS tensor.
-        2. Execute the CTM (Corner Transfer Matrix) algorithm to compute the corner (C) and edge (T) tensors.
-
-        Args:
-            N (int): Number of CTM steps to perform.
-            grad (bool): Whether to compute the gradients for the parameters or not.
-            C (torch.Tensor): Corner tensor of the iPEPS tensor network.
-            T (torch.Tensor): Edge tensor of the iPEPS tensor network.
-        """
-        A = self.params[self.map]
-        A = A / A.norm()
-        # Set requires_grad based on the grad argument
-        A = A.detach() if not grad else A
-        # Use iterative methods for the eigenvalue decomposition if not computing gradients
-        iterative = False if grad else True
-        Ctm = CtmSymmetric if self.args["rotational_symmetry"] else CtmGeneral
-        alg = Ctm(A, self.args["chi"], C, T, self.args["split"], iterative)
-        alg.exe(N)
-        return alg.C, alg.T
-
-    def do_warmup_steps(self) -> tuple[torch.Tensor, torch.Tensor]:
-        """
-        Warmup the iPEPS tensor network by performing the CTM algorithm.
-
-        Returns:
-            C (torch.Tensor): Corner tensor of the iPEPS tensor network, wich does not require gradients.
-            T (torch.Tensor): Edge tensor of the iPEPS tensor network, wich does not require gradients.
-        """
-        C, T = self._forward(N=self.args["warmup_steps"], grad=False)
-        return C, T
-
-    def do_gradient_steps(self, C: torch.Tensor, T: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """
-        Take gradient steps in the optimization of the iPEPS tensor network.
-
-        Returns:
-            C (torch.Tensor): Corner tensor of the iPEPS tensor network, wich requires gradients.
-            T (torch.Tensor): Edge tensor of the iPEPS tensor network, wich requires gradients.
-        """
-        C, T = self._forward(N=self.args["Niter"], grad=True, C=C, T=T)
-        return C, T
-
-    def do_evaluation(self) -> tuple[torch.Tensor, torch.Tensor]:
-        """
-        Evaluate the iPEPS tensor network by performing the CTM algorithm.
-
-        Returns:
-            C (torch.Tensor): Corner tensor of the iPEPS tensor network, wich does not require gradients.
-            T (torch.Tensor): Edge tensor of the iPEPS tensor network, wich does not require gradients.
-        """
-        C, T = self._forward(N=self.args["Niter"], grad=False)
-        return C, T
-
     def plant_unitary(self):
         """
         Plant a unitary matrix on the A tensors of the iPEPS tensor network.
@@ -154,3 +66,88 @@ class iPEPS(torch.nn.Module):
         squared_norm = sum(p.data.norm(2) ** 2 for p in self.parameters() if p.grad is not None)
         self.data["norms"].append(torch.sqrt(squared_norm) if isinstance(squared_norm, torch.Tensor) else squared_norm)
         self.data["Niter_warmup"].append(Niter_warmup)
+
+    def do_warmup_steps(self) -> tuple[torch.Tensor, ...]:
+        """
+        Warmup the iPEPS tensor network by performing the CTM algorithm without gradient tracking.
+
+        Returns:
+            tuple[torch.Tensor, ...]: Tuple containing the corner and edge tensors of the iPEPS tensor network.
+        """
+        return self._forward(N=self.args["warmup_steps"], grad=False)
+
+    def do_gradient_steps(self, tensors: tuple[torch.Tensor, ...]) -> tuple[torch.Tensor, ...]:
+        """
+        Take gradient steps in the optimization of the iPEPS tensor network.
+
+        Args:
+            tensors (dict): Dictionary containing the tensors needed to perform the CTM algorithm.
+
+        Returns:
+            tuple[torch.Tensor, ...]: Tuple containing the corner and edge tensors of the iPEPS tensor network.
+        """
+        return self._forward(N=self.args["Niter"], grad=True, tensors=tensors)
+
+    def do_evaluation(self) -> tuple[torch.Tensor, ...]:
+        """
+        Evaluate the iPEPS tensor network by performing the CTM algorithm without gradient tracking.
+
+        Returns:
+            tuple[torch.Tensor, ...]: Tuple containing the corner and edge tensors of the iPEPS tensor network.
+        """
+        return self._forward(N=self.args["Niter"], grad=False)
+
+    def get_E(self, grad: bool, tensors: tuple[torch.Tensor, ...]) -> torch.Tensor:
+        """
+        Compute and set the energy of the iPEPS tensor network. Here we take the next-nearest-neighbor
+        (nnn) interaction into account for the J1-J2 model.
+        """
+        A = self.params[self.map]
+        A = A.detach() if not grad else A
+
+        if self.args["rotational_symmetry"]:
+            C, T = tensors
+            E_nn = self.tensors.E_nn(A, self.H, C, T)
+            if self.args["model"] == "J1J2":
+                E = E_nn + self.args["J2"] * self.tensors.E_nnn(A, C, T)
+            else:
+                E = E_nn
+
+        else:
+            C1, C2, C3, C4, T1, T2, T3, T4 = tensors
+            E_nn = self.tensors.E_nn_general(A, self.H, C1, C2, C3, C4, T1, T2, T3, T4)
+            if self.args["model"] == "J1J2":
+                E = E_nn + self.args["J2"] * self.tensors.E_nnn_general(A, C1, C2, C3, C4, T1, T2, T3, T4)
+            else:
+                E = E_nn
+
+        return E
+
+    def _forward(self, N: int, grad: bool, tensors: tuple[torch.Tensor, ...] = None) -> tuple[torch.Tensor, ...]:
+        """
+        Perform a forward pass of the iPEPS tensor network using the CTM algorithm.
+
+        args:
+            N (int): Number of iterations in the CTM algorithm.
+            grad (bool): Whether to compute gradients.
+            tensors (tuple): Tuple containing the tensors needed to perform the CTM algorithm.
+
+        return tuple[torch.Tensor, ...]: Tuple containing the corner and edge tensors of the iPEPS tensor network.
+        """
+        A = self.params[self.map]
+        A = A / A.norm()
+        # Set requires_grad based on the grad argument
+        A = A.detach() if not grad else A
+        # Use iterative methods for the eigenvalue decomposition if not computing gradients
+        iterative = False if grad else True
+
+        if self.args["rotational_symmetry"]:
+            C, T = tensors or (None, None)
+            alg = CtmSymmetric(A, self.args["chi"], C, T, self.args["split"], iterative)
+            alg.exe(N)
+            return alg.C, alg.T
+        else:
+            C1, C2, C3, C4, T1, T2, T3, T4 = tensors or (None,) * 8
+            alg = CtmGeneral(A, self.args["chi"], C1, C2, C3, C4, T1, T2, T3, T4, self.args["split"], iterative)
+            alg.exe(N)
+            return alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4

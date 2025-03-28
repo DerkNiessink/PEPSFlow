@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 import torch
 import scipy.sparse.linalg
-import matplotlib.pyplot as plt
 
 from pepsflow.models.tensors import Methods
 
