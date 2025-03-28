@@ -33,7 +33,7 @@ class Minimizer:
             self.opt.zero_grad()
             C_warmup, T_warmup = self.ipeps.do_warmup_steps()
             C, T = self.ipeps.do_gradient_steps(C_warmup, T_warmup)
-            loss = self.ipeps.get_E(C, T, grad=True)
+            loss = self.ipeps.get_E(grad=True, C=C, T=T)
             loss.backward()
             return loss
 

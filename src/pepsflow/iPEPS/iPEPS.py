@@ -44,18 +44,34 @@ class iPEPS(torch.nn.Module):
         self.params = torch.nn.Parameter(params)
         self.H = self.tensors.Hamiltonian(self.args["model"], lam=self.args["lam"])
 
-    def get_E(self, C: torch.Tensor, T: torch.Tensor, grad: bool) -> torch.Tensor:
+    def get_E(self, grad: bool, **tensors: dict[torch.Tensor]) -> torch.Tensor:
         """
         Compute and set the energy of the iPEPS tensor network. Here we take the next-nearest-neighbor
         (nnn) interaction into account for the J1-J2 model.
         """
         A = self.params[self.map]
         A = A.detach() if not grad else A
-        E_nn = self.tensors.E_nn(A, self.H, C, T)
-        if self.args["model"] == "J1J2":
-            E = E_nn + self.args["J2"] * self.tensors.E_nnn(A, C, T)
+
+        # Case when the model is rotationally symmetric
+        if len(tensors.items()) == 2:
+            E_nn = self.tensors.E_nn(A, self.H, tensors["C"], tensors["T"])
+            if self.args["model"] == "J1J2":
+                E = E_nn + self.args["J2"] * self.tensors.E_nnn(A, tensors["C"], tensors["T"])
+            else:
+                E = E_nn
+
+        # Case when the model is general and not rotationally symmetric
+        elif len(tensors.items()) == 8:
+            C1, C2, C3, C4, T1, T2, T3, T4 = tensors.values()
+            E_nn = self.tensors.E_nn_general(A, self.H, C1, C2, C3, C4, T1, T2, T3, T4)
+            if self.args["model"] == "J1J2":
+                E = E_nn + self.args["J2"] * self.tensors.E_nnn_general(A, C1, C2, C3, C4, T1, T2, T3, T4)
+            else:
+                E = E_nn
+
         else:
-            E = E_nn
+            raise ValueError("Invalid number of tensors provided.")
+
         return E
 
     def _forward(
