@@ -30,7 +30,6 @@ class iPEPS(torch.nn.Module):
         Setup the iPEPS tensor network from the initial data.
         """
         self.data = self.initial_ipeps.data
-        print(self.data)
         self.params = torch.nn.Parameter(self.initial_ipeps.params.detach())
         self.map = self.initial_ipeps.map
         self.H = self.initial_ipeps.H
@@ -40,10 +39,15 @@ class iPEPS(torch.nn.Module):
         Setup the iPEPS tensor network with random parameters.
         """
         self.data = {"losses": [], "norms": [], "Niter_warmup": []}
-        A = self.tensors.A_random_symmetric(self.args["D"])
-        params, self.map = torch.unique(A, return_inverse=True)
-        self.params = torch.nn.Parameter(params)
         self.H = self.tensors.Hamiltonian(self.args["model"], lam=self.args["lam"])
+
+        if self.args["rotational_symmetry"]:
+            A = self.tensors.A_random_symmetric(self.args["D"])
+            params, self.map = torch.unique(A, return_inverse=True)
+            self.params = torch.nn.Parameter(params)
+        else:
+            A = torch.randn(2, self.args["D"], self.args["D"], self.args["D"], self.args["D"], dtype=torch.float64)
+            self.params, self.map = torch.nn.Parameter(A / A.norm()), None
 
     def plant_unitary(self):
         """
@@ -103,7 +107,7 @@ class iPEPS(torch.nn.Module):
         Compute and set the energy of the iPEPS tensor network. Here we take the next-nearest-neighbor
         (nnn) interaction into account for the J1-J2 model.
         """
-        A = self.params[self.map]
+        A = self.params[self.map] if self.map is not None else self.params
         A = A.detach() if not grad else A
 
         if self.args["rotational_symmetry"]:
@@ -135,20 +139,19 @@ class iPEPS(torch.nn.Module):
 
         return tuple[torch.Tensor, ...]: Tuple containing the corner and edge tensors of the iPEPS tensor network.
         """
-        A = self.params[self.map]
+        A = self.params[self.map] if self.map is not None else self.params
         A = A / A.norm()
         # Set requires_grad based on the grad argument
         A = A.detach() if not grad else A
+
         # Use iterative methods for the eigenvalue decomposition if not computing gradients
         iterative = False if grad else True
 
         if self.args["rotational_symmetry"]:
-            C, T = tensors or (None, None)
-            alg = CtmSymmetric(A, self.args["chi"], C, T, self.args["split"], iterative)
+            alg = CtmSymmetric(A, self.args["chi"], tensors, self.args["split"], iterative)
             alg.exe(N)
             return alg.C, alg.T
         else:
-            C1, C2, C3, C4, T1, T2, T3, T4 = tensors or (None,) * 8
-            alg = CtmGeneral(A, self.args["chi"], C=None, T=None, iterative=iterative)
+            alg = CtmGeneral(A, self.args["chi"], tensors, iterative=iterative)
             alg.exe(N)
             return alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4

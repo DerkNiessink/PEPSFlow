@@ -5,7 +5,7 @@ import numpy as np
 class CustomSVD(torch.autograd.Function):
     """
     Custom SVD function to compute the singular value decomposition of a tensor.
-    This function supportss backpropagation through the SVD operation.
+    This function supports backpropagation through the SVD operation.
     """
 
     @staticmethod

@@ -3,6 +3,7 @@ import torch
 import scipy.sparse.linalg
 
 from pepsflow.models.tensors import Methods
+from pepsflow.models.svd import CustomSVD
 
 norm = Methods.normalize
 symm = Methods.symmetrize
@@ -29,8 +30,7 @@ class Ctm(ABC):
         self,
         A: torch.Tensor,
         chi: int,
-        C: torch.Tensor = None,
-        T: torch.Tensor = None,
+        tensors: tuple[torch.Tensor, ...] = None,
         split: bool = False,
         iterative: bool = False,
     ):
@@ -38,8 +38,7 @@ class Ctm(ABC):
         Args:
             A (torch.Tensor): Rank-5 input tensor of shape (d, d, d, d, D).
             chi (int): Maximum bond dimension of the CTM algorithm.
-            C (torch.Tensor): Corner tensor of the iPEPS tensor network.
-            T (torch.Tensor): Edge tensor of the iPEPS tensor network.
+            tensors (tuple): Tuple containing the corner and edge tensors of the CTM algorithm.
             split (bool): Whether to use the split or classic CTM algorithm. Default is False.
             iterative (bool): Whether to use iterative methods for the eigenvalue decomposition. Default is False.
         """
@@ -47,36 +46,19 @@ class Ctm(ABC):
         self.D = D
         self.split = split
         self.max_chi = chi
-        self.chi = D**2 if C is None else C.size(0)  # In both cases we have to let chi grow to max_chi.
+        self.tensors = tensors
+        self.chi = D**2 if tensors is None else tensors[0].size(0)  # In both cases we have to let chi grow to max_chi.
         self.eigvals_sums = [0]
         self.iterative = iterative
 
-        a = torch.einsum("abcde,afghi->bfcidheg", A, A)
+        self.a_split = torch.einsum("abcde,afghi->bfcidheg", A, A)
         #      /
         #  -- o --
         #    /|/      🡺   [D, D, D, D, D, D, D, D, D]
         #  -- o --
         #    /
 
-        self.C = torch.einsum("aabbcdef->cdef", a).view(D**2, D**2) if C is None else C
-        #       /|
-        #  --- o ---
-        #  |  /|/      🡺   o --  [χ, χ]
-        #  --- o ---        |
-        #     /
-
-        if T is not None:
-            self.T = T.view(self.chi, D, D, self.chi) if split else T
-        else:
-            shape = (D**2, D, D, D**2) if split else (D**2, D**2, D**2)
-            self.T = torch.einsum("aabcdefg->bcdefg", a).view(shape)
-        #       /
-        #  --- o --         |                         | __
-        #  |  /|/      🡺   o --  [χ, D², χ]    OR    o --  [χ, D, D, χ]
-        #  --- o --         |                         |
-        #     /
-
-        self.a = A if split else a.reshape(D**2, D**2, D**2, D**2)
+        self.a = A if split else self.a_split.reshape(D**2, D**2, D**2, D**2)
         #      /                                |
         #  -- o --  [d, D, D, D, D]    OR    -- o --  [D², D², D², D²]
         #    /|                                 |
@@ -111,6 +93,27 @@ class CtmSymmetric(Ctm):
     """
     Class for the rotational symmetric Corner Transfer Matrix (CTM) algorithm.
     """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        C, T = self.tensors or (None, None)
+        self.C = torch.einsum("aabbcdef->cdef", self.a_split).view(self.D**2, self.D**2) if C is None else C
+        #       /|
+        #  --- o ---
+        #  |  /|/      🡺   o --  [χ, χ]
+        #  --- o ---        |
+        #     /
+
+        if T is not None:
+            self.T = T.view(self.chi, self.D, self.D, self.chi) if self.split else T
+        else:
+            shape = (self.D**2, self.D, self.D, self.D**2) if self.split else (self.D**2, self.D**2, self.D**2)
+            self.T = torch.einsum("aabcdefg->bcdefg", self.a_split).view(shape)
+        #       /
+        #  --- o --         |                         | __
+        #  |  /|/      🡺   o --  [χ, D², χ]    OR    o --  [χ, D, D, χ]
+        #  --- o --         |                         |
+        #   
+
 
     def _step(self) -> None:
         self._split_step() if self.split else self._classic_step()
@@ -249,29 +252,31 @@ class CtmGeneral(Ctm):
         #     |
         #
 
-        self.C1 = torch.einsum("abca->bc", self.a)
-        self.C2 = torch.einsum("aabc->bc", self.a)
-        self.C3 = torch.einsum("baac->bc", self.a)
-        self.C4 = torch.einsum("bcaa->bc", self.a)
-        #   __            __                              [χ, χ]   [χ, χ]   [χ, χ]   [χ, χ]
-        #  |  |          |  |       |          |                                |      |
-        #  -- o -- ,  -- o -- ,  -- o -- ,  -- o --   🡺   o -- ,   -- o ,   -- o ,    o --   
-        #     |          |          |__|    |__|           |           |
-        self.T1 = torch.einsum("abcd->bcd", self.a)
-        self.T2 = torch.einsum("bacd->bcd", self.a)
-        self.T3 = torch.einsum("bcad->bcd", self.a)
-        self.T4 = torch.einsum("bcda->bcd", self.a)
-        #    ___                                            [χ, D², χ]   [χ, D², χ]   [χ, D², χ]   [χ, D², χ]
-        #    \ /         | __        |        __ |                           |             |          |
-        #  -- o -- ,  -- o/__| ,  -- o -- ,  |__\o --   🡺   -- o -- ,    -- o ,        -- o -- ,     o --   
-        #     |          |          /_\          |              |            |                        |
-        #                                                      
+        if self.tensors:
+            self.C1, self.C2, self.C3, self.C4, self.T1, self.T2, self.T3, self.T4 = self.tensors
+        else:
+            self.C1 = torch.einsum("abca->bc", self.a)
+            self.C2 = torch.einsum("aabc->bc", self.a)
+            self.C3 = torch.einsum("baac->bc", self.a) 
+            self.C4 = torch.einsum("bcaa->bc", self.a) 
+            #   __            __                              [χ, χ]   [χ, χ]   [χ, χ]   [χ, χ]
+            #  |  |          |  |       |          |                                |      |
+            #  -- o -- ,  -- o -- ,  -- o -- ,  -- o --   🡺   o -- ,   -- o ,   -- o ,    o --   
+            #     |          |          |__|    |__|           |           |
+            self.T1 = torch.einsum("abcd->bcd", self.a)
+            self.T2 = torch.einsum("bacd->bcd", self.a)
+            self.T3 = torch.einsum("bcad->bcd", self.a) 
+            self.T4 = torch.einsum("bcda->bcd", self.a) 
+            #    ___                                            [χ, D², χ]   [χ, D², χ]   [χ, D², χ]   [χ, D², χ]
+            #    \ /         | __        |        __ |                           |             |          |
+            #  -- o -- ,  -- o/__| ,  -- o -- ,  |__\o --   🡺   -- o -- ,    -- o ,        -- o -- ,     o --   
+            #     |          |          /_\          |              |            |                        |
+            #                                                      
 
         self.sv_sums1, self.sv_sums2, self.sv_sums3, self.sv_sums4 = [0], [0], [0], [0]
 
 
     def _step(self) -> None:
-        
         R_up = torch.einsum(
             "ab,adc,bef,dghe,ijkg,ljm,cin,ln->fhkm", 
             self.C1, self.T1, self.T4, self.a, self.a, self.T2, self.T1, self.C2
@@ -280,7 +285,6 @@ class CtmGeneral(Ctm):
         #  |     |     |    |    🡺   |_____|   [χ, D², D², χ]
         #  T4 -- a --- a -- T2        | | | |
         #  |     |     |    |
-
         R_down = torch.einsum(
             "ab,dca,efb,ghcf,ijkh,ljm,nkd,mn->egil", 
             self.C4, self.T3, self.T4, self.a, self.a, self.T2, self.T3, self.C3
@@ -377,8 +381,8 @@ class CtmGeneral(Ctm):
         #  |_|___    🡺   --o--   [χD², χD²]
         #  |_____|   
         #     |  
-
-        U, s, Vh = torch.linalg.svd(A)
+        
+        U, s, Vh = CustomSVD.apply(A)
         s = torch.diag(s)
         #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
 
@@ -405,20 +409,6 @@ class CtmGeneral(Ctm):
         #  | |
         self.sv_sums4.append(torch.sum(s)) 
 
-        B = torch.einsum("abc,abd,efd,efg->cg", R, P4_tilde, P4, R_tilde)
-        #   __|__  
-        #  |_____|
-        #  |_|
-        #  \_/
-        #   |        🡺   --o--   [χD², χD²]
-        #  /_\
-        #  |_|___    
-        #  |_____|   
-        #     |  
-
-        # This should decrease as a function of chi. For testing purposes.
-        self.diff4 = torch.norm(A - B) / torch.norm(A)
-
         return P4, P4_tilde
     
 
@@ -443,7 +433,7 @@ class CtmGeneral(Ctm):
         #  |_____|   
         #     |  
 
-        U, s, Vh = torch.linalg.svd(A)
+        U, s, Vh = CustomSVD.apply(A)
         s = torch.diag(s)
         #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
 
@@ -494,7 +484,7 @@ class CtmGeneral(Ctm):
         #  --|  |_ _|  |--   🡺   --o--   [χD², χD²]
         #    |__|_ _|__|
 
-        U, s, Vh = torch.linalg.svd(A)
+        U, s, Vh = CustomSVD.apply(A)
         s = torch.diag(s)
         #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
 
@@ -539,7 +529,7 @@ class CtmGeneral(Ctm):
         #    |__|   |__|
 
         
-        U, s, Vh = torch.linalg.svd(A)
+        U, s, Vh = CustomSVD.apply(A)
         s = torch.diag(s)
         #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
 
