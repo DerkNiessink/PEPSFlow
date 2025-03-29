@@ -41,7 +41,7 @@ class iPEPS(torch.nn.Module):
         self.data = {"losses": [], "norms": [], "Niter_warmup": []}
         self.H = self.tensors.Hamiltonian(self.args["model"], lam=self.args["lam"])
 
-        if self.args["rotational_symmetry"]:
+        if True:
             A = self.tensors.A_random_symmetric(self.args["D"])
             params, self.map = torch.unique(A, return_inverse=True)
             self.params = torch.nn.Parameter(params)

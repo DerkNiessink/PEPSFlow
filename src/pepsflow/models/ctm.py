@@ -383,14 +383,14 @@ class CtmGeneral(Ctm):
         #     |  
         
         U, s, Vh = CustomSVD.apply(A)
-        s = torch.diag(s)
         #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
 
-        U, s, Vh = U[:, :grown_chi], s[:grown_chi, :grown_chi], Vh[:grown_chi, :]
-        # --<|---o---|>--   🡺   [χD², χ], [χ, χ], [χ, χD²]
-
-        P4_tilde = torch.einsum("abc,cd,de->abe", R_tilde, Vh.T, torch.sqrt(torch.linalg.inv(s)))
-        P4 = torch.einsum("ab,bc,dec->dea", torch.sqrt(torch.linalg.inv(s)), U.T, R)
+        U, s, Vh = U[:, :grown_chi], s[:grown_chi], Vh[:grown_chi, :]
+        # --<|---o---|>--   🡺   [χD², χ], [χ], [χ, χD²]
+        
+        s_inv = torch.diag(1/(s+1e-12))
+        P4_tilde = torch.einsum("abc,cd,de->abe", R_tilde, Vh.T, torch.sqrt(s_inv))
+        P4 = torch.einsum("ab,bc,dec->dea", torch.sqrt(s_inv), U.T, R)
         #  |_|___  
         #  |_____| R~       [χ, D², χD²]
         #    _|_
@@ -434,14 +434,14 @@ class CtmGeneral(Ctm):
         #     |  
 
         U, s, Vh = CustomSVD.apply(A)
-        s = torch.diag(s)
         #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
 
-        U, s, Vh = U[:, :grown_chi], s[:grown_chi, :grown_chi], Vh[:grown_chi, :]
-        # --<|---o---|>--   🡺   [χD², χ], [χ, χ], [χ, χD²]
+        U, s, Vh = U[:, :grown_chi], s[:grown_chi], Vh[:grown_chi, :]
+        # --<|---o---|>--   🡺   [χD², χ], [χ], [χ, χD²]
 
-        P2_tilde = torch.einsum("abc,ad,de->cbe", R_tilde, Vh.T, torch.sqrt(torch.linalg.inv(s)))
-        P2 = torch.einsum("ab,bc,cde->eda", torch.sqrt(torch.linalg.inv(s)), U.T, R)
+        s_inv = torch.diag(1/(s+1e-12))
+        P2_tilde = torch.einsum("abc,ad,de->cbe", R_tilde, Vh.T, torch.sqrt(s_inv))
+        P2 = torch.einsum("ab,bc,cde->eda", torch.sqrt(s_inv), U.T, R)
         #   ___|_|  
         #  |_____| R~       [χD², D², χ]
         #    _|_
@@ -485,14 +485,14 @@ class CtmGeneral(Ctm):
         #    |__|_ _|__|
 
         U, s, Vh = CustomSVD.apply(A)
-        s = torch.diag(s)
         #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
 
-        U, s, Vh = U[:, :grown_chi], s[:grown_chi, :grown_chi], Vh[:grown_chi, :]
-        # --<|---o---|>--   🡺   [χD², χ], [χ, χ], [χ, χD²]
+        U, s, Vh = U[:, :grown_chi], s[:grown_chi], Vh[:grown_chi, :]
+        # --<|---o---|>--   🡺   [χD², χ], [χ], [χ, χD²]
 
-        P3_tilde = torch.einsum("abc,ad,de->cbe", R_tilde, Vh.T, torch.sqrt(torch.linalg.inv(s)))
-        P3 = torch.einsum("ab,bc,cde->eda", torch.sqrt(torch.linalg.inv(s)), U.T, R)
+        s_inv = torch.diag(1/(s+1e-12))
+        P3_tilde = torch.einsum("abc,ad,de->cbe", R_tilde, Vh.T, torch.sqrt(s_inv))
+        P3 = torch.einsum("ab,bc,cde->eda", torch.sqrt(s_inv), U.T, R)
         #     __                                                 __           
         #    |  |        |\                           /|        |  |          --|\           /|--
         #   _|  | ------ | | ---- o -- . . -- o ---- | | ------ |  |_   🡺      | |-- . . --| |
@@ -528,16 +528,15 @@ class CtmGeneral(Ctm):
         #  --|  |   |  |--   🡺   --o--   [χD², χD²]
         #    |__|   |__|
 
-        
         U, s, Vh = CustomSVD.apply(A)
-        s = torch.diag(s)
         #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
 
-        U, s, Vh = U[:, :grown_chi], s[:grown_chi, :grown_chi], Vh[:grown_chi, :]
-        # --<|---o---|>--   🡺   [χD², χ], [χ, χ], [χ, χD²]
+        U, s, Vh = U[:, :grown_chi], s[:grown_chi], Vh[:grown_chi, :]
+        # --<|---o---|>--   🡺   [χD², χ], [χ], [χ, χD²]
 
-        P1_tilde = torch.einsum("abc,cd,de->abe", R_tilde, Vh.T, torch.sqrt(torch.linalg.inv(s)))
-        P1 = torch.einsum("ab,bc,dec->dea", torch.sqrt(torch.linalg.inv(s)), U.T, R)
+        s_inv = torch.diag(1/(s+1e-12))
+        P1_tilde = torch.einsum("abc,cd,de->abe", R_tilde, Vh.T, torch.sqrt(s_inv))
+        P1 = torch.einsum("ab,bc,dec->dea", torch.sqrt(s_inv), U.T, R)
         #   ____                                                 ____           
         #   _|  |        |\                           /|        |  |_         --|\           /|--
         #    |  | ------ | | ---- o -- . . -- o ---- | | ------ |  |    🡺      | |-- . . --| |
