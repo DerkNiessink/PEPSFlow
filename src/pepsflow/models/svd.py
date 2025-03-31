@@ -64,7 +64,6 @@ class CustomSVD(torch.autograd.Function):
 
         UdU = Ut @ dU
         VdV = Vt @ dV
-
         Su = (F + G) * (UdU - UdU.t()) / 2
         Sv = (F - G) * (VdV - VdV.t()) / 2
 

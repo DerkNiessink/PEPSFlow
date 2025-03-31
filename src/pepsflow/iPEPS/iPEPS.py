@@ -47,17 +47,19 @@ class iPEPS(torch.nn.Module):
             self.params = torch.nn.Parameter(params)
         else:
             A = torch.randn(2, self.args["D"], self.args["D"], self.args["D"], self.args["D"], dtype=torch.float64)
+            # A = self.tensors.A_random_symmetric(self.args["D"])
             self.params, self.map = torch.nn.Parameter(A / A.norm()), None
 
     def plant_unitary(self):
         """
         Plant a unitary matrix on the A tensors of the iPEPS tensor network.
         """
-        U = self.tensors.random_unitary(self.args["D"])
-        A = self.params[self.map]
-        A = torch.einsum("abcde,bf,cg,dh,ei->afghi", A, U, U, U, U)
-        params, self.map = torch.unique(A, return_inverse=True)
-        self.params = torch.nn.Parameter(params)
+        if self.args["gauge"] == True:
+            U = self.tensors.random_unitary(self.args["D"])
+            A = self.params[self.map]
+            A = torch.einsum("abcde,bf,cg,dh,ei->afghi", A, U, U, U, U)
+            params, self.map = torch.unique(A, return_inverse=True)
+            self.params = torch.nn.Parameter(params)
 
     def add_data(self, E: torch.Tensor = None, Niter_warmup: int = None):
         """

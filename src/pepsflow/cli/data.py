@@ -144,13 +144,14 @@ def plot(ctx, folders, **kwargs):
 
     if kwargs["energy_chi"]:
         plt.ylabel(r"$E$")
-        plt.xlabel(r"$1/\chi$")
+        plt.xlabel(r"$\log{(1/\chi)}$")
         for i, readers in enumerate(all_readers):
             data = [(1/reader.ipeps.args["chi"], reader.energy()) for reader in readers if "chi" in reader.file]
             data.sort(reverse=True)
             inv_chis, energies = zip(*data)
             plt.plot(inv_chis, energies, "v-", markersize=4, linewidth=0.5, label=folders[i])
         plt.grid(linestyle='--', linewidth=0.35)
+        plt.xscale("log")
 
     if kwargs["gradient"]:
         plt.ylabel(r"$\log|E - E_0|$")

@@ -381,16 +381,17 @@ class CtmGeneral(Ctm):
         #  |_|___    🡺   --o--   [χD², χD²]
         #  |_____|   
         #     |  
-        
         U, s, Vh = CustomSVD.apply(A)
         #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
 
         U, s, Vh = U[:, :grown_chi], s[:grown_chi], Vh[:grown_chi, :]
         # --<|---o---|>--   🡺   [χD², χ], [χ], [χ, χD²]
         
-        s_inv = torch.diag(1/(s+1e-12))
-        P4_tilde = torch.einsum("abc,cd,de->abe", R_tilde, Vh.T, torch.sqrt(s_inv))
-        P4 = torch.einsum("ab,bc,dec->dea", torch.sqrt(s_inv), U.T, R)
+        s_nz= s[s/s[0] > 1e-10]
+        s_rsqrt= s*0
+        s_rsqrt[:s_nz.size(0)]= torch.rsqrt(s_nz)
+        P4_tilde = torch.einsum("abc,cd,de->abe", R_tilde, Vh.T,torch.diag(s_rsqrt))
+        P4 = torch.einsum("ab,bc,dec->dea", torch.diag(s_rsqrt), U.T, R)
         #  |_|___  
         #  |_____| R~       [χ, D², χD²]
         #    _|_
@@ -439,9 +440,11 @@ class CtmGeneral(Ctm):
         U, s, Vh = U[:, :grown_chi], s[:grown_chi], Vh[:grown_chi, :]
         # --<|---o---|>--   🡺   [χD², χ], [χ], [χ, χD²]
 
-        s_inv = torch.diag(1/(s+1e-12))
-        P2_tilde = torch.einsum("abc,ad,de->cbe", R_tilde, Vh.T, torch.sqrt(s_inv))
-        P2 = torch.einsum("ab,bc,cde->eda", torch.sqrt(s_inv), U.T, R)
+        s_nz= s[s/s[0] > 1e-10]
+        s_rsqrt= s*0
+        s_rsqrt[:s_nz.size(0)]= torch.rsqrt(s_nz)
+        P2_tilde = torch.einsum("abc,ad,de->cbe", R_tilde, Vh.T, torch.diag(s_rsqrt))
+        P2 = torch.einsum("ab,bc,cde->eda", torch.diag(s_rsqrt), U.T, R)
         #   ___|_|  
         #  |_____| R~       [χD², D², χ]
         #    _|_
@@ -490,9 +493,11 @@ class CtmGeneral(Ctm):
         U, s, Vh = U[:, :grown_chi], s[:grown_chi], Vh[:grown_chi, :]
         # --<|---o---|>--   🡺   [χD², χ], [χ], [χ, χD²]
 
-        s_inv = torch.diag(1/(s+1e-12))
-        P3_tilde = torch.einsum("abc,ad,de->cbe", R_tilde, Vh.T, torch.sqrt(s_inv))
-        P3 = torch.einsum("ab,bc,cde->eda", torch.sqrt(s_inv), U.T, R)
+        s_nz= s[s/s[0] > 1e-12]
+        s_rsqrt= s*0
+        s_rsqrt[:s_nz.size(0)]= torch.rsqrt(s_nz)
+        P3_tilde = torch.einsum("abc,ad,de->cbe", R_tilde, Vh.T, torch.diag(s_rsqrt))
+        P3 = torch.einsum("ab,bc,cde->eda", torch.diag(s_rsqrt), U.T, R)
         #     __                                                 __           
         #    |  |        |\                           /|        |  |          --|\           /|--
         #   _|  | ------ | | ---- o -- . . -- o ---- | | ------ |  |_   🡺      | |-- . . --| |
@@ -527,16 +532,17 @@ class CtmGeneral(Ctm):
         #    |  |___|  |
         #  --|  |   |  |--   🡺   --o--   [χD², χD²]
         #    |__|   |__|
-
         U, s, Vh = CustomSVD.apply(A)
         #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
 
         U, s, Vh = U[:, :grown_chi], s[:grown_chi], Vh[:grown_chi, :]
         # --<|---o---|>--   🡺   [χD², χ], [χ], [χ, χD²]
 
-        s_inv = torch.diag(1/(s+1e-12))
-        P1_tilde = torch.einsum("abc,cd,de->abe", R_tilde, Vh.T, torch.sqrt(s_inv))
-        P1 = torch.einsum("ab,bc,dec->dea", torch.sqrt(s_inv), U.T, R)
+        s_nz= s[s/s[0] > 1e-10]
+        s_rsqrt= s*0
+        s_rsqrt[:s_nz.size(0)]= torch.rsqrt(s_nz)
+        P1_tilde = torch.einsum("abc,cd,de->abe", R_tilde, Vh.T,  torch.diag(s_rsqrt))
+        P1 = torch.einsum("ab,bc,dec->dea", torch.diag(s_rsqrt), U.T, R)
         #   ____                                                 ____           
         #   _|  |        |\                           /|        |  |_         --|\           /|--
         #    |  | ------ | | ---- o -- . . -- o ---- | | ------ |  |    🡺      | |-- . . --| |
