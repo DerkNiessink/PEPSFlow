@@ -30,9 +30,14 @@ class iPEPS(torch.nn.Module):
         Setup the iPEPS tensor network from the initial data.
         """
         self.data = self.initial_ipeps.data
-        self.params = torch.nn.Parameter(self.initial_ipeps.params.detach())
-        self.map = self.initial_ipeps.map
         self.H = self.initial_ipeps.H
+        if True:
+            self.params = torch.nn.Parameter(self.initial_ipeps.params.detach())
+            self.map = self.initial_ipeps.map
+        else:
+            params = self.initial_ipeps.params.detach()
+            self.params = torch.nn.Parameter(params[self.initial_ipeps.map])
+            self.map = None
 
     def _setup_random(self):
         """
@@ -41,7 +46,7 @@ class iPEPS(torch.nn.Module):
         self.data = {"losses": [], "norms": [], "Niter_warmup": []}
         self.H = self.tensors.Hamiltonian(self.args["model"], lam=self.args["lam"])
 
-        if True:
+        if self.args["rotational_symmetry"]:
             A = self.tensors.A_random_symmetric(self.args["D"])
             params, self.map = torch.unique(A, return_inverse=True)
             self.params = torch.nn.Parameter(params)
@@ -55,9 +60,20 @@ class iPEPS(torch.nn.Module):
         Plant a unitary matrix on the A tensors of the iPEPS tensor network.
         """
         if self.args["gauge"] == True:
-            U = self.tensors.random_unitary(self.args["D"])
+
+            # U1 = self.tensors.random_unitary(self.args["D"])
+            # U2 = self.tensors.random_unitary(self.args["D"])
+            U1 = torch.randn(self.args["D"], self.args["D"], dtype=torch.float64)
+            U2 = torch.randn(self.args["D"], self.args["D"], dtype=torch.float64)
             A = self.params[self.map]
-            A = torch.einsum("abcde,bf,cg,dh,ei->afghi", A, U, U, U, U)
+            A = torch.einsum("abcde,bf,cg,dh,ei->afghi", A, U1.T, U2.T, U1, U2)
+            #         |
+            #        |_|
+            #    _    |    _                /
+            # --|_|-- o --|_|--    🡺   -- o --
+            #         | \                 /|
+            #        |_| \
+            #         |
             params, self.map = torch.unique(A, return_inverse=True)
             self.params = torch.nn.Parameter(params)
 
@@ -122,12 +138,14 @@ class iPEPS(torch.nn.Module):
 
         else:
             C1, C2, C3, C4, T1, T2, T3, T4 = tensors
-            E_nn = self.tensors.E_nn_general(A, self.H, C1, C2, C3, C4, T1, T2, T3, T4)
+            E_horizontal_nn = self.tensors.E_horizontal_nn_general(A, self.H, C1, C2, C3, C4, T1, T2, T3, T4)
+            E_vertical_nn = self.tensors.E_vertical_nn_general(A, self.H, C1, C2, C3, C4, T1, T2, T3, T4)
+            E_nn = (E_horizontal_nn + E_vertical_nn) / 2
+
             if self.args["model"] == "J1J2":
                 E = E_nn + self.args["J2"] * self.tensors.E_nnn_general(A, C1, C2, C3, C4, T1, T2, T3, T4)
             else:
                 E = E_nn
-
         return E
 
     def _forward(self, N: int, grad: bool, tensors: tuple[torch.Tensor, ...] = None) -> tuple[torch.Tensor, ...]:
