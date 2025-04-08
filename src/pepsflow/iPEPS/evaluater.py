@@ -24,8 +24,8 @@ class Evaluater:
         algorithm.
         """
         with torch.no_grad():
-            C, T = self.ipeps.do_evaluation()
-        E = self.ipeps.get_E(C, T, grad=False)
+            tensors = self.ipeps.do_evaluation()
+        E = self.ipeps.get_E(grad=False, tensors=tensors)
         self.ipeps.add_data(E.item())
         print(f"chi, E: {self.ipeps.args['chi'], E.item()}")
 

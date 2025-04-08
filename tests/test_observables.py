@@ -2,7 +2,7 @@ import pytest
 import torch
 import numpy as np
 
-from pepsflow.models.CTM_alg import CtmAlg
+from pepsflow.models.ctm import CtmSymmetric
 from pepsflow.models.tensors import Tensors
 
 
@@ -14,7 +14,7 @@ class TestObservables:
         # Because state is from matlab, we need to permute the dimensions
         A = A.permute(4, 1, 2, 3, 0).contiguous()
 
-        alg = CtmAlg(A, chi=16)
+        alg = CtmSymmetric(A, chi=16)
         alg.exe(N=100)
 
         tensors = Tensors(dtype="double", device="cpu")
@@ -23,7 +23,7 @@ class TestObservables:
     def test_E_Heisenberg(self):
         A = torch.from_numpy(np.loadtxt("tests/Heisenberg_state.txt").reshape(2, 2, 2, 2, 2)).double()
 
-        alg = CtmAlg(A, chi=48)
+        alg = CtmSymmetric(A, chi=48)
         alg.exe(N=100)
         tensors = Tensors(dtype="double", device="cpu")
 

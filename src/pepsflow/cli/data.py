@@ -144,28 +144,30 @@ def plot(ctx, folders, **kwargs):
 
     if kwargs["energy_chi"]:
         plt.ylabel(r"$E$")
-        plt.xlabel(r"$1/\chi$")
+        plt.xlabel(r"$\log{(1/\chi)}$")
         for i, readers in enumerate(all_readers):
             data = [(1/reader.ipeps.args["chi"], reader.energy()) for reader in readers if "chi" in reader.file]
             data.sort(reverse=True)
             inv_chis, energies = zip(*data)
             plt.plot(inv_chis, energies, "v-", markersize=4, linewidth=0.5, label=folders[i])
         plt.grid(linestyle='--', linewidth=0.35)
+        plt.xscale("log")
+        plt.legend()
 
     if kwargs["gradient"]:
-        plt.ylabel(r"$\log|E - E_0|$")
+        plt.ylabel(r"$E$")
         plt.xlabel(r"Epoch")
         for file in kwargs["gradient"].split(","):
             reader = Reader(os.path.join("data", folder, file))
             losses = np.array(reader.losses())
-            losses = abs(losses + 0.49105775959620757) 
+            #losses = abs(losses + 0.49105775959620757) 
             plt.plot(range(len(losses)), losses, "-", linewidth=1, label=file)
         #plt.ylim( -0.4911, -0.4909)
         #plt.xlim(60, 142)
         #plt.ylim(6*10**(-4), 2*10**(-4))
         #plt.xticks(range(0, len(losses) + 1, 2))
         #plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(1))
-        plt.yscale("log")
+        #plt.yscale("log")
         plt.grid(linestyle='--', linewidth=0.35, which='both')
         plt.legend()
 

@@ -61,7 +61,7 @@ class Tensors:
 
     def A_random_symmetric(self, D=2) -> torch.Tensor:
         """
-        Return a random rank 5 tensor with legs of size d, which has left-right,
+        Return a random rank 5 tensor with legs of size D, which has left-right,
         up-down and diagonal symmetry. The legs are ordered as follows:
         A(phy, up, left, down, right).
         """
@@ -217,6 +217,127 @@ class Tensors:
 
         return 0.5 * (Rho + Rho.t())
 
+    def rho_horizontal_nn_general(
+        self,
+        A: torch.Tensor,
+        C1: torch.Tensor,
+        C2: torch.Tensor,
+        C3: torch.Tensor,
+        C4: torch.Tensor,
+        T1: torch.Tensor,
+        T2: torch.Tensor,
+        T3: torch.Tensor,
+        T4: torch.Tensor,
+    ) -> torch.Tensor:
+
+        d, D = A.size(0), A.size(1)
+        a = torch.einsum("mefgh,nabcd->eafbgchdmn", (A, A)).view(D**2, D**2, D**2, D**2, d, d)
+        #      /        /              /
+        #  -- o --  -- o --   🡺   -- o --  [D², D², D², D², d, d]
+        #    /|       /|             /||
+
+        b = torch.einsum("abcde,afghi->bfcidheg", A, A).reshape(D**2, D**2, D**2, D**2)
+        #      /
+        #  -- o --
+        #    /|             |
+        #     |/     🡺  -- o --  [D², D², D², D²]
+        #  -- o --          |
+        #    /
+
+        Rho = torch.einsum(
+            "ab,bcd,efa,fghcij,hklm,dmn,lop,np,qr,qst,rue,utvgxy,vzAk,sBz,ACo,BC->ixjy",
+            (C1, T4, T1, a, b, T4, T3, C4, C2, T2, T1, a, b, T2, T3, C3),
+        ).reshape(d**2, d**2)
+        #  C1 -- T1 -- T1 -- C2
+        #  |     |     |     |
+        #  T4 -- a --- a --- T2                        ___
+        #  |     |\\   |\\   |    [d, d, d, d]   🡺   |___|   [d², d²]
+        #  T4 -- b --- b --- T2                       |   |
+        #  |     |     |     |
+        #  C4 -- T3 -- T3 -- C3
+
+        return 0.5 * (Rho + Rho.t())
+
+    def rho_vertical_nn_general(
+        self,
+        A: torch.Tensor,
+        C1: torch.Tensor,
+        C2: torch.Tensor,
+        C3: torch.Tensor,
+        C4: torch.Tensor,
+        T1: torch.Tensor,
+        T2: torch.Tensor,
+        T3: torch.Tensor,
+        T4: torch.Tensor,
+    ) -> torch.Tensor:
+        d, D = A.size(0), A.size(1)
+        a = torch.einsum("mefgh,nabcd->eafbgchdmn", (A, A)).view(D**2, D**2, D**2, D**2, d, d)
+        #      /        /              /
+        #  -- o --  -- o --   🡺   -- o --  [D², D², D², D², d, d]
+        #    /|       /|             /||
+
+        b = torch.einsum("abcde,afghi->bfcidheg", A, A).reshape(D**2, D**2, D**2, D**2)
+        #      /
+        #  -- o --
+        #    /|             |
+        #     |/     🡺  -- o --  [D², D², D², D²]
+        #  -- o --          |
+        #    /
+        Rho = torch.einsum(
+            "ab,bcd,efa,fghcij,hklmxy,dmn,lop,np,qr,qst,rue,utvg,vzAk,sBz,ACo,BC->ixjy",
+            (C1, T4, T1, a, a, T4, T3, C4, C2, T2, T1, b, b, T2, T3, C3),
+        ).reshape(d**2, d**2)
+        #  C1 -- T1 -- T1 -- C2
+        #  |     |     |     |
+        #  T4 -- a --- b --- T2                        ___
+        #  |     |\\   |     |    [d, d, d, d]   🡺   |___|   [d², d²]
+        #  T4 -- a --- b --- T2                       |   |
+        #  |     |\\   |     |
+        #  C4 -- T3 -- T3 -- C3
+
+        return 0.5 * (Rho + Rho.t())
+
+    def rho_nnn_general(
+        self,
+        A: torch.Tensor,
+        C1: torch.Tensor,
+        C2: torch.Tensor,
+        C3: torch.Tensor,
+        C4: torch.Tensor,
+        T1: torch.Tensor,
+        T2: torch.Tensor,
+        T3: torch.Tensor,
+        T4: torch.Tensor,
+    ) -> torch.Tensor:
+
+        d, D = A.size(0), A.size(1)
+        a = torch.einsum("mefgh,nabcd->eafbgchdmn", (A, A)).view(D**2, D**2, D**2, D**2, d, d)
+        #      /        /              /
+        #  -- o --  -- o --   🡺   -- o --  [D², D², D², D², d, d]
+        #    /|       /|             /||
+
+        b = torch.einsum("abcde,afghi->bfcidheg", A, A).reshape(D**2, D**2, D**2, D**2)
+        #      /
+        #  -- o --
+        #    /|             |
+        #     |/     🡺  -- o --  [D², D², D², D²]
+        #  -- o --          |
+        #    /
+
+        Rho = torch.einsum(
+            "ab,bcd,efa,fghcij,hklm,dmn,lop,np,qr,qst,rue,utvg,vxykzA,sBx,yCo,BC->izjA",
+            (C1, T4, T1, a, b, T4, T3, C4, C2, T2, T1, b, a, T2, T3, C3),
+        ).reshape(d**2, d**2)
+        #  C1 -- T1 -- T1 -- C2
+        #  |     |     |     |
+        #  T4 -- a --- b --- T2                        ___
+        #  |     |\\   |     |    [d, d, d, d]   🡺   |___|   [d², d²]
+        #  T4 -- b --- a --- T2                       |   |
+        #  |     |     |\\   |
+        #  C4 -- T3 -- T3 -- C3
+
+        return 0.5 * (Rho + Rho.t())
+
     def E_nn(self, A: torch.Tensor, H: torch.Tensor, C: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
         """
         Compute the energy of a PEPS state with nearest neighbors.
@@ -283,6 +404,60 @@ class Tensors:
         #  |___|        ___
         #  _|_|_   /   |___|
         #  |___|
+        return E
+
+    def E_horizontal_nn_general(
+        self,
+        A: torch.Tensor,
+        H: torch.Tensor,
+        C1: torch.Tensor,
+        C2: torch.Tensor,
+        C3: torch.Tensor,
+        C4: torch.Tensor,
+        T1: torch.Tensor,
+        T2: torch.Tensor,
+        T3: torch.Tensor,
+        T4: torch.Tensor,
+    ) -> torch.Tensor:
+
+        Rho = self.rho_horizontal_nn_general(A, C1, C2, C3, C4, T1, T2, T3, T4)
+        E = torch.einsum("ab,ab", Rho, H) / Rho.trace()
+        return E
+
+    def E_vertical_nn_general(
+        self,
+        A: torch.Tensor,
+        H: torch.Tensor,
+        C1: torch.Tensor,
+        C2: torch.Tensor,
+        C3: torch.Tensor,
+        C4: torch.Tensor,
+        T1: torch.Tensor,
+        T2: torch.Tensor,
+        T3: torch.Tensor,
+        T4: torch.Tensor,
+    ) -> torch.Tensor:
+
+        Rho = self.rho_vertical_nn_general(A, C1, C2, C3, C4, T1, T2, T3, T4)
+        E = torch.einsum("ab,ab", Rho, H) / Rho.trace()
+        return E
+
+    def E_nnn_general(
+        self,
+        A: torch.Tensor,
+        C1: torch.Tensor,
+        C2: torch.Tensor,
+        C3: torch.Tensor,
+        C4: torch.Tensor,
+        T1: torch.Tensor,
+        T2: torch.Tensor,
+        T3: torch.Tensor,
+        T4: torch.Tensor,
+    ) -> torch.Tensor:
+
+        Rho = self.rho_nnn_general(A, C1, C2, C3, C4, T1, T2, T3, T4)
+        H = self.H_Heis()
+        E = torch.einsum("ab,ab", Rho, H) / Rho.trace()
         return E
 
     def M(self, A: torch.Tensor, C: torch.Tensor, T: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:

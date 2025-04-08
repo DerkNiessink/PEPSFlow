@@ -1,11 +1,12 @@
 import torch
 import numpy as np
+import scipy.linalg
 
 
 class CustomSVD(torch.autograd.Function):
     """
     Custom SVD function to compute the singular value decomposition of a tensor.
-    This function supportss backpropagation through the SVD operation.
+    This function supports backpropagation through the SVD operation.
     """
 
     @staticmethod
@@ -54,7 +55,7 @@ class CustomSVD(torch.autograd.Function):
         # Off diagonal terms
         F = S - S[:, None]
         # Avoid division by zero
-        F = F / (F**2 + 1e-12)
+        F = F / (F**2 + 1e-14)
         F.diagonal().fill_(0)
 
         # Diagonal terms
@@ -64,7 +65,6 @@ class CustomSVD(torch.autograd.Function):
 
         UdU = Ut @ dU
         VdV = Vt @ dV
-
         Su = (F + G) * (UdU - UdU.t()) / 2
         Sv = (F - G) * (VdV - VdV.t()) / 2
 
@@ -76,4 +76,5 @@ class CustomSVD(torch.autograd.Function):
         if N_columns > N_singular_values:
             dA += (U / S) @ dV.t() @ (torch.eye(N_columns, dtype=dU.dtype, device=dU.device) - V @ Vt)
 
+        # dA = torch.zeros(U.shape, dtype=dU.dtype, device=dU.device)
         return dA
