@@ -4,6 +4,7 @@ import scipy.sparse.linalg
 
 from pepsflow.models.tensors import Methods
 from pepsflow.models.svd import CustomSVD
+from pepsflow.models.truncated_svd import truncated_svd_gesdd
 
 norm = Methods.normalize
 symm = Methods.symmetrize
@@ -63,7 +64,7 @@ class Ctm(ABC):
         #  -- o --  [d, D, D, D, D]    OR    -- o --  [D², D², D², D²]
         #    /|                                 |
 
-    def exe(self, N: int = 1, tol: float = 1e-17):
+    def exe(self, N: int = 1, tol: float = 1e-13):
         """
         Execute the CTM algorithm for N steps.
 
@@ -74,6 +75,7 @@ class Ctm(ABC):
         for i in range(N):
             self._step()
             if self._converged(tol):
+                print("Converged after", i, "iterations.")
                 self.Niter = i
                 break
 
@@ -217,8 +219,11 @@ class CtmSymmetric(Ctm):
         else:
             s, U = torch.linalg.eigh(M)
             # Sort the eigenvectors by the absolute value of the eigenvalues and keep the χ largest ones.
-            U = U[:, torch.argsort(torch.abs(s), descending=True)[: self.chi]]
+
         #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
+
+        U = U[:, torch.argsort(torch.abs(s), descending=True)[: self.chi]]
+        s = s[torch.argsort(torch.abs(s), descending=True)[: self.chi]]
 
         # Reshape U back in a rank-3 or 4 tensor.
         shape = (k, self.D, self.D, self.chi) if self.split else (k, self.D**2, self.chi)
@@ -373,7 +378,7 @@ class CtmGeneral(Ctm):
         self.T1, self.T2, self.T3, self.T4 = T1, T2, T3, T4
         self.C1, self.C2, self.C3, self.C4 = C1, C2, C3, C4
 
-    def _converged(self, tol: float = 1e-17) -> bool:
+    def _converged(self, tol) -> bool:
         return all(abs(sv_sums[-1] - sv_sums[-2]) < tol for sv_sums in [self.sv_sums1, self.sv_sums2, self.sv_sums3, self.sv_sums4])
     
     def _new_P(self, R: torch.Tensor, R_tilde: torch.Tensor, grown_chi: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -394,12 +399,14 @@ class CtmGeneral(Ctm):
         #    |  |---|  |
         #  --|  |   |  |--   🡺   --o--   [χD², χD²]
         #    |__|---|__|
-        U, s, Vh = CustomSVD.apply(A)
-        #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
-   
-        U, s, Vh = U[:, :grown_chi], s[:grown_chi], Vh[:grown_chi, :]
-        # --<|---o---|>--   🡺   [χD², χ], [χ], [χ, χD²]
+        #U, s, Vh = CustomSVD.apply(A)
+        U,s, Vh = truncated_svd_gesdd(A, grown_chi)
+        Vh = Vh.T
 
+
+        #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
+        #U, s, Vh = U[:, :grown_chi], s[:grown_chi], Vh[:grown_chi, :]
+        # --<|---o---|>--   🡺   [χD², χ], [χ], [χ, χD²]
         s_nz= s[s/s[0] > 1e-10]
         s_rsqrt= s*0
         s_rsqrt[:s_nz.size(0)]= torch.rsqrt(s_nz)

@@ -76,5 +76,5 @@ class CustomSVD(torch.autograd.Function):
         if N_columns > N_singular_values:
             dA += (U / S) @ dV.t() @ (torch.eye(N_columns, dtype=dU.dtype, device=dU.device) - V @ Vt)
 
-        # dA = torch.zeros(U.shape, dtype=dU.dtype, device=dU.device)
+        dA = torch.zeros(U.shape, dtype=dU.dtype, device=dU.device)
         return dA

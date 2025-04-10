@@ -17,6 +17,10 @@ class Tensors:
         self.dtype = dtype_map[dtype]
         self.dev = device_map[device]
 
+    def A_random(self, D: int) -> torch.Tensor:
+        """Return a random state of size [d, D, D, D, D]."""
+        return torch.randn(2, D, D, D, D, dtype=self.dtype, device=self.dev)
+
     def random_unitary(self, d: int) -> torch.Tensor:
         """Return a random unitary matrix of size d x d."""
         return torch.tensor(ortho_group.rvs(d), dtype=self.dtype, device=self.dev)
@@ -236,25 +240,15 @@ class Tensors:
         #  -- o --  -- o --   🡺   -- o --  [D², D², D², D², d, d]
         #    /|       /|             /||
 
-        b = torch.einsum("abcde,afghi->bfcidheg", A, A).reshape(D**2, D**2, D**2, D**2)
-        #      /
-        #  -- o --
-        #    /|             |
-        #     |/     🡺  -- o --  [D², D², D², D²]
-        #  -- o --          |
-        #    /
-
         Rho = torch.einsum(
-            "ab,bcd,efa,fghcij,hklm,dmn,lop,np,qr,qst,rue,utvgxy,vzAk,sBz,ACo,BC->ixjy",
-            (C1, T4, T1, a, b, T4, T3, C4, C2, T2, T1, a, b, T2, T3, C3),
+            "ab,cda,efc,ge,bhi,djkhlm,fnojpq,grn,is,kts,out,ru->lpmq",
+            (C1, T1, T1, C2, T4, a, a, T2, C4, T3, T3, C3),
         ).reshape(d**2, d**2)
         #  C1 -- T1 -- T1 -- C2
         #  |     |     |     |
         #  T4 -- a --- a --- T2                        ___
         #  |     |\\   |\\   |    [d, d, d, d]   🡺   |___|   [d², d²]
-        #  T4 -- b --- b --- T2                       |   |
-        #  |     |     |     |
-        #  C4 -- T3 -- T3 -- C3
+        #  C4 -- T3 -- T3 -- C3                       |   |
 
         return 0.5 * (Rho + Rho.t())
 
@@ -276,24 +270,17 @@ class Tensors:
         #  -- o --  -- o --   🡺   -- o --  [D², D², D², D², d, d]
         #    /|       /|             /||
 
-        b = torch.einsum("abcde,afghi->bfcidheg", A, A).reshape(D**2, D**2, D**2, D**2)
-        #      /
-        #  -- o --
-        #    /|             |
-        #     |/     🡺  -- o --  [D², D², D², D²]
-        #  -- o --          |
-        #    /
         Rho = torch.einsum(
-            "ab,bcd,efa,fghcij,hklmxy,dmn,lop,np,qr,qst,rue,utvg,vzAk,sBz,ACo,BC->ixjy",
-            (C1, T4, T1, a, a, T4, T3, C4, C2, T2, T1, b, b, T2, T3, C3),
+            "ab,cda,ec,bfg,dhifjk,elh,gmn,iopmqr,lso,nt,put,su->jqkr",
+            (C1, T1, C2, T4, a, T2, T4, a, T2, C4, T3, C3),
         ).reshape(d**2, d**2)
-        #  C1 -- T1 -- T1 -- C2
-        #  |     |     |     |
-        #  T4 -- a --- b --- T2                        ___
-        #  |     |\\   |     |    [d, d, d, d]   🡺   |___|   [d², d²]
-        #  T4 -- a --- b --- T2                       |   |
-        #  |     |\\   |     |
-        #  C4 -- T3 -- T3 -- C3
+        #  C1 -- T1 -- C2
+        #  |     |     |
+        #  T4 -- a --- T2                        ___
+        #  |     |\\   |    [d, d, d, d]   🡺   |___|   [d², d²]
+        #  T4 -- a --- T2                        |   |
+        #  |     |\\   |
+        #  C4 -- T3 -- C3
 
         return 0.5 * (Rho + Rho.t())
 

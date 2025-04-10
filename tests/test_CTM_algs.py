@@ -46,7 +46,6 @@ class TestCtmAlg:
             A, tensors.H_Heis_rot(), alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
         )
         E_symm = tensors.E_nn(A, tensors.H_Heis_rot(), alg_symm.C, alg_symm.T)
-
         assert E_general / 2 == pytest.approx(E_symm, abs=1e-8)
 
     def test_general_Ising(self):
@@ -56,7 +55,7 @@ class TestCtmAlg:
         """
         A = torch.from_numpy(np.loadtxt("tests/Ising_state.txt").reshape(2, 2, 2, 2, 2)).double()
         alg = CtmGeneral(A, chi=8)
-        alg.exe(N=10)
+        alg.exe(N=30)
         alg_symm = CtmSymmetric(A, chi=8)
         alg_symm.exe(N=10)
         tensors = Tensors(dtype="double", device="cpu")
@@ -68,7 +67,6 @@ class TestCtmAlg:
             A, tensors.H_Ising(lam=4), alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
         )
         E_general = E_vertical_nn_general + E_horizontal_nn_general
-
         E_symm = tensors.E_nn(A, tensors.H_Ising(lam=4), alg_symm.C, alg_symm.T)
 
         assert E_general / 2 == pytest.approx(E_symm, abs=1e-4)

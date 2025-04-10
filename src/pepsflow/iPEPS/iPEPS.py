@@ -31,13 +31,15 @@ class iPEPS(torch.nn.Module):
         """
         self.data = self.initial_ipeps.data
         self.H = self.initial_ipeps.H
-        if True:
-            self.params = torch.nn.Parameter(self.initial_ipeps.params.detach())
+        if self.args["rotational_symmetry"] in ["both", "state"]:
+            params = self.initial_ipeps.params.detach()
+            self.params = torch.nn.Parameter(params + torch.randn_like(params) * self.args["noise"])
             self.map = self.initial_ipeps.map
         else:
             params = self.initial_ipeps.params.detach()
-            self.params = torch.nn.Parameter(params[self.initial_ipeps.map])
-            self.map = None
+            # Determine if the initial ipeps is a symmetric state or not
+            params = params[self.initial_ipeps.map] if self.initial_ipeps.map is not None else params
+            self.params, self.map = torch.nn.Parameter(params + torch.randn_like(params) * self.args["noise"]), None
 
     def _setup_random(self):
         """
@@ -46,13 +48,12 @@ class iPEPS(torch.nn.Module):
         self.data = {"losses": [], "norms": [], "Niter_warmup": []}
         self.H = self.tensors.Hamiltonian(self.args["model"], lam=self.args["lam"])
 
-        if self.args["rotational_symmetry"]:
+        if self.args["rotational_symmetry"] in ["both", "state"]:
             A = self.tensors.A_random_symmetric(self.args["D"])
             params, self.map = torch.unique(A, return_inverse=True)
             self.params = torch.nn.Parameter(params)
         else:
-            A = torch.randn(2, self.args["D"], self.args["D"], self.args["D"], self.args["D"], dtype=torch.float64)
-            # A = self.tensors.A_random_symmetric(self.args["D"])
+            A = self.tensors.A_random(self.args["D"])
             self.params, self.map = torch.nn.Parameter(A / A.norm()), None
 
     def plant_unitary(self):
@@ -99,12 +100,12 @@ class iPEPS(torch.nn.Module):
         """
         return self._forward(N=self.args["warmup_steps"], grad=False)
 
-    def do_gradient_steps(self, tensors: tuple[torch.Tensor, ...]) -> tuple[torch.Tensor, ...]:
+    def do_gradient_steps(self, tensors) -> tuple[torch.Tensor, ...]:
         """
         Take gradient steps in the optimization of the iPEPS tensor network.
 
         Args:
-            tensors (dict): Dictionary containing the tensors needed to perform the CTM algorithm.
+            tensors (tuple[torch.Tensor, ...]): Tuple containing the tensors needed to perform the CTM algorithm.
 
         Returns:
             tuple[torch.Tensor, ...]: Tuple containing the corner and edge tensors of the iPEPS tensor network.
@@ -128,7 +129,7 @@ class iPEPS(torch.nn.Module):
         A = self.params[self.map] if self.map is not None else self.params
         A = A.detach() if not grad else A
 
-        if self.args["rotational_symmetry"]:
+        if self.args["rotational_symmetry"] in ["both", "ctm"]:
             C, T = tensors
             E_nn = self.tensors.E_nn(A, self.H, C, T)
             if self.args["model"] == "J1J2":
@@ -167,11 +168,12 @@ class iPEPS(torch.nn.Module):
         # Use iterative methods for the eigenvalue decomposition if not computing gradients
         iterative = False if grad else True
 
-        if self.args["rotational_symmetry"]:
+        if self.args["rotational_symmetry"] in ["both", "ctm"]:
             alg = CtmSymmetric(A, self.args["chi"], tensors, self.args["split"], iterative)
             alg.exe(N)
             return alg.C, alg.T
         else:
             alg = CtmGeneral(A, self.args["chi"], tensors, iterative=iterative)
             alg.exe(N)
+
             return alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4

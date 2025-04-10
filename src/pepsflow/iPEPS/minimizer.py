@@ -32,7 +32,7 @@ class Minimizer:
         def train() -> torch.Tensor:
             self.opt.zero_grad()
             tensors = self.ipeps.do_warmup_steps()
-            tensors = self.ipeps.do_gradient_steps(tensors)
+            tensors = self.ipeps.do_gradient_steps(tensors=tensors)
             loss = self.ipeps.get_E(grad=True, tensors=tensors)
             loss.backward()
             return loss
@@ -45,7 +45,7 @@ class Minimizer:
             print(f"epoch, E, Diff: {epoch, new_loss.item(), abs(new_loss - loss).item()}")
             self.ipeps.add_data(new_loss.item())
 
-            if abs(new_loss - loss) < 1e-10:
+            if abs(new_loss - loss) < 1e-15:
                 sys.stdout.flush()
                 print(f"Converged after {epoch} epochs. Saving and quiting training...")
                 break

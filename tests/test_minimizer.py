@@ -17,7 +17,7 @@ class TestMinimizer:
     def test_trainer(self, E_exp, epochs, l, J2, sp, dev, m, D, dt, chi, N):
         ipeps_args = dict(
             model=m,
-            rotational_symmetry=True,
+            rotational_symmetry="both",
             D=D,
             dtype=dt,
             device=dev,
