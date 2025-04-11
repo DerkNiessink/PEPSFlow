@@ -489,39 +489,7 @@ class SVDGESDD(torch.autograd.Function):
                     + "this phase term, making it ill-defined.",
                     RuntimeWarning,
                 )
-                # import pdb; pdb.set_trace()
 
-        #   // gA = ((U^H gU) / E) S +  S (((V^H gV) / E) + I o (gS + diag(U^H gU) / (2 * S))
-        #   Tensor gA = [&] {
-        #     // ret holds everything but the diagonal of gA
-        #     auto ret = [&] {
-        #       const auto E = [&S]{
-        #         const auto S2 = S * S;
-        #         auto ret = S2.unsqueeze(-2) - S2.unsqueeze(-1);
-        #         // Any number a != 0 would, as we are just going to use it to compute 0 / a later on
-        #         ret.diagonal(0, -2, -1).fill_(1);
-        #         return ret;
-        #       }();
-
-        #       if (gU.defined()) {
-        #         if (gVh.defined()) {
-        #           return (UhgU * S.unsqueeze(-2) + S.unsqueeze(-1) * VhgV) / E;
-        #         } else {
-        #           return (UhgU / E) * S.unsqueeze(-2);
-        #         }
-        #       } else { // gVh.defined();
-        #         return S.unsqueeze(-1) * (VhgV / E);
-        #       }
-        #     }();
-        #     // Fill the diagonal
-        #     if (gS.defined()) {
-        #       ret = ret + gS.diag_embed();
-        #     }
-        #     if (is_complex && gU.defined() && gVh.defined()) {
-        #       ret = ret + (UhgU.diagonal(0, -2, -1) / (2. * S)).diag_embed();
-        #     }
-        #     return ret;
-        #   }();
         def reg_preinv(x):
             x_reg = x.clone()
             x_scale = x.abs().max()

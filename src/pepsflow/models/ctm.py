@@ -75,7 +75,6 @@ class Ctm(ABC):
         for i in range(N):
             self._step()
             if self._converged(tol):
-                print("Converged after", i, "iterations.")
                 self.Niter = i
                 break
 

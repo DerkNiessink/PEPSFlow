@@ -155,19 +155,24 @@ def plot(ctx, folders, **kwargs):
         plt.legend()
 
     if kwargs["gradient"]:
-        plt.ylabel(r"$E$")
+        plt.ylabel(r"$\log|E-E_0|$")
         plt.xlabel(r"Epoch")
         for file in kwargs["gradient"].split(","):
             reader = Reader(os.path.join("data", folder, file))
             losses = np.array(reader.losses())
-            #losses = abs(losses + 0.49105775959620757) 
+            if file[2] == "4":
+                E0 = -0.6689670979898978 
+            if file[2] == "3":
+                E0 = -0.6689673179389798
+
+            losses = abs(losses - E0) 
             plt.plot(range(len(losses)), losses, "-", linewidth=1, label=file)
         #plt.ylim( -0.4911, -0.4909)
         #plt.xlim(60, 142)
-        #plt.ylim(6*10**(-4), 2*10**(-4))
+        #plt.ylim(10**(-10), 10**(0))
         #plt.xticks(range(0, len(losses) + 1, 2))
         #plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(1))
-        #plt.yscale("log")
+        plt.yscale("log")
         plt.grid(linestyle='--', linewidth=0.35, which='both')
         plt.legend()
 
