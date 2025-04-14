@@ -21,6 +21,10 @@ class Tensors:
         """Return a random state of size [d, D, D, D, D]."""
         return torch.randn(2, D, D, D, D, dtype=self.dtype, device=self.dev)
 
+    def random_tensor(self, shape: tuple) -> torch.Tensor:
+        """Return a random tensor of specific shape."""
+        return torch.randn(shape, dtype=self.dtype, device=self.dev)
+
     def random_unitary(self, d: int) -> torch.Tensor:
         """Return a random unitary matrix of size d x d."""
         return torch.tensor(ortho_group.rvs(d), dtype=self.dtype, device=self.dev)

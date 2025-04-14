@@ -149,9 +149,10 @@ def plot(ctx, folders, **kwargs):
             data = [(1/reader.ipeps.args["chi"], reader.energy()) for reader in readers if "chi" in reader.file]
             data.sort(reverse=True)
             inv_chis, energies = zip(*data)
+            energies = np.array(energies) + 0.6689670979898978 
             plt.plot(inv_chis, energies, "v-", markersize=4, linewidth=0.5, label=folders[i])
         plt.grid(linestyle='--', linewidth=0.35)
-        plt.xscale("log")
+        plt.yscale("log")
         plt.legend()
 
     if kwargs["gradient"]:
@@ -160,13 +161,21 @@ def plot(ctx, folders, **kwargs):
         for file in kwargs["gradient"].split(","):
             reader = Reader(os.path.join("data", folder, file))
             losses = np.array(reader.losses())
+            if file[2] == "5":
+                E0 = -0.6694037758828534
+                color = "C2"
             if file[2] == "4":
                 E0 = -0.6689670979898978 
+                color = "C1"
             if file[2] == "3":
-                E0 = -0.6689673179389798
+                E0 = -0.6681273941483516
+                color = "C0"
+
+           
+            line = "-"  if len(file) > 6 else "--"
 
             losses = abs(losses - E0) 
-            plt.plot(range(len(losses)), losses, "-", linewidth=1, label=file)
+            plt.plot(range(len(losses)), losses, line, color=color, linewidth=1, label=file)
         #plt.ylim( -0.4911, -0.4909)
         #plt.xlim(60, 142)
         #plt.ylim(10**(-10), 10**(0))
@@ -256,7 +265,7 @@ def plot(ctx, folders, **kwargs):
   
     plt.tight_layout()
     #plt.legend()
-    #plt.savefig("figures/optimization_chi30_D3_warmup2.png")
+    #plt.savefig("figures/optimization_comparison.png")
     plt.show()
 
 

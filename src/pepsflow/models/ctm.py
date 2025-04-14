@@ -74,9 +74,9 @@ class Ctm(ABC):
         self.Niter = N
         for i in range(N):
             self._step()
-            if self._converged(tol):
-                self.Niter = i
-                break
+            #if self._converged(tol):
+            #    self.Niter = i
+            #    break
 
         if self.split:
             self.T = self.T.view(self.chi, self.D**2, self.chi)
@@ -401,7 +401,6 @@ class CtmGeneral(Ctm):
         #U, s, Vh = CustomSVD.apply(A)
         U,s, Vh = truncated_svd_gesdd(A, grown_chi)
         Vh = Vh.T
-
 
         #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
         #U, s, Vh = U[:, :grown_chi], s[:grown_chi], Vh[:grown_chi, :]

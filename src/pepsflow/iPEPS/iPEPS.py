@@ -64,10 +64,13 @@ class iPEPS(torch.nn.Module):
 
             # U1 = self.tensors.random_unitary(self.args["D"])
             # U2 = self.tensors.random_unitary(self.args["D"])
-            U1 = torch.randn(self.args["D"], self.args["D"], dtype=torch.float64)
-            U2 = torch.randn(self.args["D"], self.args["D"], dtype=torch.float64)
-            A = self.params[self.map]
-            A = torch.einsum("abcde,bf,cg,dh,ei->afghi", A, U1.T, U2.T, U1, U2)
+            U1 = self.tensors.random_tensor(shape=(self.args["D"], self.args["D"]))
+            U2 = self.tensors.random_tensor(shape=(self.args["D"], self.args["D"]))
+            # U1 = torch.tensor([[1, 2, 0, 1], [0, 1, 3, 0], [2, 0, 1, 4], [1, 1, 1, 1]], dtype=torch.float64)
+            # U2 = torch.tensor([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], dtype=torch.float64)
+
+            A = self.params[self.map] if self.map is not None else self.params
+            A = torch.einsum("abcde,bf,cg,dh,ei->afghi", A, U1, torch.linalg.inv(U2).T, torch.linalg.inv(U1).T, U2)
             #         |
             #        |_|
             #    _    |    _                /
