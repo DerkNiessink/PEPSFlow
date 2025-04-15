@@ -143,17 +143,18 @@ def plot(ctx, folders, **kwargs):
         plt.grid(linestyle='--', linewidth=0.5)
 
     if kwargs["energy_chi"]:
-        plt.ylabel(r"$E$")
-        plt.xlabel(r"$\log{(1/\chi)}$")
+        plt.ylabel(r"$\log|E-E_0|$")
+        plt.xlabel(r"$1/\chi$")
         for i, readers in enumerate(all_readers):
             data = [(1/reader.ipeps.args["chi"], reader.energy()) for reader in readers if "chi" in reader.file]
             data.sort(reverse=True)
             inv_chis, energies = zip(*data)
-            energies = np.array(energies) + 0.6689670979898978 
-            plt.plot(inv_chis, energies, "v-", markersize=4, linewidth=0.5, label=folders[i])
+            energies = np.array(energies) + 0.6694037758828534 
+            width,line,color =(0.2,"-","k") if "seed" in folders[i] else (0.6,"v-","C0")
+            plt.plot(inv_chis, energies, line, markersize=4,color=color, linewidth=width)
         plt.grid(linestyle='--', linewidth=0.35)
         plt.yscale("log")
-        plt.legend()
+        plt.legend(["No gauge", "Random invertible gauges"])
 
     if kwargs["gradient"]:
         plt.ylabel(r"$\log|E-E_0|$")
@@ -265,7 +266,7 @@ def plot(ctx, folders, **kwargs):
   
     plt.tight_layout()
     #plt.legend()
-    #plt.savefig("figures/optimization_comparison.png")
+    plt.savefig("figures/general_D5_convergence_gauge_comparison.png")
     plt.show()
 
 

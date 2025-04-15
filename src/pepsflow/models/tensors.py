@@ -29,6 +29,10 @@ class Tensors:
         """Return a random unitary matrix of size d x d."""
         return torch.tensor(ortho_group.rvs(d), dtype=self.dtype, device=self.dev)
 
+    def identity(self, D: int) -> torch.Tensor:
+        """Return an identity matrix of size D x D."""
+        return torch.eye(D, dtype=self.dtype, device=self.dev)
+
     def sx(self) -> torch.Tensor:
         """Return the Pauli X matrix."""
         return torch.tensor([[0, 1], [1, 0]], dtype=self.dtype, device=self.dev)

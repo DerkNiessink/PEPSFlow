@@ -35,11 +35,13 @@ class iPEPS(torch.nn.Module):
             params = self.initial_ipeps.params.detach()
             self.params = torch.nn.Parameter(params + torch.randn_like(params) * self.args["noise"])
             self.map = self.initial_ipeps.map
-        else:
+        elif self.args["rotational_symmetry"] in [None, "ctm"]:
             params = self.initial_ipeps.params.detach()
             # Determine if the initial ipeps is a symmetric state or not
             params = params[self.initial_ipeps.map] if self.initial_ipeps.map is not None else params
             self.params, self.map = torch.nn.Parameter(params + torch.randn_like(params) * self.args["noise"]), None
+        else:
+            raise ValueError(f"Unknown rotational_symmetry type: {self.args['rotational_symmetry']}")
 
     def _setup_random(self):
         """
@@ -52,34 +54,38 @@ class iPEPS(torch.nn.Module):
             A = self.tensors.A_random_symmetric(self.args["D"])
             params, self.map = torch.unique(A, return_inverse=True)
             self.params = torch.nn.Parameter(params)
-        else:
+        elif self.args["rotational_symmetry"] in [None, "ctm"]:
             A = self.tensors.A_random(self.args["D"])
             self.params, self.map = torch.nn.Parameter(A / A.norm()), None
+        else:
+            raise ValueError(f"Unknown rotational_symmetry type: {self.args['rotational_symmetry']}")
 
     def plant_unitary(self):
         """
         Plant a unitary matrix on the A tensors of the iPEPS tensor network.
         """
-        if self.args["gauge"] == True:
-
-            # U1 = self.tensors.random_unitary(self.args["D"])
-            # U2 = self.tensors.random_unitary(self.args["D"])
+        if self.args["gauge"] == "unitary":
+            U1 = self.tensors.random_unitary(self.args["D"])
+            U2 = self.tensors.random_unitary(self.args["D"])
+        elif self.args["gauge"] == "invertible":
             U1 = self.tensors.random_tensor(shape=(self.args["D"], self.args["D"]))
             U2 = self.tensors.random_tensor(shape=(self.args["D"], self.args["D"]))
-            # U1 = torch.tensor([[1, 2, 0, 1], [0, 1, 3, 0], [2, 0, 1, 4], [1, 1, 1, 1]], dtype=torch.float64)
-            # U2 = torch.tensor([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], dtype=torch.float64)
+        elif self.args["gauge"] == None:
+            U1 = U2 = self.tensors.identity(self.args["D"])
+        else:
+            raise ValueError(f"Unknown gauge type: {self.args['gauge']}")
 
-            A = self.params[self.map] if self.map is not None else self.params
-            A = torch.einsum("abcde,bf,cg,dh,ei->afghi", A, U1, torch.linalg.inv(U2).T, torch.linalg.inv(U1).T, U2)
-            #         |
-            #        |_|
-            #    _    |    _                /
-            # --|_|-- o --|_|--    🡺   -- o --
-            #         | \                 /|
-            #        |_| \
-            #         |
-            params, self.map = torch.unique(A, return_inverse=True)
-            self.params = torch.nn.Parameter(params)
+        A = self.params[self.map] if self.map is not None else self.params
+        A = torch.einsum("abcde,bf,cg,dh,ei->afghi", A, U1, torch.linalg.inv(U2).T, torch.linalg.inv(U1).T, U2)
+        #         |
+        #        |_|
+        #    _    |    _                /
+        # --|_|-- o --|_|--    🡺   -- o --
+        #         | \                 /|
+        #        |_| \
+        #         |
+        params, self.map = torch.unique(A, return_inverse=True)
+        self.params = torch.nn.Parameter(params)
 
     def add_data(self, E: torch.Tensor = None, Niter_warmup: int = None):
         """
