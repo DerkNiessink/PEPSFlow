@@ -60,7 +60,7 @@ class iPEPS(torch.nn.Module):
         else:
             raise ValueError(f"Unknown rotational_symmetry type: {self.args['rotational_symmetry']}")
 
-    def plant_unitary(self):
+    def plant_gauge(self):
         """
         Plant a unitary matrix on the A tensors of the iPEPS tensor network.
         """

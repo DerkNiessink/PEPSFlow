@@ -16,7 +16,7 @@ class Evaluater:
 
     def __init__(self, ipeps: iPEPS, args: dict):
         self.ipeps = iPEPS(args, ipeps)
-        self.ipeps.plant_unitary()
+        self.ipeps.plant_gauge()
 
     def evaluate(self) -> None:
         """
