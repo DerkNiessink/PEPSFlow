@@ -24,6 +24,8 @@ class iPEPS(torch.nn.Module):
         self.initial_ipeps = initial_ipeps
         self.tensors = Tensors(args["dtype"], args["device"])
         self._setup_random() if initial_ipeps is None else self._setup_from_initial_ipeps()
+        self.U1 = self.tensors.random_tensor(shape=(self.args["D"], self.args["D"]))
+        self.U2 = self.tensors.random_tensor(shape=(self.args["D"], self.args["D"]))
 
     def _setup_from_initial_ipeps(self):
         """
@@ -84,8 +86,7 @@ class iPEPS(torch.nn.Module):
         #         | \                 /|
         #        |_| \
         #         |
-        params, self.map = torch.unique(A, return_inverse=True)
-        self.params = torch.nn.Parameter(params)
+        self.params = torch.nn.Parameter(A / A.norm())
 
     def add_data(self, E: torch.Tensor = None, Niter_warmup: int = None):
         """
@@ -170,6 +171,11 @@ class iPEPS(torch.nn.Module):
         return tuple[torch.Tensor, ...]: Tuple containing the corner and edge tensors of the iPEPS tensor network.
         """
         A = self.params[self.map] if self.map is not None else self.params
+
+        # A = torch.einsum(
+        #    "abcde,bf,cg,dh,ei->afghi", A, self.U1, torch.linalg.inv(self.U2).T, torch.linalg.inv(self.U1).T, self.U2
+        # )
+
         A = A / A.norm()
         # Set requires_grad based on the grad argument
         A = A.detach() if not grad else A

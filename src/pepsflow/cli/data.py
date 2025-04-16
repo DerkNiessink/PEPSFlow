@@ -149,8 +149,8 @@ def plot(ctx, folders, **kwargs):
             data = [(1/reader.ipeps.args["chi"], reader.energy()) for reader in readers if "chi" in reader.file]
             data.sort(reverse=True)
             inv_chis, energies = zip(*data)
-            energies = np.array(energies) + 0.6694037758828534 
-            width,line,color =(0.2,"-","k") if "seed" in folders[i] else (0.6,"v-","C0")
+            energies = np.array(energies) + 0.6689673179389798
+            width,line,color =(0.5,"-","k") if "seed" in folders[i] else (0.7,"v-","C0")
             plt.plot(inv_chis, energies, line, markersize=4,color=color, linewidth=width)
         plt.grid(linestyle='--', linewidth=0.35)
         plt.yscale("log")
@@ -266,7 +266,7 @@ def plot(ctx, folders, **kwargs):
   
     plt.tight_layout()
     #plt.legend()
-    plt.savefig("figures/general_D5_convergence_gauge_comparison.png")
+    #plt.savefig("figures/general_D5_convergence_gauge_comparison.png")
     plt.show()
 
 
