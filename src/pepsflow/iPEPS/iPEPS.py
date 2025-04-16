@@ -24,8 +24,8 @@ class iPEPS(torch.nn.Module):
         self.initial_ipeps = initial_ipeps
         self.tensors = Tensors(args["dtype"], args["device"])
         self._setup_random() if initial_ipeps is None else self._setup_from_initial_ipeps()
-        self.U1 = self.tensors.random_tensor(shape=(self.args["D"], self.args["D"]))
-        self.U2 = self.tensors.random_tensor(shape=(self.args["D"], self.args["D"]))
+        # self.U1 = self.tensors.random_tensor(shape=(self.args["D"], self.args["D"]))
+        # self.U2 = self.tensors.random_tensor(shape=(self.args["D"], self.args["D"]))
 
     def _setup_from_initial_ipeps(self):
         """
@@ -33,17 +33,29 @@ class iPEPS(torch.nn.Module):
         """
         self.data = self.initial_ipeps.data
         self.H = self.initial_ipeps.H
-        if self.args["rotational_symmetry"] in ["both", "state"]:
-            params = self.initial_ipeps.params.detach()
-            self.params = torch.nn.Parameter(params + torch.randn_like(params) * self.args["noise"])
+        # if self.args["rotational_symmetry"] in ["both", "state"]:
+        #     params = self.initial_ipeps.params.detach()
+        #     self.params = torch.nn.Parameter(params + torch.randn_like(params) * self.args["noise"])
+        #     self.map = self.initial_ipeps.map
+        # elif self.args["rotational_symmetry"] in [None, "ctm"]:
+        #     params = self.initial_ipeps.params.detach()
+        #     # Determine if the initial ipeps is a symmetric state or not
+        #     params = params[self.initial_ipeps.map] if self.initial_ipeps.map is not None else params
+        #     self.params, self.map = torch.nn.Parameter(params + torch.randn_like(params) * self.args["noise"]), None
+
+        if self.args["gauge"]:
+            A = self.initial_ipeps.params.detach()
             self.map = self.initial_ipeps.map
-        elif self.args["rotational_symmetry"] in [None, "ctm"]:
-            params = self.initial_ipeps.params.detach()
-            # Determine if the initial ipeps is a symmetric state or not
-            params = params[self.initial_ipeps.map] if self.initial_ipeps.map is not None else params
-            self.params, self.map = torch.nn.Parameter(params + torch.randn_like(params) * self.args["noise"]), None
-        else:
-            raise ValueError(f"Unknown rotational_symmetry type: {self.args['rotational_symmetry']}")
+            self.A = A[self.map] if self.map is not None else A
+            # U1 = self.tensors.random_tensor(shape=(self.args["D"], self.args["D"]))
+            U1 = self.tensors.identity(self.args["D"])
+            self.U1 = torch.nn.Parameter(U1)
+            # U2 = self.tensors.random_tensor(shape=(self.args["D"], self.args["D"]))
+            U2 = self.tensors.identity(self.args["D"])
+            self.U2 = torch.nn.Parameter(U2)
+
+        # else:
+        #     raise ValueError(f"Unknown rotational_symmetry type: {self.args['rotational_symmetry']}")
 
     def _setup_random(self):
         """
@@ -136,8 +148,19 @@ class iPEPS(torch.nn.Module):
         Compute and set the energy of the iPEPS tensor network. Here we take the next-nearest-neighbor
         (nnn) interaction into account for the J1-J2 model.
         """
-        A = self.params[self.map] if self.map is not None else self.params
-        A = A.detach() if not grad else A
+        if self.args["gauge"]:
+            A = self.A
+            A = torch.einsum(
+                "abcde,bf,cg,dh,ei->afghi",
+                A,
+                self.U1,
+                torch.linalg.inv(self.U2).T,
+                torch.linalg.inv(self.U1).T,
+                self.U2,
+            )
+        else:
+            A = self.params[self.map] if self.map is not None else self.params
+            A = A.detach() if not grad else A
 
         if self.args["rotational_symmetry"] in ["both", "ctm"]:
             C, T = tensors
@@ -170,7 +193,18 @@ class iPEPS(torch.nn.Module):
 
         return tuple[torch.Tensor, ...]: Tuple containing the corner and edge tensors of the iPEPS tensor network.
         """
-        A = self.params[self.map] if self.map is not None else self.params
+        if self.args["gauge"]:
+            A = self.A
+            A = torch.einsum(
+                "abcde,bf,cg,dh,ei->afghi",
+                A,
+                self.U1,
+                torch.linalg.inv(self.U2).T,
+                torch.linalg.inv(self.U1).T,
+                self.U2,
+            )
+        else:
+            A = self.params[self.map] if self.map is not None else self.params
 
         # A = torch.einsum(
         #    "abcde,bf,cg,dh,ei->afghi", A, self.U1, torch.linalg.inv(self.U2).T, torch.linalg.inv(self.U1).T, self.U2

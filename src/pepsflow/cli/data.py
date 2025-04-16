@@ -175,14 +175,14 @@ def plot(ctx, folders, **kwargs):
            
             line = "-"  if len(file) > 6 else "--"
 
-            losses = abs(losses - E0) 
+            #losses = abs(losses - E0) 
             plt.plot(range(len(losses)), losses, line, color=color, linewidth=1, label=file)
         #plt.ylim( -0.4911, -0.4909)
         #plt.xlim(60, 142)
         #plt.ylim(10**(-10), 10**(0))
         #plt.xticks(range(0, len(losses) + 1, 2))
         #plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(1))
-        plt.yscale("log")
+        #plt.yscale("log")
         plt.grid(linestyle='--', linewidth=0.35, which='both')
         plt.legend()
 
