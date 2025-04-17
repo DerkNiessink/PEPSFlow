@@ -17,6 +17,37 @@ class Tensors:
         self.dtype = dtype_map[dtype]
         self.dev = device_map[device]
 
+    def A_gauged(self, A: torch.Tensor, which: str) -> torch.Tensor:
+        """
+        Apply a gauge transformation to A tensor.
+
+        Args:
+            A (torch.Tensor): Tensor to be gauged.
+            which (str): Type of gauge transformation. Can be 'unitary', 'invertible' or None.
+
+        Returns:
+            torch.Tensor: Gauged A.
+        """
+        D = A.size(1)
+        match which:
+            case "unitary":
+                U1, U2 = self.random_unitary(D), self.random_unitary(D)
+            case "invertible":
+                U1, U2 = self.random_tensor((D, D)), self.random_tensor((D, D))
+            case None:
+                U1 = U2 = self.identity(D)
+            case _:
+                raise ValueError(f"Unknown gauge type: {which}")
+        A_gauged = torch.einsum("abcde,bf,cg,dh,ei->afghi", A, U1, torch.linalg.inv(U2).T, torch.linalg.inv(U1).T, U2)
+        #         |
+        #        |_|U1
+        # U2^-1   |    _                /
+        # --|_|-- o --|_|--    🡺   -- o --
+        #         | \  U2             /|
+        #   U1^-1|_| \
+        #         |
+        return A_gauged
+
     def A_random(self, D: int) -> torch.Tensor:
         """Return a random state of size [d, D, D, D, D]."""
         return torch.randn(2, D, D, D, D, dtype=self.dtype, device=self.dev)

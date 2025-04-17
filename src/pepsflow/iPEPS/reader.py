@@ -1,7 +1,7 @@
 import torch
 
 from pepsflow.models.tensors import Tensors
-from pepsflow.iPEPS.iPEPS import iPEPS
+from pepsflow.iPEPS.iPEPS import iPEPSBase
 
 
 class Reader:
@@ -14,7 +14,7 @@ class Reader:
 
     def __init__(self, file: str):
         self.file = f"{file}.pth" if not file.endswith(".pth") else file
-        self.ipeps: iPEPS = torch.load(self.file, weights_only=False)
+        self.ipeps: iPEPSBase = torch.load(self.file, weights_only=False)
         dtype = self.ipeps.args.get("dtype", "double")
         device = self.ipeps.args.get("device", "cpu")
         self.tensors = Tensors(dtype, device)

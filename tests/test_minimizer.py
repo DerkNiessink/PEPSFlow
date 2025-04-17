@@ -14,7 +14,7 @@ class TestMinimizer:
             (-0.58900, 20, None, 0.2, True, "cpu", "J1J2", 3, "double", 6, 2),
         ],
     )
-    def test_trainer(self, E_exp, epochs, l, J2, sp, dev, m, D, dt, chi, N):
+    def test_symmetric_optimization(self, E_exp, epochs, l, J2, sp, dev, m, D, dt, chi, N):
         ipeps_args = dict(
             model=m,
             rotational_symmetry="both",
