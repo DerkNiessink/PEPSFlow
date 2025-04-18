@@ -6,7 +6,7 @@ import signal
 
 from pepsflow.iPEPS.minimizer import Minimizer
 from pepsflow.iPEPS.evaluater import Evaluater
-from pepsflow.iPEPS.iPEPS import iPEPS
+from pepsflow.iPEPS.iPEPS import make_ipeps
 from pepsflow.iPEPS.reader import Reader
 
 path = lambda folder, file: os.path.join("data", folder, file)
@@ -69,9 +69,9 @@ def minimize(var_param: tuple[str, str], value: float, args: dict):
     # Read the iPEPS model from a file if specified and set to the device
     if folders["read"]:
         ipeps = Reader(path(folders["read"], fn)).ipeps
-        ipeps = iPEPS(args=ipeps_params, initial_ipeps=ipeps)
+        ipeps = make_ipeps(args=ipeps_params, initial_ipeps=ipeps)
     else:
-        ipeps = iPEPS(ipeps_params)
+        ipeps = make_ipeps(ipeps_params)
 
     # Execute the optimization and write the iPEPS model to a file
     minimizer = Minimizer(ipeps, opt_params)

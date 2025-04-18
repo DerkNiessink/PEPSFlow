@@ -11,30 +11,28 @@ import numpy as np
 from pepsflow.models.tensors import Tensors
 
 
-class iPEPS:
+def make_ipeps(args: dict, initial_ipeps: "iPEPS" = None) -> "iPEPS":
     """
     iPEPS is a class of tensor networks used to represent a quantum many-body state and perform
     variational optimization.
 
     Args:
         args (dict): Dictionary containing the iPEPS parameters.
-        initial_ipeps (iPEPSBase, optional): Initial iPEPS object to use as a starting point.
+        initial_ipeps (iPEPS, optional): Initial iPEPS object to use as a starting point.
 
     Returns:
-        iPEPSBase: An instance of the iPEPS class with the specified symmetry.
+        iPEPS: An instance of the iPEPS class with the specified symmetry.
     """
-
-    def __new__(cls, args: dict, initial_ipeps: "iPEPSBase" = None) -> "iPEPSBase":
-        if args["rotational_symmetry"] in ["both", "ctm"]:
-            return RotationalSymmetricIPEPS(args, initial_ipeps)
-        elif args["rotational_symmetry"] in ["state", None]:
-            return GeneralIPEPS(args, initial_ipeps)
-        else:
-            raise ValueError(f"Unknown symmetry: {args['rotational_symmetry']}")
+    if args["rotational_symmetry"] in ["both", "ctm"]:
+        return RotationalSymmetricIPEPS(args, initial_ipeps)
+    elif args["rotational_symmetry"] in ["state", None]:
+        return GeneralIPEPS(args, initial_ipeps)
+    else:
+        raise ValueError(f"Unknown symmetry: {args['rotational_symmetry']}")
 
 
-class iPEPSBase(torch.nn.Module, ABC):
-    def __init__(self, args: dict, initial_ipeps: "iPEPSBase" = None):
+class iPEPS(torch.nn.Module, ABC):
+    def __init__(self, args: dict, initial_ipeps: "iPEPS" = None):
         super().__init__()
         self.args = args
         self.initial_ipeps = initial_ipeps
@@ -125,7 +123,7 @@ class iPEPSBase(torch.nn.Module, ABC):
         pass
 
 
-class RotationalSymmetricIPEPS(iPEPSBase):
+class RotationalSymmetricIPEPS(iPEPS):
     def __init__(self, args: dict, initial_ipeps: "iPEPS" = None):
         super().__init__(args, initial_ipeps)
         self._setup_random() if initial_ipeps is None else self._setup_from_initial_ipeps()
@@ -160,7 +158,7 @@ class RotationalSymmetricIPEPS(iPEPSBase):
         return alg.C, alg.T
 
 
-class GeneralIPEPS(iPEPSBase):
+class GeneralIPEPS(iPEPS):
     def __init__(self, args: dict, initial_ipeps: "iPEPS" = None):
         super().__init__(args, initial_ipeps)
         self._setup_random() if initial_ipeps is None else self._setup_from_initial_ipeps()

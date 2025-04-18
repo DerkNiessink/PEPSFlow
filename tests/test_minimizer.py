@@ -1,7 +1,7 @@
 import pytest
 
 from pepsflow.iPEPS.minimizer import Minimizer
-from pepsflow.iPEPS.iPEPS import iPEPS
+from pepsflow.iPEPS.iPEPS import make_ipeps
 
 
 class TestMinimizer:
@@ -31,7 +31,8 @@ class TestMinimizer:
             save_intermediate=False,
         )
         minimize_args = dict(optimizer="lbfgs", learning_rate=1, epochs=epochs, threads=1, line_search=True, log=False)
-        min = Minimizer(iPEPS(ipeps_args), minimize_args)
+        ipeps = make_ipeps(ipeps_args)
+        min = Minimizer(ipeps, minimize_args)
         min.minimize()
 
         assert min.ipeps.data["losses"][-1] == pytest.approx(E_exp, abs=1e-3)
