@@ -12,7 +12,7 @@ from fabric import Connection
 import subprocess
 import numpy as np
 
-from pepsflow.iPEPS.reader import Reader
+from pepsflow.iPEPS.IO import Reader
 from pepsflow.cli.utils import walk_directory, read_cli_config
 
 # fmt: off

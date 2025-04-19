@@ -38,7 +38,6 @@ class iPEPS(torch.nn.Module, ABC):
         self.initial_ipeps = initial_ipeps
         self.tensors = Tensors(args["dtype"], args["device"])
         self.data = {"losses": [], "norms": [], "Niter_warmup": []}
-
         self.to(args["device"])
         if args["seed"] is not None:
             torch.manual_seed(args["seed"])
@@ -56,8 +55,8 @@ class iPEPS(torch.nn.Module, ABC):
             Niter_warmup (int): Number of warmup iterations.
         """
         self.data["losses"].append(E)
-        squared_norm = sum(p.data.norm(2) ** 2 for p in self.parameters() if p.grad is not None)
-        self.data["norms"].append(torch.sqrt(squared_norm) if isinstance(squared_norm, torch.Tensor) else squared_norm)
+        # squared_norm = sum(p.data.norm(2) ** 2 for p in self.parameters() if p.grad is not None)
+        # self.data["norms"].append(torch.sqrt(squared_norm) if isinstance(squared_norm, torch.Tensor) else squared_norm)
 
     def do_warmup_steps(self) -> tuple[torch.Tensor, ...]:
         """Warmup the iPEPS tensor by performing the CTM algorithm without gradient tracking.

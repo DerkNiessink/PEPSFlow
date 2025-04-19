@@ -1,6 +1,6 @@
 from pepsflow.iPEPS.minimizer import Trainer
 from pepsflow.iPEPS.iPEPS import iPEPS
-from pepsflow.iPEPS.reader import iPEPSReader
+from pepsflow.iPEPS.IO import iPEPSReader
 
 from torch.profiler import ProfilerActivity, profiler
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, MofNCompleteColumn, TimeElapsedColumn

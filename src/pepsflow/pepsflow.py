@@ -4,10 +4,9 @@ import os
 import ast
 import signal
 
-from pepsflow.iPEPS.minimizer import Minimizer
-from pepsflow.iPEPS.evaluater import Evaluater
 from pepsflow.iPEPS.iPEPS import make_ipeps
-from pepsflow.iPEPS.reader import Reader
+from pepsflow.iPEPS.io import IO
+from pepsflow.iPEPS.tools import Tools
 
 path = lambda folder, file: os.path.join("data", folder, file)
 
@@ -68,20 +67,17 @@ def minimize(var_param: tuple[str, str], value: float, args: dict):
 
     # Read the iPEPS model from a file if specified and set to the device
     if folders["read"]:
-        ipeps = Reader(path(folders["read"], fn)).ipeps
+        ipeps = IO.load(path(folders["read"], fn))
         ipeps = make_ipeps(args=ipeps_params, initial_ipeps=ipeps)
     else:
         ipeps = make_ipeps(ipeps_params)
 
-    # Execute the optimization and write the iPEPS model to a file
-    minimizer = Minimizer(ipeps, opt_params)
-
     # Save the data if the process is interrupted
-    save = lambda sig, frame: (minimizer.write(path(folders["write"], fn)), exit(0))
+    save = lambda sig, frame: (IO.save(ipeps, path(folders["write"], fn)), exit(0))
     signal.signal(signal.SIGINT, save)
 
-    minimizer.minimize()
-    minimizer.write(path(folders["write"], fn))
+    Tools.minimize(ipeps, opt_params)
+    IO.save(ipeps, path(folders["write"], fn))
 
 
 def evaluate(var_param, value: float, args: dict, read_fn: str):
@@ -105,17 +101,14 @@ def evaluate(var_param, value: float, args: dict, read_fn: str):
 
     folders, ipeps_params = args["parameters.folders"], args["parameters.ipeps"]
 
-    ipeps = Reader(path(folders["read"], read_fn)).ipeps
-
-    # Execute the convergence and write the data to a file
-    evaluater = Evaluater(ipeps, ipeps_params)
+    ipeps = IO.load(path(folders["read"], read_fn))
 
     # Save the data if the process is interrupted
-    save = lambda sig, frame: (evaluater.write(path(folders["write"], write_fn)), exit(0))
+    save = lambda sig, frame: (IO.save(ipeps, path(folders["write"], write_fn)), exit(0))
     signal.signal(signal.SIGINT, save)
 
-    evaluater.evaluate()
-    evaluater.write(path(folders["write"], write_fn))
+    Tools.evaluate(ipeps, ipeps_params)
+    IO.save(ipeps, path(folders["write"], write_fn))
 
 
 def minimize_parallel():
