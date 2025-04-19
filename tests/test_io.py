@@ -38,4 +38,5 @@ class TestMinimizer:
         ipeps = IO.load("tests/test")
         ipeps2 = make_ipeps(ipeps_args2, initial_ipeps=ipeps)
         Tools.minimize(ipeps2, minimize_args2)
+        IO.save(ipeps2, "tests/test")
         assert ipeps2.data["losses"][-1] == pytest.approx(-0.6602310934799586, abs=1e-3)

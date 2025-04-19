@@ -27,7 +27,7 @@ class IO:
             "data": ipeps.data,
             "ipeps_args": ipeps.args,
             "state": ipeps.params.tolist(),
-            "map": ipeps.map.tolist(),
+            "map": ipeps.map.tolist() if ipeps.map is not None else None,
         }
         with open(fn, "w") as f:
             json.dump(data, f, indent=4)
