@@ -1,4 +1,4 @@
-from pepsflow.iPEPS.iPEPS import iPEPS
+from pepsflow.ipeps.ipeps import iPEPS
 from pepsflow.models.optimizers import Optimizer
 
 import torch
@@ -37,7 +37,7 @@ class Tools:
             print(f"epoch, E, Diff: {epoch, new_loss.item(), abs(new_loss - loss).item()}")
             ipeps.add_data(new_loss.item())
 
-            if abs(new_loss - loss) < 1e-15:
+            if abs(new_loss - loss) < args.get("tol", 1e-10):
                 sys.stdout.flush()
                 print(f"Converged after {epoch} epochs. Saving and quiting training...")
                 break

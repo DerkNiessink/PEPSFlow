@@ -4,7 +4,7 @@ import sys
 import json
 from rich import print
 
-from pepsflow.iPEPS.iPEPS import iPEPS, make_ipeps
+from pepsflow.ipeps.ipeps import iPEPS, make_ipeps
 
 
 class IO:
@@ -18,16 +18,16 @@ class IO:
 
     @classmethod
     def save(self, ipeps: iPEPS, fn: str) -> None:
-        fn = f"{fn}.json"
+        fn = fn + ".json" if not fn.endswith(".json") else fn
         folder = os.path.dirname(fn)
         if folder and not os.path.exists(folder):
             os.makedirs(folder)
 
         data = {
-            "data": ipeps.data,
             "ipeps_args": ipeps.args,
             "state": ipeps.params.tolist(),
             "map": ipeps.map.tolist() if ipeps.map is not None else None,
+            "data": ipeps.data,
         }
         with open(fn, "w") as f:
             json.dump(data, f, indent=4)
@@ -36,7 +36,7 @@ class IO:
 
     @classmethod
     def load(self, fn: str) -> iPEPS:
-        fn = f"{fn}.json"
+        fn = fn + ".json" if not fn.endswith(".json") else fn
         with open(fn, "r") as f:
             data = json.load(f)
 

@@ -4,11 +4,9 @@ import os
 import ast
 import signal
 
-from pepsflow.iPEPS.iPEPS import make_ipeps
-from pepsflow.iPEPS.io import IO
-from pepsflow.iPEPS.tools import Tools
-
-path = lambda folder, file: os.path.join("data", folder, file)
+from pepsflow.ipeps.ipeps import make_ipeps
+from pepsflow.ipeps.io import IO
+from pepsflow.ipeps.tools import Tools
 
 
 def read_config() -> tuple[dict, tuple[str, str]]:
@@ -62,6 +60,7 @@ def minimize(var_param: tuple[str, str], value: float, args: dict):
     fn = f"{key}_{value}"
 
     folders = args["parameters.folders"]
+    path = lambda folder, file: os.path.join(folders["data"], folder, file)
     ipeps_params = args["parameters.ipeps"]
     opt_params = args["parameters.optimization"]
 
@@ -100,6 +99,7 @@ def evaluate(var_param, value: float, args: dict, read_fn: str):
         raise KeyError("Only chi as variational parameter is supported for convergence.")
 
     folders, ipeps_params = args["parameters.folders"], args["parameters.ipeps"]
+    path = lambda folder, file: os.path.join(folders["data"], folder, file)
 
     ipeps = IO.load(path(folders["read"], read_fn))
 
