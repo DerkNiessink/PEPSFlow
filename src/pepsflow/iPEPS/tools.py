@@ -55,6 +55,7 @@ class Tools:
         """
         ipeps.plant_gauge()
         ipeps.args["chi"] = args["chi"]
+        ipeps.args["Niter"] = args["Niter"]
         with torch.no_grad():
             tensors = ipeps.do_evaluation()
         E = ipeps.get_E(grad=False, tensors=tensors)

@@ -75,12 +75,18 @@ class iPEPS(torch.nn.Module, ABC):
         return self._forward(N=self.args["Niter"], grad=True, tensors=tensors)
 
     def do_evaluation(self) -> tuple[torch.Tensor, ...]:
-        """ "Evaluate the iPEPS tensor by performing the CTM algorithm without gradient tracking.
+        """Evaluate the iPEPS tensor by performing the CTM algorithm without gradient tracking.
 
         Returns:
             tuple[torch.Tensor, ...]: Tuple containing the corner and edge tensors of the iPEPS tensor network.
         """
         return self._forward(N=self.args["Niter"], grad=False)
+
+    def plant_gauge(self):
+        """Plant a gauge on the iPEPS tensor."""
+        A = self.params[self.map] if self.map is not None else self.params
+        A = self.tensors.A_gauged(A, which=self.args["gauge"])
+        self.params = torch.nn.Parameter(A / A.norm())
 
     @abstractmethod
     def _setup_random(self):
@@ -176,11 +182,6 @@ class GeneralIPEPS(iPEPS):
             # Case where the initial iPEPS is a symmetric state
             params = params[self.initial_ipeps.map]
         self.params = torch.nn.Parameter(params + torch.randn_like(params) * self.args["noise"])
-
-    def plant_gauge(self):
-        A = self.params[self.map] if self.map is not None else self.params
-        A = self.tensors.A_gauged(A, which=self.args["gauge"])
-        self.params = torch.nn.Parameter(A / A.norm())
 
     def get_E(self, grad: bool, tensors: tuple[torch.Tensor, ...]) -> torch.Tensor:
         A = self.params.detach() if not grad else self.params
