@@ -45,6 +45,7 @@ class iPEPS(torch.nn.Module, ABC):
 
         self.H = self.tensors.Hamiltonian(args["model"], lam=args["lam"])
         self.params, self.map = None, None
+        self.U1 = self.U2 = self.tensors.identity(args["D"])
 
     def add_data(self, key: str, value: Any):
         """Add data to the iPEPS object. If the key already exists, appends the value to the list."""
@@ -74,17 +75,12 @@ class iPEPS(torch.nn.Module, ABC):
         """
         return self._forward(N=self.args["Niter"], grad=False)
 
-    def plant_gauge(self) -> tuple[torch.Tensor, torch.Tensor]:
-        """Plant a gauge on the iPEPS tensor.
-
-        Returns:
-            tuple[torch.Tensor, torch.Tensor]: Tuple containing the two unitary matrices used for the gauge
-            transformation.
-        """
-        A = self.params[self.map] if self.map is not None else self.params
-        A, U1, U2 = self.tensors.A_gauged(A, which=self.args["gauge"])
-        self.params = torch.nn.Parameter(A / A.norm())
-        return U1, U2
+    def do_gauge_transform(self) -> tuple[torch.Tensor, torch.Tensor]:
+        """Plant a gauge on the iPEPS tensor. Sets the U1 and U2 attributes to the given kind of gauge."""
+        if self.args["seed"] is not None:
+            torch.manual_seed(self.args["seed"])
+            np.random.seed(self.args["seed"])
+        self.U1, self.U2 = self.tensors.gauges(D=self.args["D"], which=self.args["gauge"])
 
     @abstractmethod
     def _setup_random(self):
@@ -144,6 +140,7 @@ class RotationalSymmetricIPEPS(iPEPS):
 
     def get_E(self, grad: bool, tensors: tuple[torch.Tensor, ...]) -> torch.Tensor:
         A = self.params[self.map] if self.map is not None else self.params
+        A = self.tensors.gauge_transform(A, self.U1, self.U2)
         A = A.detach() if not grad else A
         C, T = tensors
         E_nn = self.tensors.E_nn(A, self.H, C, T)
@@ -153,8 +150,10 @@ class RotationalSymmetricIPEPS(iPEPS):
 
     def _forward(self, N: int, grad: bool, tensors: tuple[torch.Tensor, ...] = None) -> tuple:
         A = self.params[self.map]
-        A = A / A.norm()
         A = A.detach() if not grad else A
+        A = self.tensors.gauge_transform(A, self.U1, self.U2)
+        A = A / A.norm()
+
         iterative = not grad
         alg = CtmSymmetric(A, self.args["chi"], tensors, self.args["split"], iterative)
         alg.exe(N)
@@ -183,6 +182,8 @@ class GeneralIPEPS(iPEPS):
 
     def get_E(self, grad: bool, tensors: tuple[torch.Tensor, ...]) -> torch.Tensor:
         A = self.params.detach() if not grad else self.params
+        A = self.tensors.gauge_transform(A, self.U1, self.U2)
+        A = A / A.norm()
 
         C, T = tensors[:4], tensors[4:]
         E_h = self.tensors.E_horizontal_nn_general(A, self.H, *C, *T)
@@ -190,14 +191,17 @@ class GeneralIPEPS(iPEPS):
         E_nn = (E_h + E_v) / 2
 
         if self.args["model"] == "J1J2":
-            E_nnn = self.tensors.E_nnn_general(A, *C, *T)
+            E_diag_nnn = self.tensors.E_diagonal_nnn_general(A, *C, *T)
+            E_anti_nnn = self.tensors.E_anti_diagonal_nnn_general(A, *C, *T)
+            E_nnn = (E_diag_nnn + E_anti_nnn) / 2
             return E_nn + self.args["J2"] * E_nnn
         return E_nn
 
     def _forward(self, N: int, grad: bool, tensors: tuple[torch.Tensor, ...] = None) -> tuple:
         A = self.params
-        A = A / A.norm()
         A = A.detach() if not grad else A
+        A = self.tensors.gauge_transform(A, self.U1, self.U2)
+        A = A / A.norm()
         alg = CtmGeneral(A, self.args["chi"], tensors)
         alg.exe(N)
         return alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4

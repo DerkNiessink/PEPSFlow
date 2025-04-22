@@ -28,9 +28,31 @@ class TestMinimizer:
             chi=chi,
             warmup_steps=2,
             Niter=N,
+            gauge=None,
         )
         minimize_args = dict(optimizer="lbfgs", learning_rate=1, epochs=epochs, threads=1, line_search=True, log=False)
         ipeps = make_ipeps(ipeps_args)
         Tools.minimize(ipeps, minimize_args)
 
         assert ipeps.data["energies"][-1] == pytest.approx(E_exp, abs=1e-3)
+
+    def test_general_optimization(self):
+        ipeps_args = dict(
+            model="J1J2",
+            rotational_symmetry="state",
+            D=3,
+            dtype="double",
+            device="cpu",
+            lam=1,
+            J2=0.5,
+            split=False,
+            seed=2,
+            chi=8,
+            warmup_steps=2,
+            Niter=5,
+            gauge=None,
+        )
+        minimize_args = dict(optimizer="lbfgs", learning_rate=1, epochs=40, threads=1, line_search=True)
+        ipeps = make_ipeps(ipeps_args)
+        Tools.minimize(ipeps, minimize_args)
+        assert ipeps.data["energies"][-1] == pytest.approx(-0.49104640975943203, abs=1e-3)

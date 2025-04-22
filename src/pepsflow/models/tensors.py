@@ -17,18 +17,16 @@ class Tensors:
         self.dtype = dtype_map[dtype]
         self.dev = device_map[device]
 
-    def A_gauged(self, A: torch.Tensor, which: str) -> torch.Tensor:
+    def gauges(self, D: int, which: str) -> tuple[torch.Tensor, torch.Tensor]:
         """
-        Apply a gauge transformation to A tensor.
+        Get gauge transformation matrices.
 
         Args:
-            A (torch.Tensor): Tensor to be gauged.
             which (str): Type of gauge transformation. Can be 'unitary', 'invertible' or None.
 
         Returns:
-            torch.Tensor: Gauged A.
+            tuple[torch.Tensor, torch.Tensor]: Gauge transformation matrices U1 and U2.
         """
-        D = A.size(1)
         match which:
             case "unitary":
                 U1, U2 = self.random_unitary(D), self.random_unitary(D)
@@ -38,15 +36,21 @@ class Tensors:
                 U1 = U2 = self.identity(D)
             case _:
                 raise ValueError(f"Unknown gauge type: {which}")
-        A_gauged = torch.einsum("abcde,bf,cg,dh,ei->afghi", A, U1, torch.linalg.inv(U2).T, torch.linalg.inv(U1).T, U2)
-        #         |
-        #        |_|U1
-        # U2^-1   |    _                /
-        # --|_|-- o --|_|--    🡺   -- o --
-        #         | \  U2             /|
-        #   U1^-1|_| \
-        #         |
-        return A_gauged, U1, U2
+        return U1, U2
+
+    def gauge_transform(self, A: torch.Tensor, U1: torch.Tensor, U2: torch.Tensor) -> torch.Tensor:
+        """
+        Apply gauge transformation to the tensor A.
+
+        Args:
+            A (torch.Tensor): Tensor to be transformed.
+            U1 (torch.Tensor): First gauge transformation matrix.
+            U2 (torch.Tensor): Second gauge transformation matrix.
+
+        Returns:
+            torch.Tensor: Transformed tensor.
+        """
+        return torch.einsum("abcde,bf,cg,dh,ei->afghi", A, U1, torch.linalg.inv(U2).T, torch.linalg.inv(U1).T, U2)
 
     def A_random(self, D: int) -> torch.Tensor:
         """Return a random state of size [d, D, D, D, D]."""
@@ -323,7 +327,7 @@ class Tensors:
 
         return 0.5 * (Rho + Rho.t())
 
-    def rho_nnn_general(
+    def rho_diagonal_nnn_general(
         self,
         A: torch.Tensor,
         C1: torch.Tensor,
@@ -360,6 +364,46 @@ class Tensors:
         #  |     |\\   |     |    [d, d, d, d]   🡺   |___|   [d², d²]
         #  T4 -- b --- a --- T2                       |   |
         #  |     |     |\\   |
+        #  C4 -- T3 -- T3 -- C3
+
+        return 0.5 * (Rho + Rho.t())
+
+    def rho_anti_diagonal_nnn_general(
+        self,
+        A: torch.Tensor,
+        C1: torch.Tensor,
+        C2: torch.Tensor,
+        C3: torch.Tensor,
+        C4: torch.Tensor,
+        T1: torch.Tensor,
+        T2: torch.Tensor,
+        T3: torch.Tensor,
+        T4: torch.Tensor,
+    ) -> torch.Tensor:
+        d, D = A.size(0), A.size(1)
+        a = torch.einsum("mefgh,nabcd->eafbgchdmn", (A, A)).view(D**2, D**2, D**2, D**2, d, d)
+        #      /        /              /
+        #  -- o --  -- o --   🡺   -- o --  [D², D², D², D², d, d]
+        #    /|       /|             /||
+
+        b = torch.einsum("abcde,afghi->bfcidheg", A, A).reshape(D**2, D**2, D**2, D**2)
+        #      /
+        #  -- o --
+        #    /|             |
+        #     |/     🡺  -- o --  [D², D², D², D²]
+        #  -- o --          |
+        #    /
+
+        Rho = torch.einsum(
+            "ab,bcd,efa,fghc,hklmij,dmn,lop,np,qr,qst,rue,utvgzA,vxyk,sBx,yCo,BC->izjA",
+            (C1, T4, T1, b, a, T4, T3, C4, C2, T2, T1, a, b, T2, T3, C3),
+        ).reshape(d**2, d**2)
+        #  C1 -- T1 -- T1 -- C2
+        #  |     |     |     |
+        #  T4 -- b --- a --- T2                        ___
+        #  |     |     |\\   |    [d, d, d, d]   🡺   |___|   [d², d²]
+        #  T4 -- a --- b --- T2                       |   |
+        #  |     |\\   |     |
         #  C4 -- T3 -- T3 -- C3
 
         return 0.5 * (Rho + Rho.t())
@@ -468,7 +512,7 @@ class Tensors:
         E = torch.einsum("ab,ab", Rho, H) / Rho.trace()
         return E
 
-    def E_nnn_general(
+    def E_diagonal_nnn_general(
         self,
         A: torch.Tensor,
         C1: torch.Tensor,
@@ -481,7 +525,25 @@ class Tensors:
         T4: torch.Tensor,
     ) -> torch.Tensor:
 
-        Rho = self.rho_nnn_general(A, C1, C2, C3, C4, T1, T2, T3, T4)
+        Rho = self.rho_diagonal_nnn_general(A, C1, C2, C3, C4, T1, T2, T3, T4)
+        H = self.H_Heis()
+        E = torch.einsum("ab,ab", Rho, H) / Rho.trace()
+        return E
+
+    def E_anti_diagonal_nnn_general(
+        self,
+        A: torch.Tensor,
+        C1: torch.Tensor,
+        C2: torch.Tensor,
+        C3: torch.Tensor,
+        C4: torch.Tensor,
+        T1: torch.Tensor,
+        T2: torch.Tensor,
+        T3: torch.Tensor,
+        T4: torch.Tensor,
+    ) -> torch.Tensor:
+
+        Rho = self.rho_anti_diagonal_nnn_general(A, C1, C2, C3, C4, T1, T2, T3, T4)
         H = self.H_Heis()
         E = torch.einsum("ab,ab", Rho, H) / Rho.trace()
         return E

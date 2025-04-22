@@ -33,7 +33,7 @@ class TestCtmAlg:
         Test the general CTM algorithm by comparing the evaluated energy of a symmetric Heisenberg state of
         the symmetric and general CTM algorithms. The energy should be the same up to a small tolerance.
         """
-        A = torch.from_numpy(np.loadtxt("tests/Heisenberg_state.txt").reshape(2, 2, 2, 2, 2)).double()
+        A = torch.from_numpy(np.loadtxt("tests/Heis_D2_state.txt").reshape(2, 2, 2, 2, 2)).double()
         alg = CtmGeneral(A, chi=24)
         alg.exe(N=10)
         alg_symm = CtmSymmetric(A, chi=24)
@@ -54,7 +54,7 @@ class TestCtmAlg:
         Heisenberg state before and after a gauge change. The gauge change breaks the symmetry of the state,
         but the energy should remain invariant. The energy should be the same up to a small tolerance.
         """
-        A = torch.from_numpy(np.loadtxt("tests/Heisenberg_state.txt").reshape(2, 2, 2, 2, 2)).double()
+        A = torch.from_numpy(np.loadtxt("tests/Heis_D2_state.txt").reshape(2, 2, 2, 2, 2)).double()
         tensors = Tensors(dtype="double", device="cpu")
         U1 = tensors.random_unitary(2)
         U2 = tensors.random_unitary(2)

@@ -16,6 +16,9 @@ class Tools:
             ipeps (iPEPS): iPEPS model to optimize.
             args (dict): Dictionary containing the arguments for the optimization process.
         """
+        ipeps.do_gauge_transform()
+        ipeps.add_data(key="Gauges [U1, U2]", value=ipeps.U1)
+        ipeps.add_data(key="Gauges [U1, U2]", value=ipeps.U2)
 
         torch.set_num_threads(args["threads"])
         ls = "strong_wolfe" if args["line_search"] else None
@@ -54,9 +57,9 @@ class Tools:
             args (dict): Dictionary containing the iPEPS parameters.
         """
         ipeps.args = args
-        U1, U2 = ipeps.plant_gauge()
-        ipeps.add_data(key="Gauges [U1, U2]", value=U1)
-        ipeps.add_data(key="Gauges [U1, U2]", value=U2)
+        ipeps.do_gauge_transform()
+        ipeps.add_data(key="Gauges [U1, U2]", value=ipeps.U1)
+        ipeps.add_data(key="Gauges [U1, U2]", value=ipeps.U2)
         with torch.no_grad():
             tensors = ipeps.do_evaluation()
         E = ipeps.get_E(grad=False, tensors=tensors)

@@ -148,10 +148,10 @@ def plot(ctx, folders, **kwargs):
         plt.ylabel(r"$\log|E-E_0|$")
         plt.xlabel(r"$1/\chi$")
         for i, observers in enumerate(all_observers):
-            data = [(1/observer.chi(), observer.energy()) for observer in observers]
+            data = [(1/observer.chi(), observer.eval_energy()) for observer in observers if observer.eval_energy() is not None]
             data.sort(reverse=True)
             inv_chis, energies = zip(*data)
-            energies = np.array(energies) + 0.6689673179389798
+            energies = np.array(energies) - float(args["E0"])
             width,line,color =(0.5,"-","k") if "seed" in folders[i] else (0.7,"v-","C0")
             plt.plot(inv_chis, energies, line, markersize=4,color=color, linewidth=width)
         plt.grid(linestyle='--', linewidth=0.35)
@@ -254,7 +254,7 @@ def plot(ctx, folders, **kwargs):
   
     plt.tight_layout()
     #plt.legend()
-    #plt.savefig("figures/general_D5_convergence_gauge_comparison.png")
+    #plt.savefig("figures/general_D4_convergence_gauge_comparison.png")
     plt.show()
 
 

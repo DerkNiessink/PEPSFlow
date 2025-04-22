@@ -22,6 +22,7 @@ class TestMinimizer:
             warmup_steps=2,
             Niter=4,
             noise=0,
+            gauge=None,
         )
         minimize_args = dict(optimizer="lbfgs", learning_rate=1, epochs=3, threads=1, line_search=True, log=False)
         ipeps = make_ipeps(ipeps_args)
