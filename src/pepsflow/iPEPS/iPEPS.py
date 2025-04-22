@@ -8,7 +8,7 @@ from pepsflow.models.tensors import Tensors
 from abc import ABC, abstractmethod
 import torch
 import numpy as np
-from pepsflow.models.tensors import Tensors
+from typing import Any
 
 
 def make_ipeps(args: dict, initial_ipeps: "iPEPS" = None) -> "iPEPS":
@@ -37,7 +37,7 @@ class iPEPS(torch.nn.Module, ABC):
         self.args = args
         self.initial_ipeps = initial_ipeps
         self.tensors = Tensors(args["dtype"], args["device"])
-        self.data = {"losses": [], "norms": [], "Niter_warmup": []}
+        self.data = {}
         self.to(args["device"])
         if args["seed"] is not None:
             torch.manual_seed(args["seed"])
@@ -46,17 +46,9 @@ class iPEPS(torch.nn.Module, ABC):
         self.H = self.tensors.Hamiltonian(args["model"], lam=args["lam"])
         self.params, self.map = None, None
 
-    def add_data(self, E: torch.Tensor = None, Niter_warmup: int = None):
-        """
-        Add data of the energy, norm and number of warmup iterations to the iPEPS.
-
-        Args:
-            E (torch.Tensor): Energy of the iPEPS tensor network.
-            Niter_warmup (int): Number of warmup iterations.
-        """
-        self.data["losses"].append(E)
-        # squared_norm = sum(p.data.norm(2) ** 2 for p in self.parameters() if p.grad is not None)
-        # self.data["norms"].append(torch.sqrt(squared_norm) if isinstance(squared_norm, torch.Tensor) else squared_norm)
+    def add_data(self, key: str, value: Any):
+        """Add data to the iPEPS object. If the key already exists, appends the value to the list."""
+        self.data.setdefault(key, []).append(value)
 
     def do_warmup_steps(self) -> tuple[torch.Tensor, ...]:
         """Warmup the iPEPS tensor by performing the CTM algorithm without gradient tracking.
@@ -82,11 +74,17 @@ class iPEPS(torch.nn.Module, ABC):
         """
         return self._forward(N=self.args["Niter"], grad=False)
 
-    def plant_gauge(self):
-        """Plant a gauge on the iPEPS tensor."""
+    def plant_gauge(self) -> tuple[torch.Tensor, torch.Tensor]:
+        """Plant a gauge on the iPEPS tensor.
+
+        Returns:
+            tuple[torch.Tensor, torch.Tensor]: Tuple containing the two unitary matrices used for the gauge
+            transformation.
+        """
         A = self.params[self.map] if self.map is not None else self.params
-        A = self.tensors.A_gauged(A, which=self.args["gauge"])
+        A, U1, U2 = self.tensors.A_gauged(A, which=self.args["gauge"])
         self.params = torch.nn.Parameter(A / A.norm())
+        return U1, U2
 
     @abstractmethod
     def _setup_random(self):

@@ -33,4 +33,4 @@ class TestMinimizer:
         ipeps = make_ipeps(ipeps_args)
         Tools.minimize(ipeps, minimize_args)
 
-        assert ipeps.data["losses"][-1] == pytest.approx(E_exp, abs=1e-3)
+        assert ipeps.data["energies"][-1] == pytest.approx(E_exp, abs=1e-3)

@@ -46,7 +46,7 @@ class Tensors:
         #         | \  U2             /|
         #   U1^-1|_| \
         #         |
-        return A_gauged
+        return A_gauged, U1, U2
 
     def A_random(self, D: int) -> torch.Tensor:
         """Return a random state of size [d, D, D, D, D]."""

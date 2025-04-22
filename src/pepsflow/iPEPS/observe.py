@@ -21,7 +21,7 @@ class Observer:
 
     def losses(self) -> list[float]:
         """Get the losses."""
-        return self.ipeps.data["losses"]
+        return self.ipeps.data["energies"]
 
     def gradient_norms(self) -> list[float]:
         """Get the gradient norms."""
@@ -33,7 +33,7 @@ class Observer:
 
     def energy(self) -> float:
         """Get the energy."""
-        return self.ipeps.data["losses"][-1]
+        return self.ipeps.data["energies"][-1]
 
     def magnetization(self) -> float:
         """Get the magnetization."""

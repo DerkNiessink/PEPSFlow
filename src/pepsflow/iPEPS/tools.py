@@ -35,7 +35,7 @@ class Tools:
             new_loss: torch.Tensor = opt.step(train)
             sys.stdout.flush()
             print(f"epoch, E, Diff: {epoch, new_loss.item(), abs(new_loss - loss).item()}")
-            ipeps.add_data(new_loss.item())
+            ipeps.add_data(key="energies", value=new_loss.item())
 
             if abs(new_loss - loss) < args.get("tol", 1e-10):
                 sys.stdout.flush()
@@ -53,11 +53,12 @@ class Tools:
             ipeps (iPEPS): iPEPS model to compute the energies for.
             args (dict): Dictionary containing the iPEPS parameters.
         """
-        ipeps.plant_gauge()
-        ipeps.args["chi"] = args["chi"]
-        ipeps.args["Niter"] = args["Niter"]
+        ipeps.args = args
+        U1, U2 = ipeps.plant_gauge()
+        ipeps.add_data(key="Gauges [U1, U2]", value=U1)
+        ipeps.add_data(key="Gauges [U1, U2]", value=U2)
         with torch.no_grad():
             tensors = ipeps.do_evaluation()
         E = ipeps.get_E(grad=False, tensors=tensors)
-        ipeps.add_data(E.item())
+        ipeps.add_data(key="Eval_energy", value=E.item())
         print(f"chi, E: {ipeps.args['chi'], E.item()}")
