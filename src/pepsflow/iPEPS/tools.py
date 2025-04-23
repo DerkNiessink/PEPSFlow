@@ -30,6 +30,10 @@ class Tools:
             tensors = ipeps.do_gradient_steps(tensors=tensors)
             loss = ipeps.get_E(grad=True, tensors=tensors)
             loss.backward()
+
+            for p in ipeps.parameters():
+                if p.grad is not None and not p.grad.is_contiguous():
+                    p.grad = p.grad.contiguous()
             return loss
 
         loss = 0

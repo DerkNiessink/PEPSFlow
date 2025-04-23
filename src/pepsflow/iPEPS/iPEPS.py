@@ -154,8 +154,7 @@ class RotationalSymmetricIPEPS(iPEPS):
         A = self.tensors.gauge_transform(A, self.U1, self.U2)
         A = A / A.norm()
 
-        iterative = not grad
-        alg = CtmSymmetric(A, self.args["chi"], tensors, self.args["split"], iterative)
+        alg = CtmSymmetric(A, self.args["chi"], tensors, self.args["split"], self.args["projector_mode"])
         alg.exe(N)
         return alg.C, alg.T
 
