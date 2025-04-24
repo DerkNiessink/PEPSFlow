@@ -126,18 +126,26 @@ class CtmSymmetric(Ctm):
         """
         Execute one "classic" CTM step. This is the standard CTM algorithm for the rank-4 input tensor.
         """
-        M = torch.einsum("ab,acd,bef,ecgh->dgfh", self.C, self.T, self.T, self.a)
-        #   o -- o --
-        #   |    |      🡺   [χ, D², χ, D²]
-        #   o -- o --
-        #   |    |
+        if self.projector_mode == "qr" and self.chi == self.max_chi:
+            M = torch.einsum("ab,acd->bcd", self.C, self.T)
+            M_matrix = M.contiguous().view(self.chi*self.D**2, self.chi)
+            #  o -- o --   🡺  [χD², χ]
+            #  |    |
+        else:
+            M = torch.einsum("ab,acd,bef,ecgh->dgfh", self.C, self.T, self.T, self.a)
+            M_matrix = M.contiguous().view(self.chi*self.D**2, self.chi*self.D**2)
+            #   o -- o --         __
+            #   |    |      🡺   |__|--  [χD², χD²]
+            #   o -- o --         | 
+            #   |    |
 
-        U = self._new_U(M)
+        U = self._new_U(M_matrix)
         #  --|\
-        #    | |--   🡺   [χ, D², χ]
+        #    | |--  [χ, D², χ]
         #  --|/
         #
-
+        
+        M = torch.einsum("ab,acd,bef,ecgh->dgfh", self.C, self.T, self.T, self.a)
         self.C = symm(norm(torch.einsum("abc,abfe,fed->cd", U, M, U)))
         #  o -- o --|\
         #  |    |   | |--
@@ -160,16 +168,21 @@ class CtmSymmetric(Ctm):
         Execute one "split" CTM step. This is the CTM algorithm for the rank-5 input tensor.
         """
         # fmt: off
-        M = torch.einsum("ab,acde,bfgh,mfcij,mglkd->eikhjl", self.C, self.T, self.T, self.a, self.a)
-        #        o----o----
-        #       /    /|
-        #      /_- o---- 
-        #     //  /|/      🡺   [χ, D, D, χ, D, D]     
-        #    o---/-o---- 
-        #   /     /
-        #  /     /
+        if self.projector_mode == "qr":
+            raise NotImplementedError("QR projector mode is not implemented for split CTM, please either " \
+            "set split=False or use a different projector mode.")
+        else:
+            M = torch.einsum("ab,acde,bfgh,mfcij,mglkd->eikhjl", self.C, self.T, self.T, self.a, self.a)
+            M_matrix = M.contiguous().view(self.chi * self.D**2, self.chi * self.D**2)
+            #        o----o----
+            #       /    /|
+            #      /_- o----         __
+            #     //  /|/      🡺   |__|--   [χD², χD²]     
+            #    o---/-o----         |
+            #   /     /
+            #  /     /
 
-        U = self._new_U(M)   
+        U = self._new_U(M_matrix)   
         #  --|\   
         #  --| |--   🡺   [χ, D, D, χ]
         #  --|/    
@@ -201,38 +214,47 @@ class CtmSymmetric(Ctm):
         (svd) on the given corner tensor `M`. Using this factorization `M` can be written as M = U s V*, where
         the `U` matrix is used for renormalization.
 
-        `M` (torch.Tensor): The new contracted corner tensor of shape (chi, d, chi, d).
+        `M` (torch.Tensor): The new contracted corner tensor either of shape [χD², χD²] or [χD², χ] if projector_mode 
+        is "qr".
 
-        Returns the renormalization tensor of shape (chi, d, chi) which is obtained by reshaping `U` in a rank-3.
+        Returns the renormalization tensor of shape [χ, D², χ] which is obtained by reshaping `U` in a rank-3.
         """
-        M = M.contiguous().view(self.chi * self.D**2, self.chi * self.D**2)
-        #  --o--  [χD², χD²]
-
         # Let chi grow if the desired chi is not yet reached.
-        k = self.chi
+        previous_chi = self.chi
         self.chi = min(self.chi * self.D**2, self.max_chi)
+   
+        # In qr mode we first have to let chi grow to the desired valued.
+        if self.projector_mode == "qr" and previous_chi == self.chi:
+            U, R = torch.linalg.qr(M, mode="reduced")
+            s = torch.diagonal(R, 0)
+            #
+            #   --o--   🡺  --<|---|>--  [χD², χ], [χ, χ]
 
-        match self.projector_mode:
-            case "iterative_eig":
-                s, U = scipy.sparse.linalg.eigsh(M.cpu().detach().numpy(), k=self.chi)
-                s, U = torch.from_numpy(s), torch.from_numpy(U)
-            case "eig":
-                s, U = torch.linalg.eigh(M)
-            case "svd":
-                U, s, _ = truncated_svd_gesdd(M, self.chi)
-            case "qr":
-                U, R = torch.linalg.qr(M, mode="complete")
-                s = torch.diagonal(R, 0)
-            case _:
-                raise ValueError("Invalid projector mode, choose from 'iterative_eig', 'eig', 'svd', or 'qr'.")
+        # We also use this iterative_eig mode for the case when we have to grow the chi in qr mode.
+        elif self.projector_mode == "iterative_eig" or (self.projector_mode == "qr" and previous_chi != self.max_chi):
+            s, U = scipy.sparse.linalg.eigsh(M.cpu().detach().numpy(), k=self.chi)
+            s, U = torch.from_numpy(s), torch.from_numpy(U)
+        elif self.projector_mode == "eig":
+            s, U = torch.linalg.eigh(M)
+        elif self.projector_mode == "svd":
+            U, s, _ = truncated_svd_gesdd(M, self.chi)     
+            #
+            #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
+        
+        else:
+            raise ValueError("Invalid projector mode, choose from 'iterative_eig', 'eig', 'svd', or 'qr'.")
+            
+        # In qr mode truncating is not necessary, since the Q we obtained is already from the truncated tall matrix
+        # which captures the relevant subspace.  
+        if self.projector_mode != "qr" or previous_chi != self.chi:
+            # Sort the eigenvectors by the absolute value of the eigenvalues and keep the χ largest ones.
+            U = U[:, torch.argsort(torch.abs(s), descending=True)[: self.chi]] 
+            #  🡺  [χD², χ] 
+            s = s[torch.argsort(torch.abs(s), descending=True)[: self.chi]]
+            #  🡺  [χ] 
 
-        # Sort the eigenvectors by the absolute value of the eigenvalues and keep the χ largest ones.
-        #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
-        U = U[:, torch.argsort(torch.abs(s), descending=True)[: self.chi]]
-        s = s[torch.argsort(torch.abs(s), descending=True)[: self.chi]]
-
-        # Reshape U back in a rank-3 or 4 tensor.
-        shape = (k, self.D, self.D, self.chi) if self.split else (k, self.D**2, self.chi)
+        # Reshape U back in a rank-3 or 4 tensor, note that chi == previous_chi if desired max_chi has been reached.
+        shape = (previous_chi, self.D, self.D, self.chi) if self.split else (previous_chi, self.D**2, self.chi)
 
         # Save the sum of the eigenvalues for convergence check.
         self.eigvals_sums.append(torch.sum(s))
