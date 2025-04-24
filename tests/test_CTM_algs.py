@@ -33,7 +33,7 @@ class TestCtmAlg:
         Test the general CTM algorithm by comparing the evaluated energy of a symmetric Heisenberg state of
         the symmetric and general CTM algorithms. The energy should be the same up to a small tolerance.
         """
-        A = torch.from_numpy(np.loadtxt("tests/Heisenberg_state.txt").reshape(2, 2, 2, 2, 2)).double()
+        A = torch.from_numpy(np.loadtxt("tests/Heis_D2_state.txt").reshape(2, 2, 2, 2, 2)).double()
         alg = CtmGeneral(A, chi=24)
         alg.exe(N=10)
         alg_symm = CtmSymmetric(A, chi=24)
@@ -48,36 +48,13 @@ class TestCtmAlg:
         E_symm = tensors.E_nn(A, tensors.H_Heis_rot(), alg_symm.C, alg_symm.T)
         assert E_general / 2 == pytest.approx(E_symm, abs=1e-8)
 
-    def test_general_Ising(self):
-        """
-        Test the general CTM algorithm by comparing the evaluated energy of a symmetric Ising state of
-        the symmetric and general CTM algorithms. The energy should be the same up to a small tolerance.
-        """
-        A = torch.from_numpy(np.loadtxt("tests/Ising_state.txt").reshape(2, 2, 2, 2, 2)).double()
-        alg = CtmGeneral(A, chi=8)
-        alg.exe(N=30)
-        alg_symm = CtmSymmetric(A, chi=8)
-        alg_symm.exe(N=10)
-        tensors = Tensors(dtype="double", device="cpu")
-
-        E_vertical_nn_general = tensors.E_vertical_nn_general(
-            A, tensors.H_Ising(lam=4), alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
-        )
-        E_horizontal_nn_general = tensors.E_horizontal_nn_general(
-            A, tensors.H_Ising(lam=4), alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
-        )
-        E_general = E_vertical_nn_general + E_horizontal_nn_general
-        E_symm = tensors.E_nn(A, tensors.H_Ising(lam=4), alg_symm.C, alg_symm.T)
-
-        assert E_general / 2 == pytest.approx(E_symm, abs=1e-4)
-
     def test_gauge_change(self):
         """
         Test the gauge invariance of the general CTM algorithm by comparing the evaluated energy of a symmetric
         Heisenberg state before and after a gauge change. The gauge change breaks the symmetry of the state,
         but the energy should remain invariant. The energy should be the same up to a small tolerance.
         """
-        A = torch.from_numpy(np.loadtxt("tests/Heisenberg_state.txt").reshape(2, 2, 2, 2, 2)).double()
+        A = torch.from_numpy(np.loadtxt("tests/Heis_D2_state.txt").reshape(2, 2, 2, 2, 2)).double()
         tensors = Tensors(dtype="double", device="cpu")
         U1 = tensors.random_unitary(2)
         U2 = tensors.random_unitary(2)

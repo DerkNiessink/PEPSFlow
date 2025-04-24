@@ -4,12 +4,9 @@ import os
 import ast
 import signal
 
-from pepsflow.iPEPS.minimizer import Minimizer
-from pepsflow.iPEPS.evaluater import Evaluater
-from pepsflow.iPEPS.iPEPS import iPEPS
-from pepsflow.iPEPS.reader import Reader
-
-path = lambda folder, file: os.path.join("data", folder, file)
+from pepsflow.ipeps.ipeps import make_ipeps
+from pepsflow.ipeps.io import IO
+from pepsflow.ipeps.tools import Tools
 
 
 def read_config() -> tuple[dict, tuple[str, str]]:
@@ -63,25 +60,23 @@ def minimize(var_param: tuple[str, str], value: float, args: dict):
     fn = f"{key}_{value}"
 
     folders = args["parameters.folders"]
+    path = lambda folder, file: os.path.join(folders["data"], folder, file)
     ipeps_params = args["parameters.ipeps"]
     opt_params = args["parameters.optimization"]
 
     # Read the iPEPS model from a file if specified and set to the device
     if folders["read"]:
-        ipeps = Reader(path(folders["read"], fn)).ipeps
-        ipeps = iPEPS(args=ipeps_params, initial_ipeps=ipeps)
+        ipeps = IO.load(path(folders["read"], fn))
+        ipeps = make_ipeps(args=ipeps_params, initial_ipeps=ipeps)
     else:
-        ipeps = iPEPS(ipeps_params)
-
-    # Execute the optimization and write the iPEPS model to a file
-    minimizer = Minimizer(ipeps, opt_params)
+        ipeps = make_ipeps(ipeps_params)
 
     # Save the data if the process is interrupted
-    save = lambda sig, frame: (minimizer.write(path(folders["write"], fn)), exit(0))
+    save = lambda sig, frame: (IO.save(ipeps, path(folders["write"], fn)), exit(0))
     signal.signal(signal.SIGINT, save)
 
-    minimizer.minimize()
-    minimizer.write(path(folders["write"], fn))
+    Tools.minimize(ipeps, opt_params)
+    IO.save(ipeps, path(folders["write"], fn))
 
 
 def evaluate(var_param, value: float, args: dict, read_fn: str):
@@ -104,18 +99,16 @@ def evaluate(var_param, value: float, args: dict, read_fn: str):
         raise KeyError("Only chi as variational parameter is supported for convergence.")
 
     folders, ipeps_params = args["parameters.folders"], args["parameters.ipeps"]
+    path = lambda folder, file: os.path.join(folders["data"], folder, file)
 
-    ipeps = Reader(path(folders["read"], read_fn)).ipeps
-
-    # Execute the convergence and write the data to a file
-    evaluater = Evaluater(ipeps, ipeps_params)
+    ipeps = IO.load(path(folders["read"], read_fn))
 
     # Save the data if the process is interrupted
-    save = lambda sig, frame: (evaluater.write(path(folders["write"], write_fn)), exit(0))
+    save = lambda sig, frame: (IO.save(ipeps, path(folders["write"], write_fn)), exit(0))
     signal.signal(signal.SIGINT, save)
 
-    evaluater.evaluate()
-    evaluater.write(path(folders["write"], write_fn))
+    Tools.evaluate(ipeps, ipeps_params)
+    IO.save(ipeps, path(folders["write"], write_fn))
 
 
 def minimize_parallel():

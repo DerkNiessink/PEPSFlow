@@ -3,7 +3,6 @@ import torch
 import scipy.sparse.linalg
 
 from pepsflow.models.tensors import Methods
-from pepsflow.models.svd import CustomSVD
 from pepsflow.models.truncated_svd import truncated_svd_gesdd
 
 norm = Methods.normalize
@@ -33,7 +32,7 @@ class Ctm(ABC):
         chi: int,
         tensors: tuple[torch.Tensor, ...] = None,
         split: bool = False,
-        iterative: bool = False,
+        projector_mode: str = "eig",
     ):
         """
         Args:
@@ -41,7 +40,8 @@ class Ctm(ABC):
             chi (int): Maximum bond dimension of the CTM algorithm.
             tensors (tuple): Tuple containing the corner and edge tensors of the CTM algorithm.
             split (bool): Whether to use the split or classic CTM algorithm. Default is False.
-            iterative (bool): Whether to use iterative methods for the eigenvalue decomposition. Default is False.
+            projector_mode (str): Which projector mode to use for the CTM algorithm. Can be 'eig',
+              'svd', 'qr', or 'iterative_eig'. Default is 'eig'.
         """
         D = A.size(1)
         self.D = D
@@ -50,7 +50,7 @@ class Ctm(ABC):
         self.tensors = tensors
         self.chi = D**2 if tensors is None else tensors[0].size(0)  # In both cases we have to let chi grow to max_chi.
         self.eigvals_sums = [0]
-        self.iterative = iterative
+        self.projector_mode = projector_mode
 
         self.a_split = torch.einsum("abcde,afghi->bfcgdhei", A, A)
         #      /
@@ -74,9 +74,9 @@ class Ctm(ABC):
         self.Niter = N
         for i in range(N):
             self._step()
-            #if self._converged(tol):
-            #    self.Niter = i
-            #    break
+            if self._converged(tol):
+                self.Niter = i
+                break
 
         if self.split:
             self.T = self.T.view(self.chi, self.D**2, self.chi)
@@ -212,15 +212,22 @@ class CtmSymmetric(Ctm):
         k = self.chi
         self.chi = min(self.chi * self.D**2, self.max_chi)
 
-        if self.iterative and M.device.type == "cpu":
-            s, U = scipy.sparse.linalg.eigsh(M.cpu().detach().numpy(), k=self.chi)
-            s, U = torch.from_numpy(s), torch.from_numpy(U)
-        else:
-            s, U = torch.linalg.eigh(M)
-            # Sort the eigenvectors by the absolute value of the eigenvalues and keep the χ largest ones.
+        match self.projector_mode:
+            case "iterative_eig":
+                s, U = scipy.sparse.linalg.eigsh(M.cpu().detach().numpy(), k=self.chi)
+                s, U = torch.from_numpy(s), torch.from_numpy(U)
+            case "eig":
+                s, U = torch.linalg.eigh(M)
+            case "svd":
+                U, s, _ = truncated_svd_gesdd(M, self.chi)
+            case "qr":
+                U, R = torch.linalg.qr(M, mode="complete")
+                s = torch.diagonal(R, 0)
+            case _:
+                raise ValueError("Invalid projector mode, choose from 'iterative_eig', 'eig', 'svd', or 'qr'.")
 
+        # Sort the eigenvectors by the absolute value of the eigenvalues and keep the χ largest ones.
         #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
-
         U = U[:, torch.argsort(torch.abs(s), descending=True)[: self.chi]]
         s = s[torch.argsort(torch.abs(s), descending=True)[: self.chi]]
 
@@ -398,25 +405,37 @@ class CtmGeneral(Ctm):
         #    |  |---|  |
         #  --|  |   |  |--   🡺   --o--   [χD², χD²]
         #    |__|---|__|
-        #U, s, Vh = CustomSVD.apply(A)
-        U,s, Vh = truncated_svd_gesdd(A, grown_chi)
-        Vh = Vh.T
+        
+        if self.projector_mode == "qr":
+            Q, R_ = torch.linalg.qr(A, mode="complete")
+            R_inv = torch.linalg.inv(R_)
+            s = torch.diagonal(R_, 0)
 
-        #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
-        #U, s, Vh = U[:, :grown_chi], s[:grown_chi], Vh[:grown_chi, :]
-        # --<|---o---|>--   🡺   [χD², χ], [χ], [χ, χD²]
-        s_nz= s[s/s[0] > 1e-10]
-        s_rsqrt= s*0
-        s_rsqrt[:s_nz.size(0)]= torch.rsqrt(s_nz)
-        s_rsqrt = torch.rsqrt(s)
-        P_tilde = torch.einsum("abc,cd,de->abe", R_tilde, Vh.T, torch.diag(s_rsqrt))
-        P = torch.einsum("ab,bc,dec->dea", torch.diag(s_rsqrt), U.T, R)
-        #    ___                                                 ___            
-        #  --|  |        |\                           /|        |  |--        --|\           /|--
-        #    |  | ------ | | ---- o -- . . -- o ---- | | ------ |  |    🡺      | |-- . . --| |
-        #  --|__|        |/                           \|        |__|--        --|/           \|--
-        #              
-        #    R~           V      s^(-1/2)  s^(-1/2)        U†        R          P~            P
-        # [χD², D², χ]  [χD², χ]  [χ, χ]   [χ, χ]   [χ, χD²]  [χD², D², χ]    [χ, D², χ]   [χ, D², χ]
+            #Q = Q[torch.argsort(torch.abs(s), descending=True)[: grown_chi], :]
+            #R_ = R_[:, torch.argsort(torch.abs(s), descending=True)[: grown_chi]]
+            #R_inv = R_inv[torch.argsort(torch.abs(s), descending=True)[: grown_chi]]
+            P_tilde = torch.einsum("abc,cd->abd", R_tilde, R_inv)
+            P = torch.einsum("ab,cdb->cda", Q.T, R)
+
+        else:
+            U,s, Vh = truncated_svd_gesdd(A, grown_chi)
+            Vh = Vh.T
+            #  --o--   🡺   --<|---o---|>--  [χD², χD²], [χD², χD²], [χD², χD²]
+            #U, s, Vh = U[:, :grown_chi], s[:grown_chi], Vh[:grown_chi, :]
+            # --<|---o---|>--   🡺   [χD², χ], [χ], [χ, χD²]
+            s_nz= s[s/s[0] > 1e-10]
+            s_rsqrt= s*0
+            s_rsqrt[:s_nz.size(0)]= torch.rsqrt(s_nz)
+            s_rsqrt = torch.rsqrt(s)
+            P_tilde = torch.einsum("abc,cd,de->abe", R_tilde, Vh.T, torch.diag(s_rsqrt))
+            P = torch.einsum("ab,bc,dec->dea", torch.diag(s_rsqrt), U.T, R)
+            #    ___                                                 ___            
+            #  --|  |        |\                           /|        |  |--        --|\           /|--
+            #    |  | ------ | | ---- o -- . . -- o ---- | | ------ |  |    🡺      | |-- . . --| |
+            #  --|__|        |/                           \|        |__|--        --|/           \|--
+            #              
+            #    R~           V      s^(-1/2)  s^(-1/2)        U†        R          P~            P
+            # [χ, D², D²χ]  [χD², χ]  [χ, χ]   [χ, χ]   [χ, χD²]  [χ, D², D²χ]    [χ, D², χ]   [χ, D², χ]
+
 
         return P, P_tilde, torch.sum(s)

@@ -12,7 +12,8 @@ from fabric import Connection
 import subprocess
 import numpy as np
 
-from pepsflow.iPEPS.reader import Reader
+from pepsflow.ipeps.io import IO
+from pepsflow.ipeps.observe import Observer
 from pepsflow.cli.utils import walk_directory, read_cli_config
 
 # fmt: off
@@ -103,10 +104,11 @@ def plot(ctx, folders, **kwargs):
     if sum(bool(opt) for opt in kwargs.values()) > 1:
         ctx.fail("Only one option can be selected at a time.")
     
-    all_readers: list[list[Reader]] = []
+    all_observers: list[list[Observer]] = []
     for folder in folders:
-        readers = [Reader(os.path.join("data", folder, x)) for x in os.listdir(os.path.join("data", folder)) if x.endswith(".pth")]
-        all_readers.append(readers) 
+        ipeps_list = [IO.load(os.path.join(args["data_folder"], folder, x)) for x in os.listdir(os.path.join(args["data_folder"], folder))]
+        observers = [Observer(ipeps) for ipeps in ipeps_list]
+        all_observers.append(observers) 
 
     plt.figure(figsize=(6, 4))
 
@@ -114,8 +116,8 @@ def plot(ctx, folders, **kwargs):
         plt.ylabel(r"$m_z$", fontsize=12)
         plt.xlabel(r"$\lambda$", fontsize=12)
         symbols = ["^-", "o-"]
-        for i, readers in enumerate(all_readers):
-            lams, mags = zip(*[(reader.lam(), reader.magnetization()) for reader in readers])
+        for i, paths in enumerate(all_observers):
+            lams, mags = zip(*[(observer.lam(), observer.magnetization()) for observer in observers])
             plt.plot(lams, mags, symbols[i], markersize=5, linewidth=0.5, label=folders[i])
         #plt.xlim(2.95, 3.15)
         #plt.ylim(-0.0025, 0.45)
@@ -129,15 +131,15 @@ def plot(ctx, folders, **kwargs):
     if kwargs["energy"]:
         plt.ylabel(r"$E$")
         plt.xlabel(r"$\lambda$")
-        for i, readers in enumerate(all_readers):
-            lams, energies = zip(*[(reader.lam(), reader.energy()) for reader in readers])
+        for i, observers in enumerate(all_observers):
+            lams, energies = zip(*[(observer.lam(), observer.energy()) for observer in observers])
             plt.plot(lams, energies, "v-", markersize=5, linewidth=0.5, label=folders[i])
 
     if kwargs["correlation_length"]:
         plt.ylabel(r"$\xi$")
         plt.xlabel(r"$\lambda$")
-        for i, readers in enumerate(all_readers):
-            lams, xis = zip(*[(reader.lam(), reader.correlation()) for reader in readers])
+        for i, observers in enumerate(all_observers):
+            lams, xis = zip(*[(observer.lam(), observer.correlation()) for observer in observers])
             plt.plot(lams, xis, "v-", color="C0", markersize=5, linewidth=0.5, label=folders[i])
         plt.xlim(2.7, 3.3)
         plt.grid(linestyle='--', linewidth=0.5)
@@ -145,11 +147,11 @@ def plot(ctx, folders, **kwargs):
     if kwargs["energy_chi"]:
         plt.ylabel(r"$\log|E-E_0|$")
         plt.xlabel(r"$1/\chi$")
-        for i, readers in enumerate(all_readers):
-            data = [(1/reader.ipeps.args["chi"], reader.energy()) for reader in readers if "chi" in reader.file]
+        for i, observers in enumerate(all_observers):
+            data = [(1/observer.chi(), observer.eval_energy()) for observer in observers if observer.eval_energy() is not None]
             data.sort(reverse=True)
             inv_chis, energies = zip(*data)
-            energies = np.array(energies) + 0.6689673179389798
+            energies = np.array(energies) - float(args["E0"])
             width,line,color =(0.5,"-","k") if "seed" in folders[i] else (0.7,"v-","C0")
             plt.plot(inv_chis, energies, line, markersize=4,color=color, linewidth=width)
         plt.grid(linestyle='--', linewidth=0.35)
@@ -160,23 +162,11 @@ def plot(ctx, folders, **kwargs):
         plt.ylabel(r"$\log|E-E_0|$")
         plt.xlabel(r"Epoch")
         for file in kwargs["gradient"].split(","):
-            reader = Reader(os.path.join("data", folder, file))
-            losses = np.array(reader.losses())
-            if file[2] == "5":
-                E0 = -0.6694037758828534
-                color = "C2"
-            if file[2] == "4":
-                E0 = -0.6689670979898978 
-                color = "C1"
-            if file[2] == "3":
-                E0 = -0.6681273941483516
-                color = "C0"
-
-           
-            line = "-"  if len(file) > 6 else "--"
-
-            losses = abs(losses - E0) 
-            plt.plot(range(len(losses)), losses, line, color=color, linewidth=1, label=file)
+            ipeps = IO.load(os.path.join(args["data_folder"], folder, file))
+            observer = Observer(ipeps)
+            losses = np.array(observer.losses())
+            losses = abs(losses - float(args["E0"])) 
+            plt.plot(range(len(losses)), losses, linewidth=1, label=file)
         #plt.ylim( -0.4911, -0.4909)
         #plt.xlim(60, 142)
         #plt.ylim(10**(-10), 10**(0))
@@ -188,13 +178,13 @@ def plot(ctx, folders, **kwargs):
 
     if kwargs["final_energies"]:
         heatmap_data = np.zeros((41, 17))
-        for i, readers in enumerate(all_readers):
+        for i, observers in enumerate(all_observers):
             final_energies, steps = [], []
-            warmup_steps = [int(reader.ipeps.args["warmup_steps"]/5) for reader in readers] 
-            gradient_steps = [reader.ipeps.args["Niter"] for reader in readers]
-            final_energies = [reader.losses()[-1] for reader in readers]
+            warmup_steps = [int(observer.warmup_steps()/5) for observer in observers] 
+            gradient_steps = [observer.Niter() for observer in observers]
+            final_energies = [observer.losses()[-1] for observer in observers]
             final_energies = abs(np.array(final_energies) + 0.4948685190401174)
-            chi = readers[0].ipeps.args["chi"]
+            chi = observers[0].chi()
 
             for warmup, gradient, energy in zip(warmup_steps, gradient_steps, final_energies):
                 heatmap_data[warmup, gradient] = energy
@@ -218,30 +208,28 @@ def plot(ctx, folders, **kwargs):
         plt.ylabel(r"$\| \nabla E \|$")
         plt.xlabel(r"Epoch")
         for file in kwargs["gradient_norm"].split(","):
-            reader = Reader(os.path.join("data", folder, file))
-            norms = reader.gradient_norms()
-            label = os.path.basename(reader.file).split('.')[0]
-            plt.plot(range(len(norms)), norms, "v-", markersize=4, linewidth=0.5, label=label)
+            observer = Observer(os.path.join("data", folder, file))
+            norms = observer.gradient_norms()
+            plt.plot(range(len(norms)), norms, "v-", markersize=4, linewidth=0.5)
 
     if kwargs["ctmsteps"]:
         plt.ylabel(r"CTM Steps")
         plt.xlabel(r"Epoch")
         for file in kwargs["ctmsteps"].split(","):
-            reader = Reader(os.path.join("data", folder, file))
-            ctm_steps = reader.ctm_steps()
-            label = os.path.basename(reader.file).split('.')[0]
-            plt.plot(range(len(ctm_steps)), ctm_steps, "v-", markersize=4, linewidth=0.5, label=label)
+            observer = Observer(os.path.join("data", folder, file))
+            ctm_steps = observer.ctm_steps()
+            plt.plot(range(len(ctm_steps)), ctm_steps, "v-", markersize=4, linewidth=0.5)
         plt.xlim(0, 110)
         plt.grid(linestyle='--', linewidth=0.35)
         plt.gca().yaxis.get_major_locator().set_params(integer=True)
         #plt.ylim(5, 31)
 
     if kwargs["epochs"]:
-        for i, readers in enumerate(all_readers):
-            data = [(reader.ipeps.args["Niter"], len(reader.losses())) for reader in readers if "Niter" in reader.file]
+        for i, observers in enumerate(all_observers):
+            data = [(observer.Niter(), len(observer.losses())) for observer in observers]
             data.sort()
             steps, epochs = zip(*data)
-            chi = readers[0].ipeps.args["chi"]
+            chi = observers[0].chi()
             plt.plot(steps, epochs, "v-", markersize=4, linewidth=0.5, label = rf"$ \chi = {chi} $")
         plt.ylabel(r"N")
         plt.xlabel(r"$N_g$")
@@ -249,12 +237,12 @@ def plot(ctx, folders, **kwargs):
         plt.legend()
 
     if kwargs["warmup_steps"]:
-        for i, readers in enumerate(all_readers):
-            data = [(reader.ipeps.args["warmup_steps"], reader.losses()[-1]) for reader in readers if "warmup_steps" in reader.file]
+        for i, observers in enumerate(all_observers):
+            data = [(observer.warmup_steps(), observer.losses()[-1]) for observer in observers]
             data.sort()
             steps, energies = zip(*data)
             energies = np.array(energies) +0.4948685190401174
-            chi = readers[-1].ipeps.args["chi"] 
+            chi = observers[-1].chi() 
             plt.plot(steps, energies, "v-", markersize=4.5, linewidth=1.3, label = rf"$ \chi = {chi} $")
         plt.ylabel(r"$\log|E - E_0|$", fontsize=14)
         plt.xlabel(r"$N_w$", fontsize=14)
@@ -266,7 +254,7 @@ def plot(ctx, folders, **kwargs):
   
     plt.tight_layout()
     #plt.legend()
-    #plt.savefig("figures/general_D5_convergence_gauge_comparison.png")
+    #plt.savefig("figures/general_D4_convergence_gauge_comparison.png")
     plt.show()
 
 
@@ -367,16 +355,16 @@ def info(folder: click.Path, server: bool, **kwargs):
         filenames = [kwargs["file"]] if kwargs["file"] else os.listdir(os.path.join("data", folder))
         
         for i, f in enumerate(filenames):
-            if not f.endswith(".pth"): continue
-            reader = Reader(os.path.join("data", folder, f))
+            ipeps = IO.load(os.path.join(args["data_folder"], folder, f))
+            observer = Observer(ipeps)
             row = [f]
-            if kwargs["energy"]: row.append(f"{reader.energy()}")
-            if kwargs["magnetization"]: row.append(f"{reader.magnetization()}")
-            if kwargs["correlation"]: row.append(f"{reader.correlation()}")
-            if kwargs["losses"]: row.append(f"{reader.losses()}")
-            if kwargs["state"]: row.append(f"{reader.iPEPS_state()}")
-            if kwargs["params"]: row.append(f"{reader.ipeps.args}")
-            if kwargs["ctmsteps"]: row.append(f"{reader.ctm_steps()}")
+            if kwargs["energy"]: row.append(f"{observer.energy()}")
+            if kwargs["magnetization"]: row.append(f"{observer.magnetization()}")
+            if kwargs["correlation"]: row.append(f"{observer.correlation()}")
+            if kwargs["losses"]: row.append(f"{observer.losses()}")
+            if kwargs["state"]: row.append(f"{observer.state()}")
+            if kwargs["params"]: row.append(f"{observer.ipeps_args()}")
+            if kwargs["ctmsteps"]: row.append(f"{observer.ctm_steps()}")
             style = "grey50" if i % 2 != 0 else "grey78"
             table.add_row(*row, style=style)
 
