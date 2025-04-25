@@ -126,14 +126,19 @@ class CtmSymmetric(Ctm):
         """
         Execute one "classic" CTM step. This is the standard CTM algorithm for the rank-4 input tensor.
         """
+        M = torch.einsum("ab,acd,bef,ecgh->dgfh", self.C, self.T, self.T, self.a)
+        #   o -- o --        
+        #   |    |      🡺   [χ, D², χ, D²]
+        #   o -- o --         
+        #   |    |
+
         if self.projector_mode == "qr" and self.chi == self.max_chi:
-            M = torch.einsum("ab,acd->bcd", self.C, self.T)
-            M_matrix = M.contiguous().view(self.chi*self.D**2, self.chi)
-            #  o -- o --   🡺  [χD², χ]
-            #  |    |
+            M_matrix = torch.einsum("ab,acd->bcd", self.C, self.T).reshape(self.chi*self.D**2, self.chi)
+            #                    __
+            #  o -- o --   🡺   |__|--   [χD², χ]
+            #  |    |            |
         else:
-            M = torch.einsum("ab,acd,bef,ecgh->dgfh", self.C, self.T, self.T, self.a)
-            M_matrix = M.contiguous().view(self.chi*self.D**2, self.chi*self.D**2)
+            M_matrix = M.reshape(self.chi*self.D**2, self.chi*self.D**2)
             #   o -- o --         __
             #   |    |      🡺   |__|--  [χD², χD²]
             #   o -- o --         | 
@@ -145,7 +150,6 @@ class CtmSymmetric(Ctm):
         #  --|/
         #
         
-        M = torch.einsum("ab,acd,bef,ecgh->dgfh", self.C, self.T, self.T, self.a)
         self.C = symm(norm(torch.einsum("abc,abfe,fed->cd", U, M, U)))
         #  o -- o --|\
         #  |    |   | |--
