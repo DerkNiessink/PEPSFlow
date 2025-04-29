@@ -107,3 +107,15 @@ def evaluate(filename: str):
     FILENAME is the data file to read from.
     """
     pepsflow.evaluate_parallel(filename)
+
+
+@params.command()
+@click.argument("filename", type=str)
+def minimize_norm(filename: str):
+    """
+    Minimize the norm of the iPEPS state and write the data of the gauge transformations to a file.
+    Gauge transformations with these gauges can be used to get the state in the minimal canonical form.
+
+    FILENAME is the data file to read from.
+    """
+    pepsflow.minimize_norm(filename)

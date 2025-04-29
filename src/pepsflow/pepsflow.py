@@ -111,6 +111,21 @@ def evaluate(var_param, value: float, args: dict, read_fn: str):
     IO.save(ipeps, path(folders["write"], write_fn))
 
 
+def minimize_norm(read_fn: str):
+    """
+    Minimize the norm of the iPEPS state.
+    """
+    args, var_param = read_config()
+    opt_params = args["parameters.optimization"]
+    folders = args["parameters.folders"]
+    path = lambda folder, file: os.path.join(folders["data"], folder, file)
+
+    ipeps = IO.load(path(folders["read"], read_fn))
+    Tools.minimize_norm(ipeps, opt_params)
+
+    IO.save(ipeps, path(folders["write"], read_fn))
+
+
 def minimize_parallel():
     """
     Optimize the iPEPS model for a list of values of the variational parameter.
