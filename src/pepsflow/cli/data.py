@@ -152,11 +152,11 @@ def plot(ctx, folders, **kwargs):
             data.sort(reverse=True)
             inv_chis, energies = zip(*data)
             energies = np.array(energies) - float(args["E0"])
-            width,line,color =(0.5,"-","k") if "seed" in folders[i] else (0.7,"v-","C0")
-            plt.plot(inv_chis, energies, line, markersize=4,color=color, linewidth=width)
+            #width,line,color =(0.5,"-","k") if "seed" in folders[i] else (0.7,"v-","C0")
+            plt.plot(inv_chis, energies, "v-", markersize=4, linewidth=0.5, label=folders[i]) 
         plt.grid(linestyle='--', linewidth=0.35)
-        plt.yscale("log")
-        plt.legend(["No gauge", "Random invertible gauges"])
+        #plt.yscale("log")
+        plt.legend()
 
     if kwargs["gradient"]:
         plt.ylabel(r"$\log|E-E_0|$")

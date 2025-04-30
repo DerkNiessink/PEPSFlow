@@ -52,7 +52,7 @@ class Tensors:
         """
         g1_inv = torch.linalg.inv(g1)
         g2_inv = torch.linalg.inv(g2)
-        return torch.einsum("purdl,uU,rR,dD,lL->pURDL", A, g2, g1_inv, g2_inv, g1)
+        return torch.einsum("purdl,Uu,Rr,dD,lL->pURDL", A, g2, g1, g2_inv, g1_inv)
 
     def A_random(self, D: int) -> torch.Tensor:
         """Return a random state of size [d, D, D, D, D]."""

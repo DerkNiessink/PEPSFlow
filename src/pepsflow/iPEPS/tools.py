@@ -1,10 +1,13 @@
 from pepsflow.ipeps.ipeps import iPEPS
 from pepsflow.models.optimizers import Optimizer
+from pepsflow.models.canonize import canonize
 
 import torch
 import sys
 import matplotlib.pyplot as plt
-from scipy.linalg import expm
+import scienceplots
+
+plt.style.use("science")
 
 
 class Tools:
@@ -74,79 +77,21 @@ class Tools:
 
     @staticmethod
     def minimize_norm(ipeps: iPEPS, args: dict) -> tuple[torch.Tensor, torch.Tensor]:
-        """Compute the minimal canonical form of the iPEPS tensor according to the algorithm 1 in
-        https://arxiv.org/pdf/2209.14358v1.
+        """Compute the minimal canonical form of the iPEPS tensor.
 
         Args:
             ipeps (iPEPS): iPEPS model to optimize.
             args (dict): Dictionary containing the arguments for the optimization process.
-
-        Returns:
-            Set of gauge transformations (g1, g2) that minimize the norm of the iPEPS tensor.
-
         """
-        A = ipeps.params[ipeps.map] if ipeps.map is not None else ipeps.params
-        g1 = g2 = ipeps.tensors.identity(ipeps.args["D"])
-        y = []
-        while True:
+        A, norms = canonize(ipeps, args["tolerance"])
+        ipeps.params = torch.nn.Parameter(A)
+        ipeps.map = None
 
-            g1_inv = torch.linalg.inv(g1)
-            g2_inv = torch.linalg.inv(g2)
-            A = torch.einsum("purdl,Uu,Rr,dD,lL->pURDL", A, g2, g1, g2_inv, g1_inv)
-            #            g2^-1
-            #            /                      /
-            #    g1  -- o -- g1^-1       🡺 -- o --
-            #          /|                     /|
-            #       g2
-
-            rho = torch.einsum("purdl,pURDL->urdlURDL", A, A)
-            #      /
-            #  -- o --
-            #    /|/      🡺   [D, D]
-            #  -- o --
-            #    /
-
-            rho_11 = torch.einsum("urdluRdl->rR", rho)
-            rho_12 = torch.einsum("urdlurdL->lL", rho)
-            # tracing over all legs except the right and left legs respectively:
-            #      /|         /|
-            #  -- o---    -- o---
-            #  | /|/    ,   /|/ |   🡺   [D, D], [D, D]
-            #  -|-o --    -|-o --
-            #   |/         |/
-
-            rho_21 = torch.einsum("urdlUrdl->uU", rho)
-            rho_22 = torch.einsum("urdlurDl->dD", rho)
-            # tracing over all legs except the up and down legs respectively:
-            #      /           /|
-            #  -- o --     -- o---
-            #  | /|/ |  ,  | /|/ |   🡺   [D, D], [D, D]
-            #  -|-o --     -- o --
-            #   |/           /
-
-            trace_rho = torch.einsum("urdlurdl->", rho)
-            # tracing over all legs:
-            #      /|
-            #  -- o---
-            #  | /|/ |
-            #  -|-o --
-            #   |/
-
-            diff1 = rho_11 - rho_12.T
-            diff2 = rho_21 - rho_22.T
-
-            f = (1 / trace_rho) * (diff1.norm() ** 2 + diff2.norm() ** 2)
-            y.append(f.item())
-            if f < args["tolerance"]:
-                break
-
-            g1 = torch.linalg.matrix_exp((-1 / (8 * trace_rho)) * diff1)
-            g2 = torch.linalg.matrix_exp((-1 / (8 * trace_rho)) * diff2)
-
-        ipeps.add_data(key="Gauges [U1, U2]", value=g1)
-        ipeps.add_data(key="Gauges [U1, U2]", value=g2)
-
-        plt.plot(range(len(y)), y, marker="o", markersize=3)
-        plt.xlabel("Iteration")
-        plt.ylabel("Norm")
-        plt.show()
+        if args.get("plot", True):
+            plt.figure(figsize=(5, 4))
+            plt.plot(range(len(norms)), norms)
+            plt.xlabel("Iteration")
+            plt.title(r"Norm $ = \frac{1}{tr \ \rho} \sum_{k=1}^m ||\rho_{k,1} - (\rho_{k,2})^T||^2$")
+            plt.ylabel("Norm")
+            plt.yscale("log")
+            plt.show()
