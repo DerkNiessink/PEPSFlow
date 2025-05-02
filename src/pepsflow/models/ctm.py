@@ -463,5 +463,67 @@ class CtmGeneral(Ctm):
             #    R~           V      s^(-1/2)  s^(-1/2)        U†        R          P~            P
             # [χ, D², D²χ]  [χD², χ]  [χ, χ]   [χ, χ]   [χ, χD²]  [χ, D², D²χ]    [χ, D², χ]   [χ, D², χ]
 
-
         return P, P_tilde, torch.sum(s)
+
+
+
+
+class CtmMirrorSymmetric(CtmGeneral):
+    def _step(self) -> None:
+        upper_left = torch.einsum("ab,cda,bef,dghe->cghf",self.C1, self.T1, self.T4, self.a)
+        upper_right = torch.einsum("ab,bdc,aef,dfgh->chge",self.C2, self.T1, self.T2, self.a)
+        lower_left = torch.einsum("ab,cdb,efa,ghcf->dhge",self.C4, self.T3, self.T4, self.a)
+        lower_right = torch.einsum("ab,cbd,eaf,gfch->dhge",self.C3, self.T3, self.T2, self.a)
+
+
+        R1 = torch.einsum("abc,debc->dea", lower_left.reshape(self.chi*self.D**2, self.D**2, self.chi), upper_left)
+        R1_tilde = torch.einsum("abc,debc->dea", lower_right.reshape(self.chi*self.D**2, self.D**2, self.chi), upper_right)
+
+        R2 = torch.einsum("abc,abde->edc", upper_left.reshape(self.chi, self.D**2, self.chi*self.D**2), upper_right)
+        R2_tilde = torch.einsum("abc,abde->edc", lower_left.reshape(self.chi, self.D**2, self.chi*self.D**2), lower_right) 
+
+        R3 = torch.einsum("abc,debc->dea", upper_left.reshape(self.chi*self.D**2, self.D**2, self.chi), lower_left)
+        R3_tilde = torch.einsum("abc,debc->dea", upper_right.reshape(self.chi*self.D**2, self.D**2, self.chi), lower_right)
+
+        R4 = torch.einsum("abc,abde->edc", upper_right.reshape(self.chi, self.D**2, self.chi*self.D**2), upper_left)
+        R4_tilde = torch.einsum("abc,abde->edc", lower_right.reshape(self.chi, self.D**2, self.chi*self.D**2), lower_left)
+    
+        grown_chi = min(self.chi * self.D**2, self.max_chi)
+
+        P1, P1_tilde, sum_s1 = self._new_P(R1, R1_tilde, grown_chi)                                   
+        P2, P2_tilde, sum_s2 = self._new_P(R2, R2_tilde, grown_chi)
+        P3, P3_tilde, sum_s3 = self._new_P(R3, R3_tilde, grown_chi)
+        P4, P4_tilde, sum_s4 = self._new_P(R4, R4_tilde, grown_chi)
+    
+        self.sv_sums1.append(sum_s1), self.sv_sums2.append(sum_s2), self.sv_sums3.append(sum_s3), self.sv_sums4.append(sum_s4)
+        self.chi = grown_chi
+
+        T1 = norm(torch.einsum("abc,dea,efgb,dfh->hgc", P1, self.T1, self.a, P1)) # [χ, D², χ]
+        T2 = norm(torch.einsum("abc,ade,befg,dfh->chg", P2, self.T2, self.a, P2)) # [χ, χ, D²]
+        T3 = norm(torch.einsum("abc,dea,fgdb,egh->fhc", P3, self.T3, self.a, P3)) # [D², χ, χ]
+        T4 = norm(torch.einsum("abc,ade,bfgd,egh->cfh", P4, self.T4, self.a, P4)) # [χ, D², χ]
+
+        C1 = norm(torch.einsum("abc,abde,edf->cf", P1, upper_left, P4))  # [χ, χ]
+        C2 = norm(torch.einsum("abc,abde,edf->fc", P1, upper_right, P2)) # [χ, χ] 
+        C3 = norm(torch.einsum("abc,abde,edf->fc", P3, lower_right, P2)) # [χ, χ]
+        C4 = norm(torch.einsum("abc,abde,edf->fc", P3, lower_left, P4))  # [χ, χ]
+        #  C1 --T1 --|\    /|-- T1--|\    /|-- T1 --C2
+        #  |     |   P1 --|P1   |   P1 --P1|   |    |
+        #  T4 -- a --|/    \|-- a --|/    \|-- a -- T2
+        #  |____|               |              |____| 
+        #  \_P4 /               .              \_P2 /                   [χ, χ]       [χ, D², χ]      [χ, χ]
+        #   __|_                .               _|__                     C1 -- . . . -- T1 -- . . .  -- C2
+        #  /_P4_\               .              /_P2_\                    |              |               |  
+        #  |    |               |              |    |                    .              .               .
+        #  T4-- a --  . . .  -- a -- . . .  -- a -- T2   🡺              .              .               .     
+        #  |____|               |              |____|                    |              |               |
+        #  \_P4 /               .              \_P2 /         [χ, D², χ] T4 --. . .  -- a -- . . .   -- T2 [χ, χ, D²]  
+        #   _|__                .               __|_                     |              |               |
+        #  /_P4_\               .              /_P2_\                    .              .               .
+        #  |    |               |              |    |                    .              .               .
+        #  T4 -- a --|\    /|-- a --|\    /|-- a -- T2                   |              |               |
+        #  |     |   P3 --|P3   |   P3 --|P3   |    |                    C4 -- . . . -- T3 -- . . .  -- C3   
+        #  C4 --T3 --|/    \|-- T3--|/    \|-- T3-- C3                  [χ, χ]      [D², χ, χ]       [χ, χ]
+
+        self.T1, self.T2, self.T3, self.T4 = T1, T2, T3, T4
+        self.C1, self.C2, self.C3, self.C4 = C1, C2, C3, C4

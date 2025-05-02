@@ -72,7 +72,7 @@ class TestMinimalCanonical:
         """
 
         ipeps = IO.load("tests/test.json")
-        Tools.minimize_norm(ipeps, args={"tolerance": 1e-16, "plot": False})
+        Tools.gauge(ipeps, args={"tolerance": 1e-16, "gauge": "minimal_canonical"})
         IO.save(ipeps, "tests/test_minimal_canonical.json")
         ipeps = IO.load("tests/test_minimal_canonical.json")
 

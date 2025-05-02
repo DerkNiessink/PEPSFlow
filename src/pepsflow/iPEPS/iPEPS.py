@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 
-from pepsflow.models.ctm import CtmSymmetric, CtmGeneral
+from pepsflow.models.ctm import CtmSymmetric, CtmGeneral, CtmMirrorSymmetric
 from pepsflow.models.tensors import Tensors
 
 
@@ -45,42 +45,44 @@ class iPEPS(torch.nn.Module, ABC):
 
         self.H = self.tensors.Hamiltonian(args["model"], lam=args["lam"])
         self.params, self.map = None, None
-        self.U1 = self.U2 = self.tensors.identity(args["D"])
 
     def add_data(self, key: str, value: Any):
         """Add data to the iPEPS object. If the key already exists, appends the value to the list."""
         self.data.setdefault(key, []).append(value)
 
-    def do_warmup_steps(self) -> tuple[torch.Tensor, ...]:
+    def do_warmup_steps(self, N: int) -> tuple[torch.Tensor, ...]:
         """Warmup the iPEPS tensor by performing the CTM algorithm without gradient tracking.
 
+        Args:
+            N (int): Number of iterations in the CTM algorithm.
+
         Returns:
             tuple[torch.Tensor, ...]: Tuple containing the corner and edge tensors of the iPEPS tensor network.
         """
-        return self._forward(N=self.args["warmup_steps"], grad=False)
+        return self._forward(N, grad=False)
 
-    def do_gradient_steps(self, tensors) -> tuple[torch.Tensor, ...]:
+    def do_gradient_steps(self, N: int, tensors: tuple[torch.Tensor, ...]) -> tuple[torch.Tensor, ...]:
         """Take gradient steps in the optimization of the iPEPS tensor.
 
+        args:
+            N (int): Number of iterations in the CTM algorithm.
+            tensors (tuple): Tuple containing initial tensors for the CTM algorithm, obtained from the warmup steps.
+
         Returns:
             tuple[torch.Tensor, ...]: Tuple containing the corner and edge tensors of the iPEPS tensor network.
         """
-        return self._forward(N=self.args["Niter"], grad=True, tensors=tensors)
+        return self._forward(N, grad=True, tensors=tensors)
 
-    def do_evaluation(self) -> tuple[torch.Tensor, ...]:
+    def do_evaluation(self, N: int) -> tuple[torch.Tensor, ...]:
         """Evaluate the iPEPS tensor by performing the CTM algorithm without gradient tracking.
 
+        args:
+            N (int): Number of iterations in the CTM algorithm.
+
         Returns:
             tuple[torch.Tensor, ...]: Tuple containing the corner and edge tensors of the iPEPS tensor network.
         """
-        return self._forward(N=self.args["Niter"], grad=False)
-
-    def do_gauge_transform(self) -> tuple[torch.Tensor, torch.Tensor]:
-        """Plant a gauge on the iPEPS tensor. Sets the U1 and U2 attributes to the given kind of gauge."""
-        if self.args["seed"] is not None:
-            torch.manual_seed(self.args["seed"])
-            np.random.seed(self.args["seed"])
-        self.U1, self.U2 = self.tensors.gauges(D=self.args["D"], which=self.args["gauge"])
+        return self._forward(N, grad=False)
 
     @abstractmethod
     def _setup_random(self):
@@ -140,7 +142,7 @@ class RotationalSymmetricIPEPS(iPEPS):
 
     def get_E(self, grad: bool, tensors: tuple[torch.Tensor, ...]) -> torch.Tensor:
         A = self.params[self.map] if self.map is not None else self.params
-        A = self.tensors.gauge_transform(A, self.U1, self.U2)
+        # A = self.tensors.gauge_transform(A, self.U1, self.U2)
         A = A.detach() if not grad else A
         C, T = tensors
         E_nn = self.tensors.E_nn(A, self.H, C, T)
@@ -151,7 +153,7 @@ class RotationalSymmetricIPEPS(iPEPS):
     def _forward(self, N: int, grad: bool, tensors: tuple[torch.Tensor, ...] = None) -> tuple:
         A = self.params[self.map]
         A = A.detach() if not grad else A
-        A = self.tensors.gauge_transform(A, self.U1, self.U2)
+        # A = self.tensors.gauge_transform(A, self.U1, self.U2)
         A = A / A.norm()
 
         alg = CtmSymmetric(A, self.args["chi"], tensors, self.args["split"], self.args["projector_mode"])
@@ -181,7 +183,7 @@ class GeneralIPEPS(iPEPS):
 
     def get_E(self, grad: bool, tensors: tuple[torch.Tensor, ...]) -> torch.Tensor:
         A = self.params.detach() if not grad else self.params
-        A = self.tensors.gauge_transform(A, self.U1, self.U2)
+        # A = self.tensors.gauge_transform(A, self.U1, self.U2)
         A = A / A.norm()
 
         C, T = tensors[:4], tensors[4:]
@@ -199,8 +201,9 @@ class GeneralIPEPS(iPEPS):
     def _forward(self, N: int, grad: bool, tensors: tuple[torch.Tensor, ...] = None) -> tuple:
         A = self.params
         A = A.detach() if not grad else A
-        A = self.tensors.gauge_transform(A, self.U1, self.U2)
+        # A = self.tensors.gauge_transform(A, self.U1, self.U2)
         A = A / A.norm()
         alg = CtmGeneral(A, self.args["chi"], tensors)
+        # alg = CtmMirrorSymmetric(A, self.args["chi"], tensors)
         alg.exe(N)
         return alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4

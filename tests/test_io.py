@@ -19,13 +19,13 @@ class TestMinimizer:
             split=True,
             seed=5,
             chi=4,
-            warmup_steps=2,
-            Niter=4,
             noise=0,
             gauge=None,
             projector_mode="eig",
         )
-        minimize_args = dict(optimizer="lbfgs", learning_rate=1, epochs=3, threads=1, line_search=True, log=False)
+        minimize_args = dict(
+            optimizer="lbfgs", learning_rate=1, epochs=3, threads=1, line_search=True, warmup_steps=2, gradient_steps=4
+        )
         ipeps = make_ipeps(ipeps_args)
         Tools.minimize(ipeps, minimize_args)
         IO.save(ipeps, "tests/test")

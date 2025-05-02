@@ -4,13 +4,20 @@ from pepsflow.models.canonize import canonize
 
 import torch
 import sys
-import matplotlib.pyplot as plt
-import scienceplots
-
-plt.style.use("science")
 
 
 class Tools:
+    """
+    A utility class providing static methods for operating on iPEPS models.
+
+    This class includes core functionality for:
+    - Minimizing the energy of an iPEPS model via gradient-based optimization.
+    - Evaluating the energy of a converged iPEPS state using the CTMRG algorithm.
+    - Applying gauge transformations to bring the tensors into canonical or other specified forms.
+
+    All methods are static and operate directly on `iPEPS` instances using configuration
+    dictionaries typically parsed from a config file.
+    """
 
     @staticmethod
     def minimize(ipeps: iPEPS, args: dict):
@@ -21,18 +28,14 @@ class Tools:
             ipeps (iPEPS): iPEPS model to optimize.
             args (dict): Dictionary containing the arguments for the optimization process.
         """
-        ipeps.do_gauge_transform()
-        ipeps.add_data(key="Gauges [U1, U2]", value=ipeps.U1)
-        ipeps.add_data(key="Gauges [U1, U2]", value=ipeps.U2)
-
         torch.set_num_threads(args["threads"])
         ls = "strong_wolfe" if args["line_search"] else None
         opt = Optimizer(args["optimizer"], ipeps.parameters(), lr=args["learning_rate"], line_search_fn=ls)
 
         def train() -> torch.Tensor:
             opt.zero_grad()
-            tensors = ipeps.do_warmup_steps()
-            tensors = ipeps.do_gradient_steps(tensors=tensors)
+            tensors = ipeps.do_warmup_steps(N=args["warmup_steps"])
+            tensors = ipeps.do_gradient_steps(N=args["gradient_steps"], tensors=tensors)
             loss = ipeps.get_E(grad=True, tensors=tensors)
             loss.backward()
 
@@ -49,7 +52,7 @@ class Tools:
             print(f"epoch, E, Diff: {epoch, new_loss.item(), abs(new_loss - loss).item()}")
             ipeps.add_data(key="energies", value=new_loss.item())
 
-            if abs(new_loss - loss) < args.get("tol", 1e-10):
+            if abs(new_loss - loss) < args.get("tolerance", 1e-10):
                 sys.stdout.flush()
                 print(f"Converged after {epoch} epochs. Saving and quiting training...")
                 break
@@ -65,33 +68,32 @@ class Tools:
             ipeps (iPEPS): iPEPS model to compute the energies for.
             args (dict): Dictionary containing the iPEPS parameters.
         """
-        ipeps.args = args
-        ipeps.do_gauge_transform()
-        ipeps.add_data(key="Gauges [U1, U2]", value=ipeps.U1)
-        ipeps.add_data(key="Gauges [U1, U2]", value=ipeps.U2)
+        ipeps.args["chi"] = args["chi"]
         with torch.no_grad():
-            tensors = ipeps.do_evaluation()
+            tensors = ipeps.do_evaluation(N=args["ctm_steps"])
         E = ipeps.get_E(grad=False, tensors=tensors)
         ipeps.add_data(key="Eval_energy", value=E.item())
         print(f"chi, E: {ipeps.args['chi'], E.item()}")
 
     @staticmethod
-    def minimize_norm(ipeps: iPEPS, args: dict) -> tuple[torch.Tensor, torch.Tensor]:
-        """Compute the minimal canonical form of the iPEPS tensor.
+    def gauge(ipeps: iPEPS, args: dict) -> None:
+        """Gauge transform the iPEPS tensor.
 
         Args:
             ipeps (iPEPS): iPEPS model to optimize.
             args (dict): Dictionary containing the arguments for the optimization process.
         """
-        A, norms = canonize(ipeps, args["tolerance"])
-        ipeps.params = torch.nn.Parameter(A)
-        ipeps.map = None
+        if ipeps.map is not None:
+            raise ValueError("The given iPEPS is rotationally symmetric. No gauge transformation is needed.")
+        A = ipeps.params
+        if args["gauge"] == "minimal_canonical":
+            A, _ = canonize(ipeps, args["tolerance"])
+            print("Successfully transformed state to minimal canonical form.")
+        else:
+            g1, g2 = ipeps.tensors.gauges(D=ipeps.args["D"], which=args["gauge"])
+            A = ipeps.tensors.gauge_transform(A, g1, g2)
+            print(f"Successfully transformed state with {args['gauge']} gauge.")
 
-        if args.get("plot", True):
-            plt.figure(figsize=(5, 4))
-            plt.plot(range(len(norms)), norms)
-            plt.xlabel("Iteration")
-            plt.title(r"Norm $ = \frac{1}{tr \ \rho} \sum_{k=1}^m ||\rho_{k,1} - (\rho_{k,2})^T||^2$")
-            plt.ylabel("Norm")
-            plt.yscale("log")
-            plt.show()
+        # Save the transformed state and the kind of gauge transformation
+        ipeps.params = torch.nn.Parameter(A)
+        ipeps.args["gauge"] = args["gauge"]

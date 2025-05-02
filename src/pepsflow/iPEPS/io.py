@@ -66,9 +66,5 @@ class IO:
         ipeps.params = torch.nn.Parameter(torch.tensor(data["state"], dtype=dtype))
         ipeps.data = data["data"]
 
-        # Convert the gauges to tensors
-        gauges = ipeps.data.get("Gauges [U1, U2]", [torch.eye(ipeps_args["D"]), torch.eye(ipeps_args["D"])])
-        ipeps.data["Gauges [U1, U2]"] = [torch.tensor(gauges[0], dtype=dtype), torch.tensor(gauges[1], dtype=dtype)]
-
         print(f"[green bold] \nData loaded from {fn}")
         return ipeps

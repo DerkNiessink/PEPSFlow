@@ -69,3 +69,11 @@ class Observer:
     def eval_energy(self) -> float:
         """Get the evaluation energy."""
         return self.ipeps.data["Eval_energy"][-1] if "Eval_energy" in self.ipeps.data else None
+
+    def norm_convergence_criterion(self) -> float:
+        """Get the norm convergence criterion for the minimal canonical form.
+        If the state is in the minimal canonical form, this should return the tolerance."""
+
+
+        
+        return self.ipeps.args.get("tolerance", 1e-10)
