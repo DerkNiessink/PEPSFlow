@@ -30,6 +30,15 @@ class Pepsflow:
         self.gauge_args = self._read_config("tools.gauge")
 
     def _read_config(self, section: str) -> dict:
+        """
+        Read the configuration file and return the parameters as a dictionary.
+
+        Args:
+            section (str): The section of the configuration file to read.
+
+        Returns:
+            dict: Dictionary containing the parameters from the specified section.
+        """
         parser = configparser.ConfigParser()
         parser.optionxform = lambda option: option  # Preserve the case of the keys
         parser.read(self.config_path)
