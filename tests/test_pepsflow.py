@@ -1,6 +1,7 @@
 from pepsflow.pepsflow import Pepsflow
 from pepsflow.pepsflow import IO
 from pepsflow.ipeps.observe import Observer
+from pepsflow.models.canonize import canonize
 
 import pytest
 
@@ -22,8 +23,11 @@ class TestPepsflow:
         workflow.evaluate_parallel("chi_8")
 
         ipeps = IO.load("tests/chi_16")
+
+        # Check energy and norm
         Energy = Observer(ipeps).eval_energy()
+        _, norm = canonize(ipeps)
 
-        # TODO: also test that the norm is minimized
-
-        assert Energy == pytest.approx(-0.6681273941483516, abs=1e-3)
+        assert (Energy == pytest.approx(-0.6681273941483516, abs=1e-3)) and (
+            norm[-1] == pytest.approx(1e-16, abs=1e-3) and len(norm) == 1
+        )
