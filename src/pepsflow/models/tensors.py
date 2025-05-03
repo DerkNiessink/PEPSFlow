@@ -29,14 +29,14 @@ class Tensors:
         """
         match which:
             case "unitary":
-                U1, U2 = self.random_unitary(D), self.random_unitary(D)
+                g1, g2 = self.random_unitary(D), self.random_unitary(D)
             case "invertible":
-                U1, U2 = self.random_tensor((D, D)), self.random_tensor((D, D))
+                g1, g2 = self.random_tensor((D, D)), self.random_tensor((D, D))
             case None:
-                U1 = U2 = self.identity(D)
+                g1 = g2 = self.identity(D)
             case _:
                 raise ValueError(f"Unknown gauge type: {which}")
-        return U1, U2
+        return g1, g2
 
     def gauge_transform(self, A: torch.Tensor, g1: torch.Tensor, g2: torch.Tensor) -> torch.Tensor:
         """

@@ -30,7 +30,7 @@ def canonize(ipeps: iPEPS, tolerance: float = 1e-16) -> tuple[torch.Tensor, list
         rho = torch.einsum("purdl,pURDL->urdlURDL", A, A)
         #      /
         #  -- o --
-        #    /|/      🡺   [D, D]
+        #    /|/      🡺   [D, D, D, D, D, D, D, D]
         #  -- o --
         #    /
 
