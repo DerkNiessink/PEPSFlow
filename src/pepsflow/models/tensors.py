@@ -29,28 +29,30 @@ class Tensors:
         """
         match which:
             case "unitary":
-                U1, U2 = self.random_unitary(D), self.random_unitary(D)
+                g1, g2 = self.random_unitary(D), self.random_unitary(D)
             case "invertible":
-                U1, U2 = self.random_tensor((D, D)), self.random_tensor((D, D))
+                g1, g2 = self.random_tensor((D, D)), self.random_tensor((D, D))
             case None:
-                U1 = U2 = self.identity(D)
+                g1 = g2 = self.identity(D)
             case _:
                 raise ValueError(f"Unknown gauge type: {which}")
-        return U1, U2
+        return g1, g2
 
-    def gauge_transform(self, A: torch.Tensor, U1: torch.Tensor, U2: torch.Tensor) -> torch.Tensor:
+    def gauge_transform(self, A: torch.Tensor, g1: torch.Tensor, g2: torch.Tensor) -> torch.Tensor:
         """
         Apply gauge transformation to the tensor A.
 
         Args:
             A (torch.Tensor): Tensor to be transformed.
-            U1 (torch.Tensor): First gauge transformation matrix.
-            U2 (torch.Tensor): Second gauge transformation matrix.
+            g1 (torch.Tensor): First gauge transformation matrix.
+            g2 (torch.Tensor): Second gauge transformation matrix.
 
         Returns:
             torch.Tensor: Transformed tensor.
         """
-        return torch.einsum("abcde,bf,cg,dh,ei->afghi", A, U1, torch.linalg.inv(U2).T, torch.linalg.inv(U1).T, U2)
+        g1_inv = torch.linalg.inv(g1)
+        g2_inv = torch.linalg.inv(g2)
+        return torch.einsum("purdl,Uu,Rr,dD,lL->pURDL", A, g2, g1, g2_inv, g1_inv)
 
     def A_random(self, D: int) -> torch.Tensor:
         """Return a random state of size [d, D, D, D, D]."""

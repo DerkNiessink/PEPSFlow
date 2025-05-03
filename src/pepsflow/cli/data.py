@@ -146,17 +146,23 @@ def plot(ctx, folders, **kwargs):
 
     if kwargs["energy_chi"]:
         plt.ylabel(r"$\log|E-E_0|$")
+        plt.ylabel("$E$")
         plt.xlabel(r"$1/\chi$")
         for i, observers in enumerate(all_observers):
             data = [(1/observer.chi(), observer.eval_energy()) for observer in observers if observer.eval_energy() is not None]
             data.sort(reverse=True)
             inv_chis, energies = zip(*data)
+            #E0 = -0.6681273941483516 
+            #if "D3" in folders[i] else float(args["E0"])
             energies = np.array(energies) - float(args["E0"])
-            width,line,color =(0.5,"-","k") if "seed" in folders[i] else (0.7,"v-","C0")
-            plt.plot(inv_chis, energies, line, markersize=4,color=color, linewidth=width)
+            
+            #line,color =("o-","C1") if "D3" in folders[i] else ("o-","C0")
+            #markersize = 5 if "minimal" in folders[i] else 3
+            #line = "-x" if "minimal" in folders[i] else line
+            plt.plot(inv_chis, energies, "-v", linewidth=0.5, label=folders[i]) 
         plt.grid(linestyle='--', linewidth=0.35)
         plt.yscale("log")
-        plt.legend(["No gauge", "Random invertible gauges"])
+        plt.legend(["$A = \mathbf{g_{rand}} \cdot A_0 $", "$A = \mathbf{g} \cdot (\mathbf{g_{rand}} \cdot A_0 )$"])
 
     if kwargs["gradient"]:
         plt.ylabel(r"$\log|E-E_0|$")
@@ -254,7 +260,7 @@ def plot(ctx, folders, **kwargs):
   
     plt.tight_layout()
     #plt.legend()
-    #plt.savefig("figures/general_D4_convergence_gauge_comparison.png")
+    #plt.savefig("figures/minimal_canonical_chi_convergence_D4.png")
     plt.show()
 
 
