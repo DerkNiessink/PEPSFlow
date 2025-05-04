@@ -33,7 +33,7 @@ class TestCtmAlg:
         Test the general CTM algorithm by comparing the evaluated energy of a symmetric Heisenberg state of
         the symmetric and general CTM algorithms. The energy should be the same up to a small tolerance.
         """
-        A = torch.from_numpy(np.loadtxt("tests/Heis_D2_state.txt").reshape(2, 2, 2, 2, 2)).double()
+        A = torch.from_numpy(np.loadtxt("tests/test_states/Heis_D2_state.txt").reshape(2, 2, 2, 2, 2)).double()
         alg = CtmGeneral(A, chi=24)
         alg.exe(N=10)
         alg_symm = CtmSymmetric(A, chi=24)
@@ -54,14 +54,14 @@ class TestCtmAlg:
         Heisenberg state before and after a gauge change. The gauge change breaks the symmetry of the state,
         but the energy should remain invariant. The energy should be the same up to a small tolerance.
         """
-        A = torch.from_numpy(np.loadtxt("tests/Heis_D2_state.txt").reshape(2, 2, 2, 2, 2)).double()
+        A = torch.from_numpy(np.loadtxt("tests/test_states/Heis_D2_state.txt").reshape(2, 2, 2, 2, 2)).double()
         tensors = Tensors(dtype="double", device="cpu")
-        U1 = tensors.random_unitary(2)
-        U2 = tensors.random_unitary(2)
-        A_gauge_changed = torch.einsum("abcde,bf,cg,dh,ei->afghi", A, U1, U2, U1, U2)
+        g1 = tensors.random_unitary(2)
+        g2 = tensors.random_unitary(2)
+        A_gauge_changed = tensors.gauge_transform(A, g1, g2)
 
         alg = CtmGeneral(A, chi=24)
-        alg.exe(N=10)
+        alg.exe(N=20)
         E = tensors.E_horizontal_nn_general(
             A, tensors.H_Heis_rot(), alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
         )
@@ -70,7 +70,7 @@ class TestCtmAlg:
         )
 
         alg = CtmGeneral(A_gauge_changed, chi=24)
-        alg.exe(N=10)
+        alg.exe(N=20)
         E_gauge_changed = tensors.E_horizontal_nn_general(
             A_gauge_changed, tensors.H_Heis_rot(), alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
         )

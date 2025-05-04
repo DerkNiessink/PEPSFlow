@@ -28,7 +28,7 @@ class TestMinimizer:
         )
         ipeps = make_ipeps(ipeps_args)
         Tools.minimize(ipeps, minimize_args)
-        IO.save(ipeps, "tests/test")
+        IO.save(ipeps, "tests/test_data/test")
 
         # Update ipeps args and minimize args
         ipeps_args2 = ipeps_args.copy()
@@ -37,10 +37,10 @@ class TestMinimizer:
         minimize_args2 = minimize_args.copy()
         minimize_args2["epochs"] = 10
 
-        ipeps = IO.load("tests/test")
+        ipeps = IO.load("tests/test_data/test")
         ipeps2 = make_ipeps(ipeps_args2, initial_ipeps=ipeps)
         Tools.minimize(ipeps2, minimize_args2)
-        IO.save(ipeps2, "tests/test")
+        IO.save(ipeps2, "tests/test_data/test")
         assert (ipeps2.data["energies"][-1] == pytest.approx(-0.6602310934799586, abs=1e-3)) and (
             len(ipeps2.data["energies"]) == 13
         )

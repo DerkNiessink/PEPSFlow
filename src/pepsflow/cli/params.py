@@ -50,7 +50,7 @@ def optimize(server: bool = False):
             c.run(f"mkdir -p PEPSFlow/{data}/{write}")
             c.run(f"cd PEPSFlow && source .venv/bin/activate && nohup pepsflow params optimize > {data}/{write}/{write}.out 2>&1 & disown", pty=False)
     else: 
-        Pepsflow().minimize_parallel()
+        Pepsflow().optimize_parallel()
 
 
 @params.command()
@@ -66,10 +66,10 @@ def evaluate(filename: str):
 
 @params.command()
 @click.argument("filename", type=str)
-def minimize_norm(filename: str):
+def gauge(filename: str):
     """
-    Minimize the norm of the iPEPS state and write the data of the gauge transformations to a file.
-    Gauge transformations with these gauges can be used to get the state in the minimal canonical form.
+    Apply gauge transformations to the iPEPS tensor network with the specified parameters in the 
+    configuration file.
 
     FILENAME is the data file to read from.
     """

@@ -13,7 +13,7 @@ class TestObservables:
         Test the energy function with the Ising model using the symmetric CTM algorithm.
         """
 
-        A = torch.from_numpy(np.loadtxt("tests/Ising_D2_state.txt").reshape(2, 2, 2, 2, 2)).double()
+        A = torch.from_numpy(np.loadtxt("tests/test_states/Ising_D2_state.txt").reshape(2, 2, 2, 2, 2)).double()
         # Because state is from matlab, we need to permute the dimensions
         A = A.permute(4, 1, 2, 3, 0).contiguous()
 
@@ -28,7 +28,7 @@ class TestObservables:
         Test the energy function with the Heisenberg model using the symmetric CTM algorithm.
         """
 
-        A = torch.from_numpy(np.loadtxt("tests/Heis_D2_state.txt").reshape(2, 2, 2, 2, 2)).double()
+        A = torch.from_numpy(np.loadtxt("tests/test_states/Heis_D2_state.txt").reshape(2, 2, 2, 2, 2)).double()
 
         alg = CtmSymmetric(A, chi=48)
         alg.exe(N=100)
@@ -41,7 +41,7 @@ class TestObservables:
         Test the energy function with the J1J2 model using the symmetric CTM algorithm.
         """
 
-        A = torch.from_numpy(np.loadtxt("tests/J205_D3_state.txt").reshape(2, 3, 3, 3, 3)).double()
+        A = torch.from_numpy(np.loadtxt("tests/test_states/J205_D3_state.txt").reshape(2, 3, 3, 3, 3)).double()
 
         alg = CtmSymmetric(A, chi=16)
         alg.exe(N=100)
@@ -56,7 +56,7 @@ class TestObservables:
         Test the energy function with the J1J2 model using the general CTM algorithm.
         """
 
-        A = torch.from_numpy(np.loadtxt("tests/J205_D3_state.txt").reshape(2, 3, 3, 3, 3)).double()
+        A = torch.from_numpy(np.loadtxt("tests/test_states/J205_D3_state.txt").reshape(2, 3, 3, 3, 3)).double()
 
         alg = CtmGeneral(A, chi=16)
         alg.exe(N=100)

@@ -88,11 +88,12 @@ class Pepsflow:
             self.optimization_args[key] = value
 
         filename = f"{key}_{value}"
-        read_path = self._path(self.folders["read"], filename)
-        write_path = self._path(self.folders["write"], filename)
 
-        initial_ipeps = IO.load(read_path) if self.folders["read"] else None
+        # Load the given iPEPS state and change the parameters to the values in the config file
+        initial_ipeps = IO.load(self._path(self.folders["read"], filename)) if self.folders["read"] else None
         ipeps = make_ipeps(self.ipeps_args, initial_ipeps)
+
+        write_path = self._path(self.folders["write"], filename)
         self._handle_interrupt(ipeps, write_path)
         Tools.minimize(ipeps, self.optimization_args)
         IO.save(ipeps, write_path)

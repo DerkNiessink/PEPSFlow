@@ -1,9 +1,11 @@
 from pepsflow.ipeps.ipeps import iPEPS
 from pepsflow.models.optimizers import Optimizer
 from pepsflow.models.canonize import canonize
+from pepsflow.models.ctm import CtmGeneral
 
 import torch
 import sys
+import numpy as np
 
 
 class Tools:
@@ -83,6 +85,11 @@ class Tools:
             ipeps (iPEPS): iPEPS model to optimize.
             args (dict): Dictionary containing the arguments for the optimization process.
         """
+        seed = ipeps.args.get("seed")
+        if seed:
+            torch.manual_seed(seed)
+            np.random.seed(seed)
+
         if ipeps.map is not None:
             raise ValueError("The given iPEPS is rotationally symmetric. No gauge transformation is needed.")
         A = ipeps.params

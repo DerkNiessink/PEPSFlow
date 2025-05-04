@@ -142,7 +142,6 @@ class RotationalSymmetricIPEPS(iPEPS):
 
     def get_E(self, grad: bool, tensors: tuple[torch.Tensor, ...]) -> torch.Tensor:
         A = self.params[self.map] if self.map is not None else self.params
-        # A = self.tensors.gauge_transform(A, self.U1, self.U2)
         A = A.detach() if not grad else A
         C, T = tensors
         E_nn = self.tensors.E_nn(A, self.H, C, T)
@@ -153,9 +152,6 @@ class RotationalSymmetricIPEPS(iPEPS):
     def _forward(self, N: int, grad: bool, tensors: tuple[torch.Tensor, ...] = None) -> tuple:
         A = self.params[self.map]
         A = A.detach() if not grad else A
-        # A = self.tensors.gauge_transform(A, self.U1, self.U2)
-        A = A / A.norm()
-
         alg = CtmSymmetric(A, self.args["chi"], tensors, self.args["split"], self.args["projector_mode"])
         alg.exe(N)
         return alg.C, alg.T
@@ -183,8 +179,6 @@ class GeneralIPEPS(iPEPS):
 
     def get_E(self, grad: bool, tensors: tuple[torch.Tensor, ...]) -> torch.Tensor:
         A = self.params.detach() if not grad else self.params
-        # A = self.tensors.gauge_transform(A, self.U1, self.U2)
-        A = A / A.norm()
 
         C, T = tensors[:4], tensors[4:]
         E_h = self.tensors.E_horizontal_nn_general(A, self.H, *C, *T)
@@ -201,8 +195,6 @@ class GeneralIPEPS(iPEPS):
     def _forward(self, N: int, grad: bool, tensors: tuple[torch.Tensor, ...] = None) -> tuple:
         A = self.params
         A = A.detach() if not grad else A
-        # A = self.tensors.gauge_transform(A, self.U1, self.U2)
-        A = A / A.norm()
         alg = CtmGeneral(A, self.args["chi"], tensors)
         # alg = CtmMirrorSymmetric(A, self.args["chi"], tensors)
         alg.exe(N)
