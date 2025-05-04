@@ -45,7 +45,7 @@ def read_cli_config() -> dict:
     parser = configparser.ConfigParser()
     parser.optionxform = str  # Preserve the case of the keys
     parser.read("pepsflow.cfg")
-    sections = ["parameters.cli", "parameters.folders"]
+    sections = ["cli", "folders"]
     args = {}
     for section in sections:
         for key, value in parser.items(section):

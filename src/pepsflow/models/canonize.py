@@ -1,26 +1,21 @@
-from pepsflow.ipeps.ipeps import iPEPS
-
 import torch
 
 
-def canonize(ipeps: iPEPS, tolerance: float = 1e-16) -> tuple[torch.Tensor, list]:
+def canonize(A: torch.Tensor, tolerance: float = 1e-16) -> torch.Tensor:
     """Compute the minimal canonical form of the iPEPS tensor according to the algorithm 1 in
     https://arxiv.org/pdf/2209.14358v1.
 
     Args:
-        ipeps (iPEPS): iPEPS model to canonize.
-        tolerance (float): Tolerance for the convergence of the algorithm. Default is 1e-16.
+        A (torch.Tensor): Input iPEPS state tensor of shape [d, D, D, D, D]
+        tolerance (float): Tolerance for convergence. Default is 1e-16.
 
     Returns:
-        tuple[torch.Tensor, list]: Tuple containing the canonized iPEPS tensor and the list of
-        norm (see paper for how this is defined) values at each iteration.
+        torch.Tensor: Minimal Canonical version of the input state of shape [d, D, D, D, D]
     """
 
-    A = ipeps.params[ipeps.map] if ipeps.map is not None else ipeps.params
-    g1 = g2 = ipeps.tensors.identity(ipeps.args["D"])
-    y = []
+    g1 = g2 = torch.eye(A.shape[1], dtype=A.dtype, device=A.device)
     while True:
-        A = ipeps.tensors.gauge_transform(A, g1, g2)
+        A = torch.einsum("purdl,Uu,Rr,dD,lL->pURDL", A, g2, g1, torch.linalg.inv(g2), torch.linalg.inv(g1))
         #            g2^-1
         #            /                   /
         #    g1  -- o -- g1^-1   🡺  -- o --
@@ -63,12 +58,10 @@ def canonize(ipeps: iPEPS, tolerance: float = 1e-16) -> tuple[torch.Tensor, list
         diff1 = rho_11 - rho_12.T
         diff2 = rho_21 - rho_22.T
 
-        f = (1 / trace_rho) * (diff1.norm() ** 2 + diff2.norm() ** 2)
-        y.append(f.item())
-        if f < tolerance:
+        if (1 / trace_rho) * (diff1.norm() ** 2 + diff2.norm() ** 2) < tolerance:
             break
 
         g1 = torch.linalg.matrix_exp((-1 / (8 * trace_rho)) * diff1)
         g2 = torch.linalg.matrix_exp((-1 / (8 * trace_rho)) * diff2)
 
-    return A, y
+    return A

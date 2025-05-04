@@ -71,10 +71,10 @@ class TestMinimalCanonical:
         saved and loaded correctly.
         """
 
-        ipeps = IO.load("tests/test.json")
+        ipeps = IO.load("tests/test_data/test.json")
         Tools.gauge(ipeps, args={"tolerance": 1e-16, "gauge": "minimal_canonical"})
-        IO.save(ipeps, "tests/test_minimal_canonical.json")
-        ipeps = IO.load("tests/test_minimal_canonical.json")
+        IO.save(ipeps, "tests/test_data/test_minimal_canonical.json")
+        ipeps = IO.load("tests/test_data/test_minimal_canonical.json")
 
         A = ipeps.params
         rho = torch.einsum("purdl,pURDL->urdlURDL", A, A)
