@@ -1,7 +1,5 @@
-from pepsflow.ipeps.ipeps import iPEPS
+from pepsflow.ipeps.ipeps import iPEPS, GeneralIPEPS
 from pepsflow.models.optimizers import Optimizer
-from pepsflow.models.canonize import canonize
-from pepsflow.models.ctm import CtmGeneral
 
 import torch
 import sys
@@ -70,15 +68,13 @@ class Tools:
             ipeps (iPEPS): iPEPS model to compute the energies for.
             args (dict): Dictionary containing the iPEPS parameters.
         """
-        ipeps.args["chi"] = args["chi"]
-        with torch.no_grad():
-            tensors = ipeps.do_evaluation(N=args["ctm_steps"])
+        tensors = ipeps.do_evaluation(N=args["ctm_steps"], chi=args["chi"])
         E = ipeps.get_E(grad=False, tensors=tensors)
         ipeps.add_data(key="Eval_energy", value=E.item())
         print(f"chi, E: {ipeps.args['chi'], E.item()}")
 
     @staticmethod
-    def gauge(ipeps: iPEPS, args: dict) -> None:
+    def gauge(ipeps: GeneralIPEPS, args: dict) -> None:
         """Gauge transform the iPEPS tensor.
 
         Args:
@@ -92,15 +88,4 @@ class Tools:
 
         if ipeps.map is not None:
             raise ValueError("The given iPEPS is rotationally symmetric. No gauge transformation is needed.")
-        A = ipeps.params
-        if args["gauge"] == "minimal_canonical":
-            A, _ = canonize(ipeps, args["tolerance"])
-            print("Successfully transformed state to minimal canonical form.")
-        else:
-            g1, g2 = ipeps.tensors.gauges(D=ipeps.args["D"], which=args["gauge"])
-            A = ipeps.tensors.gauge_transform(A, g1, g2)
-            print(f"Successfully transformed state with {args['gauge']} gauge.")
-
-        # Save the transformed state and the kind of gauge transformation
-        ipeps.params = torch.nn.Parameter(A)
-        ipeps.args["gauge"] = args["gauge"]
+        ipeps.gauge_transform(which=args["gauge"], tolerance=args["tolerance"])

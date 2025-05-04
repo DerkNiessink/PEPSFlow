@@ -3,6 +3,7 @@ import numpy as np
 
 from pepsflow.models.ctm import CtmSymmetric, CtmGeneral, CtmMirrorSymmetric
 from pepsflow.models.tensors import Tensors
+from pepsflow.models.canonize import canonize
 
 
 from abc import ABC, abstractmethod
@@ -73,15 +74,17 @@ class iPEPS(torch.nn.Module, ABC):
         """
         return self._forward(N, grad=True, tensors=tensors)
 
-    def do_evaluation(self, N: int) -> tuple[torch.Tensor, ...]:
+    def do_evaluation(self, N: int, chi: int) -> tuple[torch.Tensor, ...]:
         """Evaluate the iPEPS tensor by performing the CTM algorithm without gradient tracking.
 
         args:
             N (int): Number of iterations in the CTM algorithm.
+            chi (int): Bond dimension for the evaluation.
 
         Returns:
             tuple[torch.Tensor, ...]: Tuple containing the corner and edge tensors of the iPEPS tensor network.
         """
+        self.args["chi"] = chi
         return self._forward(N, grad=False)
 
     @abstractmethod
@@ -199,3 +202,19 @@ class GeneralIPEPS(iPEPS):
         # alg = CtmMirrorSymmetric(A, self.args["chi"], tensors)
         alg.exe(N)
         return alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
+
+    def gauge_transform(self, which: str, tolerance: float = 1e-16) -> None:
+        """Apply a gauge transformation to the iPEPS tensor.
+
+        Args:
+            which (str): Type of gauge transformation to apply. Options are "minimal_canonical",
+            "invertible" and "unitary". If None is given, the gauge transformation is an identity.
+            Tolerance (float): Tolerance for the "minimal_canonical" gauge transformation. Default is 1e-16.
+        """
+        if which == "minimal_canonical":
+            A = canonize(self.params, tolerance)
+        else:
+            g1, g2 = self.tensors.gauges(self.args["D"], which=which)
+            A = self.tensors.gauge_transform(self.params, g1, g2)
+        self.params = torch.nn.Parameter(A)
+        self.args["gauge"] = which
