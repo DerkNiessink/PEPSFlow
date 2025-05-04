@@ -36,16 +36,18 @@ class iPEPS(torch.nn.Module, ABC):
     def __init__(self, args: dict, initial_ipeps: "iPEPS" = None):
         super().__init__()
         self.args = args
+        self.set_seed(args["seed"])
         self.initial_ipeps = initial_ipeps
         self.tensors = Tensors(args["dtype"], args["device"])
         self.data = {}
         self.to(args["device"])
-        if args["seed"] is not None:
-            torch.manual_seed(args["seed"])
-            np.random.seed(args["seed"])
-
         self.H = self.tensors.Hamiltonian(args["model"], lam=args["lam"])
         self.params, self.map = None, None
+
+    def set_seed(self, seed: int) -> None:
+        """Set the random seed for reproducibility."""
+        torch.manual_seed(seed)
+        np.random.seed(seed)
 
     def add_data(self, key: str, value: Any):
         """Add data to the iPEPS object. If the key already exists, appends the value to the list."""

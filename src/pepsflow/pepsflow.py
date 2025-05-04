@@ -3,7 +3,6 @@ import multiprocessing as mp
 import os
 import ast
 import signal
-from typing import Any
 
 from pepsflow.ipeps.ipeps import make_ipeps, iPEPS
 from pepsflow.ipeps.io import IO

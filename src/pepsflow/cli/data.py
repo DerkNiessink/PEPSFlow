@@ -159,11 +159,11 @@ def plot(ctx, folders, **kwargs):
             #line,color =("o-","C1") if "D3" in folders[i] else ("o-","C0")
             #markersize = 5 if "minimal" in folders[i] else 3
             #line = "-x" if "minimal" in folders[i] else line
-            plt.plot(inv_chis, energies, "-v", linewidth=0.5, label=folders[i]) 
+            plt.plot(inv_chis, energies, "-v", linewidth=0.5, label=folders[i], markersize=4) 
         plt.grid(linestyle='--', linewidth=0.35)
         plt.yscale("log")
-        plt.legend(["$A = \mathbf{g_{rand}} \cdot A_0 $", "$A = \mathbf{g} \cdot (\mathbf{g_{rand}} \cdot A_0 )$"])
-
+        plt.ylabel(r"$\log|E-E_0|$")
+        plt.legend([r"$A = \text{Opt}(\mathbf{g_{rand}} \cdot A_0) $", r"$A' = \mathbf{g} \cdot A$"])
     if kwargs["gradient"]:
         plt.ylabel(r"$\log|E-E_0|$")
         plt.xlabel(r"Epoch")
@@ -260,7 +260,7 @@ def plot(ctx, folders, **kwargs):
   
     plt.tight_layout()
     #plt.legend()
-    #plt.savefig("figures/minimal_canonical_chi_convergence_D4.png")
+    #plt.savefig("figures/gauge_solved_bad_state_D3.png")
     plt.show()
 
 

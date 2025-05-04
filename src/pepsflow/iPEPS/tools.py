@@ -81,11 +81,7 @@ class Tools:
             ipeps (iPEPS): iPEPS model to optimize.
             args (dict): Dictionary containing the arguments for the optimization process.
         """
-        seed = ipeps.args.get("seed")
-        if seed:
-            torch.manual_seed(seed)
-            np.random.seed(seed)
-
+        ipeps.set_seed(args["seed"])
         if ipeps.map is not None:
             raise ValueError("The given iPEPS is rotationally symmetric. No gauge transformation is needed.")
         ipeps.gauge_transform(which=args["gauge"], tolerance=args["tolerance"])
