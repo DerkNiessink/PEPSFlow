@@ -200,8 +200,9 @@ class GeneralIPEPS(iPEPS):
     def _forward(self, N: int, grad: bool, tensors: tuple[torch.Tensor, ...] = None) -> tuple:
         A = self.params
         A = A.detach() if not grad else A
-        alg = CtmGeneral(A, self.args["chi"], tensors)
-        # alg = CtmMirrorSymmetric(A, self.args["chi"], tensors)
+        A = A / A.norm()
+        # alg = CtmGeneral(A, self.args["chi"], tensors)
+        alg = CtmMirrorSymmetric(A, self.args["chi"], tensors)
         alg.exe(N)
         return alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
 
