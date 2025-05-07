@@ -21,7 +21,7 @@ def htop():
     """
     conf = configparser.ConfigParser()
     conf.read("pepsflow.cfg")
-    address = conf.get("parameters.cli", "server_address").strip("'")
+    address = conf.get("cli", "server_address").strip("'")
     try:
         with Connection(address) as c:
             c.run("htop", pty=True)
@@ -39,7 +39,7 @@ def kill(pid: str):
     """
     conf = configparser.ConfigParser()
     conf.read("pepsflow.cfg")
-    address = conf.get("parameters.cli", "server_address").strip("'")
+    address = conf.get("cli", "server_address").strip("'")
     with Connection(address) as c:
         c.run(f"kill -SIGINT {pid}")
     print(f"Process {pid} killed.")
