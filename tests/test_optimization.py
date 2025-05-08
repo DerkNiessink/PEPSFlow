@@ -17,7 +17,8 @@ class TestOptimization:
     def test_symmetric_optimization(self, E_exp, epochs, l, J2, sp, dev, m, D, dt, chi, N):
         ipeps_args = dict(
             model=m,
-            rotational_symmetry="both",
+            initial_state_symmetry="rotational",
+            ctm_symmetry="rotational",
             D=D,
             dtype=dt,
             device=dev,
@@ -46,7 +47,8 @@ class TestOptimization:
     def test_general_optimization(self):
         ipeps_args = dict(
             model="J1J2",
-            rotational_symmetry="state",
+            initial_state_symmetry="rotational",
+            ctm_symmetry=None,
             D=3,
             dtype="double",
             device="cpu",

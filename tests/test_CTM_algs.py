@@ -55,27 +55,19 @@ class TestCtmAlg:
         the symmetric and mirror symmetric CTM algorithms. The energy should be the same up to a small tolerance.
         """
         A = torch.from_numpy(np.loadtxt("tests/test_states/Heis_D2_state.txt").reshape(2, 2, 2, 2, 2)).double()
-        E_general_list = []
-        E_symm_list = []
         alg = CtmMirrorSymmetric(A, chi=32)
         alg_symm = CtmSymmetric(A, chi=32)
-        for N in range(50):
-            alg.exe(N=1)
-            alg_symm.exe(N=1)
-            tensors = Tensors(dtype="double", device="cpu")
-            E_general = tensors.E_vertical_nn_general(
-                A, tensors.H_Heis_rot(), alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
-            )
-            E_general += tensors.E_horizontal_nn_general(
-                A, tensors.H_Heis_rot(), alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
-            )
-            E_symm = tensors.E_nn(A, tensors.H_Heis_rot(), alg_symm.C, alg_symm.T)
-            E_general_list.append(E_general / 2)
-            E_symm_list.append(E_symm)
 
-        plt.plot(range(len(E_general_list)), E_general_list, marker="o", markersize=3)
-        plt.plot(range(len(E_symm_list)), E_symm_list, marker="o", markersize=3)
-        plt.show()
+        alg.exe(N=50)
+        alg_symm.exe(N=50)
+        tensors = Tensors(dtype="double", device="cpu")
+        E_general = tensors.E_vertical_nn_general(
+            A, tensors.H_Heis_rot(), alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
+        )
+        E_general += tensors.E_horizontal_nn_general(
+            A, tensors.H_Heis_rot(), alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
+        )
+        E_symm = tensors.E_nn(A, tensors.H_Heis_rot(), alg_symm.C, alg_symm.T)
 
         assert E_general / 2 == pytest.approx(E_symm, abs=1e-7)
 
