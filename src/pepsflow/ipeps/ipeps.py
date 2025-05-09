@@ -235,7 +235,6 @@ class GeneralIPEPS(iPEPS):
             g1, g2 = self.tensors.gauges(self.args["D"], which=which)
             A = self.tensors.gauge_transform(self.params, g1, g2)
         self.params = torch.nn.Parameter(A)
-        self.args["gauge"] = which
 
 
 class MirrorSymmetricIPEPS(GeneralIPEPS):
@@ -247,7 +246,8 @@ class MirrorSymmetricIPEPS(GeneralIPEPS):
 
     def _forward(self, N: int, grad: bool, tensors: tuple[torch.Tensor, ...] = None) -> tuple:
         A = self.params.detach() if not grad else self.params
-        A = A / A.norm()
+        if self.args.get("gauge", None) != "invertible":
+            A = A / A.norm()
         alg = CtmMirrorSymmetric(A, self.args["chi"], tensors, projector_mode=self.args["projector_mode"])
         alg.exe(N)
         return alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4

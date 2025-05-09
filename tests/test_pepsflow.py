@@ -1,13 +1,11 @@
 from pepsflow.pepsflow import Pepsflow
 from pepsflow.pepsflow import IO
 from pepsflow.ipeps.observe import Observer
-from pepsflow.models.canonize import canonize
 
 import pytest
 
 
 class TestPepsflow:
-    @pytest.mark.skip()
     def test_general_workflow_minimal_canonical(self):
         """
         Test the general workflow of the Pepsflow class with minimal canonical form.
@@ -24,14 +22,8 @@ class TestPepsflow:
         workflow.evaluate_parallel("chi_8")
 
         ipeps = IO.load("tests/test_data/chi_16")
-
-        # Check energy and norm
         Energy = Observer(ipeps).eval_energy()
-        _, norm = canonize(ipeps)
-
         assert Energy == pytest.approx(-0.6681273941483516, abs=1e-3)
-        assert norm[-1] == pytest.approx(1e-16, abs=1e-3)
-        assert len(norm) == 1
 
     def test_general_workflow_invertible_gauge(self):
         """

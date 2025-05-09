@@ -10,7 +10,7 @@
         "dtype": "double",
         "device": "cpu",
         "noise": 0,
-        "chi": 16,
+        "chi": 8,
         "split": false,
         "projector_mode": "qr",
         "gauge": "invertible"
@@ -425,6 +425,9 @@
         ],
         "eval_ctm_steps": [
             20
+        ],
+        "eval_symmetry": [
+            null
         ]
     }
 }

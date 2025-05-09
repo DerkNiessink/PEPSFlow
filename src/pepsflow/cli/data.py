@@ -150,7 +150,7 @@ def plot(ctx, folders, **kwargs):
         plt.xlabel(r"$1/\chi$")
         colors = ["k", "C1", "C2"]
         for i, observers in enumerate(all_observers):
-            data = [(1/observer.chi(), observer.eval_energy()) for observer in observers if observer.eval_energy() is not None]
+            data = [(1/observer.eval_chi(), observer.eval_energy()) for observer in observers if observer.eval_energy() is not None]
             data.sort(reverse=True)
             inv_chis, energies = zip(*data)
             markers = ["-", "o-", "v-"]

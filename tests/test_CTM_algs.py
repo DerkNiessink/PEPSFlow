@@ -55,7 +55,7 @@ class TestCtmAlg:
         the symmetric and mirror symmetric CTM algorithms. The energy should be the same up to a small tolerance.
         """
         A = torch.from_numpy(np.loadtxt("tests/test_states/Heis_D2_state.txt").reshape(2, 2, 2, 2, 2)).double()
-        alg = CtmMirrorSymmetric(A, chi=32)
+        alg = CtmMirrorSymmetric(A, chi=32, projector_mode="qr")
         alg_symm = CtmSymmetric(A, chi=32)
 
         alg.exe(N=50)

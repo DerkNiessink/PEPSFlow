@@ -114,8 +114,16 @@ class Pepsflow:
         write_path = self._path(self.folders["write"], write_filename)
 
         ipeps = IO.load(read_path)
+
+        # The evaluate args may contain ipeps args that need to be updated
+        original_ipeps_args = ipeps.args.copy()
+        ipeps.args.update(self.evaluate_args)
+        ipeps = make_ipeps(ipeps.args, ipeps)
+
         self._handle_interrupt(ipeps, write_path)
         Tools.evaluate(ipeps, self.evaluate_args)
+
+        ipeps.args = original_ipeps_args
         IO.save(ipeps, write_path)
 
     def gauge(self, read_filename: str) -> None:

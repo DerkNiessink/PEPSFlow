@@ -68,13 +68,13 @@ class Tools:
             ipeps (iPEPS): iPEPS model to compute the energies for.
             args (dict): Dictionary containing the iPEPS parameters.
         """
-        ipeps.args["projector_mode"] = args["projector_mode"]
         tensors = ipeps.do_evaluation(N=args["ctm_steps"], chi=args["chi"])
         E = ipeps.get_E(grad=False, tensors=tensors)
         ipeps.add_data("eval_energy", E.item())
         ipeps.add_data("eval_projector_mode", ipeps.args["projector_mode"])
         ipeps.add_data("eval_chi", args["chi"])
         ipeps.add_data("eval_ctm_steps", args["ctm_steps"])
+        ipeps.add_data("eval_symmetry", ipeps.args["ctm_symmetry"])
         print(f"chi, E: {ipeps.args['chi'], E.item()}")
 
     @staticmethod
@@ -89,4 +89,5 @@ class Tools:
         if ipeps.map is not None:
             raise ValueError("The given iPEPS is rotationally symmetric. No gauge transformation is needed.")
         ipeps.gauge_transform(which=args["gauge"], tolerance=args["tolerance"])
+        ipeps.add_data("gauge_type", args["gauge"])
         ipeps.add_data("gauge_seed", args["seed"])
