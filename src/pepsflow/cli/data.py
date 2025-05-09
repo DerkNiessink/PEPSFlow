@@ -154,16 +154,16 @@ def plot(ctx, folders, **kwargs):
             data.sort(reverse=True)
             inv_chis, energies = zip(*data)
             markers = ["-", "o-", "v-"]
-            widths = [1, 0.5, 0.5]
+            widths = [1, 0.4, 0.4]
             #if "D3" in folders[i] else float(args["E0"])
-            energies = np.array(energies) - float(args["E0"])
+            #energies = np.array(energies) - float(args["E0"])
             
             #line,color =("o-","C1") if "D3" in folders[i] else ("o-","C0")
             #markersize = 5 if "minimal" in folders[i] else 3
             #line = "-x" if "minimal" in folders[i] else line
             plt.plot(inv_chis, energies, markers[i], linewidth=widths[i], label=folders[i], color=colors[i], markersize=6, markeredgecolor='black', markeredgewidth=0.5) 
         plt.grid(linestyle='--', linewidth=0.45)
-        plt.yscale("log")
+        #plt.yscale("log")
         #plt.ylim(-0.66810, -0.66782)
         plt.ylabel(r"$E$")
         plt.legend([ r"General CTM", r" Mirror symmetric CTM, with gauge", r"Mirror symmetric CTM, without gauge"])	
@@ -264,7 +264,7 @@ def plot(ctx, folders, **kwargs):
   
     plt.tight_layout()
     #plt.legend()
-    #plt.savefig("figures/Heis_D4_minimal_canonical_mirror_symmetry.png")
+    #plt.savefig("figures/Heis_D3_minimal_canonical_mirror_symmetry_qr.png")
     plt.show()
 
 
