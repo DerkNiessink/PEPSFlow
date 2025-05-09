@@ -68,4 +68,4 @@ class Observer:
 
     def eval_energy(self) -> float:
         """Get the evaluation energy."""
-        return self.ipeps.data["Eval_energy"][-1] if "Eval_energy" in self.ipeps.data else None
+        return self.ipeps.data["eval_energy"][-1] if "eval_energy" in self.ipeps.data else None

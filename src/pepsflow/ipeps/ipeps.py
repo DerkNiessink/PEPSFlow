@@ -215,7 +215,8 @@ class GeneralIPEPS(iPEPS):
 
     def _forward(self, N: int, grad: bool, tensors: tuple[torch.Tensor, ...] = None) -> tuple:
         A = self.params.detach() if not grad else self.params
-        A = A / A.norm()
+        if self.args.get("gauge", None) != "invertible":
+            A = A / A.norm()
         alg = CtmGeneral(A, self.args["chi"], tensors)
         alg.exe(N)
         return alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
