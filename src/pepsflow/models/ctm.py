@@ -455,43 +455,64 @@ class CtmGeneral(Ctm):
 
 
 class CtmMirrorSymmetric(CtmGeneral):
+
     def _step(self) -> None:
-        upper_left = torch.einsum("ab,cda,bef,dghe->cghf",self.C1, self.T1, self.T4, self.a)
-        upper_right = torch.einsum("ab,bdc,aef,dfgh->eghc",self.C2, self.T1, self.T2, self.a)
-        lower_right = torch.einsum("ab,cbd,eaf,gfch->dhge",self.C3, self.T3, self.T2, self.a)
-        lower_left = torch.einsum("ab,cdb,efa,ghcf->eghd",self.C4, self.T3, self.T4, self.a)
-        #  C1 -- T1--      -- T1-- C2        
-        #  |     |            |    |          __ _1  4____  
-        #  T4 -- a --      -- a -- T2        |__|_2  3_|__|
-        #  |     |            |    |         |  |      |  |  
-        #                                    4  3      2  1   
-        #                                                          4 x [χ, D², D², χ]  
-        #                               🡺   1  2      3  4   
-        #  |     |            |    |         |__|_3  2_|__|
-        #  T4 -- a --      -- a -- T2        |__|_4  1_|__|
-        #  |     |            |    |                     
-        #  C4 -- T3 --     -- T3 --C3   
-    
-        grown_chi = min(self.chi * self.D**2, self.max_chi)
-                               
-        P1, sum_s1 = self._new_P(upper_left, grown_chi)
-        P2, sum_s2 = self._new_P(upper_right, grown_chi)
-        P3, sum_s3 = self._new_P(lower_right, grown_chi)
-        P4, sum_s4 = self._new_P(lower_left, grown_chi)
+        if self.projector_mode == "qr" and self.chi == self.max_chi:
+            ul= torch.einsum("ab,bcd->acd",self.C1, self.T4)
+            ur = torch.einsum("ab,bcd->acd",self.C2, self.T1)
+            lr = torch.einsum("ab,cad->bdc",self.C3, self.T2)
+            ll = torch.einsum("ab,cdb->acd",self.C4, self.T3)
+            #  C1 --      -- T1-- C2        
+            #  |             |    |          __ _1      __  
+            #  T4 --                        |__|_2  3--|__|
+            #  |                             |         |  |  
+            #                        🡺      3         2  1
+            #                                                    4 x [χ, D², χ]     
+            #                               1  2        3
+            #                     |         |__|     2__|_
+            #                  -- T2        |__|--3  1_|__|
+            #  |     |            |                     
+            #  C4 -- T3 --      --C3   
 
+        else:
+            ul = torch.einsum("ab,cda,bef,dghe->cghf",self.C1, self.T1, self.T4, self.a)
+            ur = torch.einsum("ab,bdc,aef,dfgh->eghc",self.C2, self.T1, self.T2, self.a)
+            lr = torch.einsum("ab,cbd,eaf,gfch->dhge",self.C3, self.T3, self.T2, self.a)
+            ll = torch.einsum("ab,cdb,efa,ghcf->eghd",self.C4, self.T3, self.T4, self.a)
+            #  C1 -- T1--      -- T1-- C2        
+            #  |     |            |    |          __ _1  4____  
+            #  T4 -- a --      -- a -- T2        |__|_2  3_|__|
+            #  |     |            |    |         |  |      |  |  
+            #                                    4  3      2  1   
+            #                                                          4 x [χ, D², D², χ]  
+            #                               🡺   1  2      3  4   
+            #  |     |            |    |         |__|_3  2_|__|
+            #  T4 -- a --      -- a -- T2        |__|_4  1_|__|
+            #  |     |            |    |                     
+            #  C4 -- T3 --     -- T3 --C3   
+
+        grown_chi = min(self.chi * self.D**2, self.max_chi)                         
+        P1, sum_s1 = self._new_P(ul, grown_chi)
+        P2, sum_s2 = self._new_P(ur, grown_chi)
+        P3, sum_s3 = self._new_P(lr, grown_chi)
+        P4, sum_s4 = self._new_P(ll, grown_chi)
         self.chi = grown_chi
-
         self.sv_sums1.append(sum_s1), self.sv_sums2.append(sum_s2), self.sv_sums3.append(sum_s3), self.sv_sums4.append(sum_s4)
+
+        ul = torch.einsum("ab,cda,bef,dghe->cghf",self.C1, self.T1, self.T4, self.a)
+        ur = torch.einsum("ab,bdc,aef,dfgh->eghc",self.C2, self.T1, self.T2, self.a)
+        lr = torch.einsum("ab,cbd,eaf,gfch->dhge",self.C3, self.T3, self.T2, self.a)
+        ll = torch.einsum("ab,cdb,efa,ghcf->eghd",self.C4, self.T3, self.T4, self.a)
 
         T1 = norm(torch.einsum("abc,dea,efgb,dfh->hgc", P1, self.T1, self.a, P1)) # [χ, D², χ]
         T2 = norm(torch.einsum("abc,ade,befg,dfh->chg", P2, self.T2, self.a, P2)) # [χ, χ, D²]
         T3 = norm(torch.einsum("abc,dea,fgdb,egh->fhc", P3, self.T3, self.a, P3)) # [D², χ, χ]
         T4 = norm(torch.einsum("abc,ade,bfgd,egh->cfh", P4, self.T4, self.a, P4)) # [χ, D², χ]
 
-        C1 = norm(torch.einsum("abc,abde,edf->cf", P1, upper_left, P4))  # [χ, χ]
-        C2 = norm(torch.einsum("abc,edba,edf->fc", P1, upper_right, P2)) # [χ, χ] 
-        C3 = norm(torch.einsum("abc,abde,edf->fc", P3, lower_right, P2)) # [χ, χ]
-        C4 = norm(torch.einsum("abc,edba,edf->fc", P3, lower_left, P4))  # [χ, χ]
+        C1 = norm(torch.einsum("abc,abde,edf->cf", P1, ul, P4))  # [χ, χ]
+        C2 = norm(torch.einsum("abc,edba,edf->fc", P1, ur, P2)) # [χ, χ] 
+        C3 = norm(torch.einsum("abc,abde,edf->fc", P3, lr, P2)) # [χ, χ]
+        C4 = norm(torch.einsum("abc,edba,edf->fc", P3, ll, P4))  # [χ, χ]
         #  C1 --T1 --|\    /|-- T1--|\    /|-- T1 --C2
         #  |     |   P1 --|P1   |   P1 --P1|   |    |
         #  T4 -- a --|/    \|-- a --|/    \|-- a -- T2
@@ -519,14 +540,24 @@ class CtmMirrorSymmetric(CtmGeneral):
         Compute the projector by taking the singular value decomposition of the corner.
         
         Args:
-            C (torch.Tensor): The corner tensor of shape [χ, D², D², χ].
+            C (torch.Tensor): The corner tensor of shape [χ, D², D², χ] or [χ, χ, D²] if projector_mode is "qr".
         """
-        C = C.reshape(self.chi*self.D**2, self.chi*self.D**2)       
-        U, s, V = truncated_svd_gesdd(C, grown_chi)
-        #   S
-        #   o---|>--   🡺   [χD², χ], [χ], [χ, χD²]
-        #   |    U
-        #  /_\ 
-        #   | V^dag 
+
+
+        # In qr mode we first have to let chi grow to the desired valued.
+        if self.projector_mode == "qr" and self.chi == grown_chi:
+            C = C.reshape(self.chi*self.D**2, self.chi)
+            U, R = torch.linalg.qr(C, mode="reduced")
+            s = torch.diagonal(R, 0)
+            #
+            #   --o--   🡺  --<|---|>--  [χD², χ], [χ, χ]
+        else:
+            C = C.reshape(self.chi*self.D**2, self.chi*self.D**2)       
+            U, s, V = truncated_svd_gesdd(C, grown_chi)
+            #   S
+            #   o---|>--   🡺   [χD², χ], [χ], [χ, χD²]
+            #   |    U
+            #  /_\ 
+            #   | V^dag 
 
         return U.view(self.chi, self.D**2, grown_chi), torch.sum(s)

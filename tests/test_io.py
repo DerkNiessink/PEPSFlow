@@ -10,7 +10,8 @@ class TestMinimizer:
     def test_save(self):
         ipeps_args = dict(
             model="J1J2",
-            rotational_symmetry="both",
+            initial_state_symmetry="rotational",
+            ctm_symmetry="rotational",
             D=2,
             dtype="double",
             device="cpu",
@@ -33,7 +34,7 @@ class TestMinimizer:
         # Update ipeps args and minimize args
         ipeps_args2 = ipeps_args.copy()
         ipeps_args2["chi"] = 12
-        ipeps_args2["rotational_symmetry"] = None
+        ipeps_args2["ctm_symmetry"] = None
         minimize_args2 = minimize_args.copy()
         minimize_args2["epochs"] = 10
 

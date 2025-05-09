@@ -68,6 +68,7 @@ class Tools:
             ipeps (iPEPS): iPEPS model to compute the energies for.
             args (dict): Dictionary containing the iPEPS parameters.
         """
+        ipeps.args["projector_mode"] = args["projector_mode"]
         tensors = ipeps.do_evaluation(N=args["ctm_steps"], chi=args["chi"])
         E = ipeps.get_E(grad=False, tensors=tensors)
         ipeps.add_data(key="Eval_energy", value=E.item())

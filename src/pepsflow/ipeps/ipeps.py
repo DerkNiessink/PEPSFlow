@@ -24,12 +24,15 @@ def make_ipeps(args: dict, initial_ipeps: "iPEPS" = None) -> "iPEPS":
     Returns:
         iPEPS: An instance of the iPEPS class with the specified symmetry.
     """
-    if args["rotational_symmetry"] in ["both", "ctm"]:
-        return RotationalSymmetricIPEPS(args, initial_ipeps)
-    elif args["rotational_symmetry"] in ["state", None]:
-        return GeneralIPEPS(args, initial_ipeps)
-    else:
-        raise ValueError(f"Unknown symmetry: {args['rotational_symmetry']}")
+    match args["ctm_symmetry"]:
+        case "rotational":
+            return RotationalSymmetricIPEPS(args, initial_ipeps)
+        case "mirror":
+            return MirrorSymmetricIPEPS(args, initial_ipeps)
+        case None:
+            return GeneralIPEPS(args, initial_ipeps)
+        case _:
+            raise ValueError(f"Unknown symmetry: {args['ctm_symmetry']}, expected 'rotational', 'mirror', or None.")
 
 
 class iPEPS(torch.nn.Module, ABC):
@@ -43,6 +46,7 @@ class iPEPS(torch.nn.Module, ABC):
         self.to(args["device"])
         self.H = self.tensors.Hamiltonian(args["model"], lam=args["lam"])
         self.params, self.map = None, None
+        self._setup_random() if initial_ipeps is None else self._setup_from_initial_ipeps()
 
     def set_seed(self, seed: int) -> None:
         """Set the random seed for reproducibility."""
@@ -130,9 +134,11 @@ class iPEPS(torch.nn.Module, ABC):
 
 
 class RotationalSymmetricIPEPS(iPEPS):
-    def __init__(self, args: dict, initial_ipeps: "iPEPS" = None):
-        super().__init__(args, initial_ipeps)
-        self._setup_random() if initial_ipeps is None else self._setup_from_initial_ipeps()
+    """
+    Class representing a rotationally symmetric iPEPS state. This class uses a mapping to
+    reduce the number of parameters in the iPEPS tensor network. This iPEPS subclass uses the
+    rotational symmetric ctm algorithm, which uses only one corner and one edge tensor.
+    """
 
     def _setup_random(self):
         A = self.tensors.A_random_symmetric(self.args["D"])
@@ -163,15 +169,25 @@ class RotationalSymmetricIPEPS(iPEPS):
 
 
 class GeneralIPEPS(iPEPS):
-    def __init__(self, args: dict, initial_ipeps: "iPEPS" = None):
-        super().__init__(args, initial_ipeps)
-        self._setup_random() if initial_ipeps is None else self._setup_from_initial_ipeps()
+    """
+    Class representing a general iPEPS state. This subclasss uses the general ctm algorithm,
+    which uses four corner and four edge tensors. It also implements an additional method to
+    gauge transform the iPEPS state.
+    """
 
     def _setup_random(self):
-        if self.args["rotational_symmetry"] == "state":
-            A = self.tensors.A_random_symmetric(self.args["D"])
-        else:
-            A = self.tensors.A_random(self.args["D"])
+        match self.args["initial_state_symmetry"]:
+            case "rotational":
+                A = self.tensors.A_random_symmetric(self.args["D"])
+            case "mirror":
+                # TODO: Implement mirror symmetry for the initial state
+                A = self.tensors.A_random_symmetric(self.args["D"])
+            case None:
+                A = self.tensors.A_random(self.args["D"])
+            case _:
+                raise ValueError(
+                    f"Unknown initial state symmetry: {self.args['initial_state_symmetry']}, expected 'rotational', 'mirror', or 'general'."
+                )
         self.params = torch.nn.Parameter(A / A.norm())
 
     def _setup_from_initial_ipeps(self):
@@ -198,11 +214,9 @@ class GeneralIPEPS(iPEPS):
         return E_nn
 
     def _forward(self, N: int, grad: bool, tensors: tuple[torch.Tensor, ...] = None) -> tuple:
-        A = self.params
-        A = A.detach() if not grad else A
+        A = self.params.detach() if not grad else self.params
         A = A / A.norm()
-        # alg = CtmGeneral(A, self.args["chi"], tensors)
-        alg = CtmMirrorSymmetric(A, self.args["chi"], tensors)
+        alg = CtmGeneral(A, self.args["chi"], tensors)
         alg.exe(N)
         return alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
 
@@ -221,3 +235,18 @@ class GeneralIPEPS(iPEPS):
             A = self.tensors.gauge_transform(self.params, g1, g2)
         self.params = torch.nn.Parameter(A)
         self.args["gauge"] = which
+
+
+class MirrorSymmetricIPEPS(GeneralIPEPS):
+    """
+    Class representing a mirror symmetric iPEPS state. Becaus the mirror symmetric ctm also uses
+    four corner and four edge tensors, this class inherits from the GeneralIPEPS class and is almost
+    identical to it.
+    """
+
+    def _forward(self, N: int, grad: bool, tensors: tuple[torch.Tensor, ...] = None) -> tuple:
+        A = self.params.detach() if not grad else self.params
+        A = A / A.norm()
+        alg = CtmMirrorSymmetric(A, self.args["chi"], tensors, projector_mode=self.args["projector_mode"])
+        alg.exe(N)
+        return alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
