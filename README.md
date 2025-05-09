@@ -1,4 +1,8 @@
-# PEPSFlow
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/0ef5c5c2-3a1a-4644-a281-7d82d185699e" alt="Description" width="400"/>
+</p>
+ <h1 align="center">PEPSFlow</h1>
+
 
 PEPSFlow is a Python package for the simulation of PEPS (Projected Entangled Pair States) in 2D using automatic differentiation.
 
