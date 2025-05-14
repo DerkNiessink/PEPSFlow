@@ -3,7 +3,6 @@ from pepsflow.models.optimizers import Optimizer
 
 import torch
 import sys
-import numpy as np
 
 
 class Tools:
@@ -68,14 +67,19 @@ class Tools:
             ipeps (iPEPS): iPEPS model to compute the energies for.
             args (dict): Dictionary containing the iPEPS parameters.
         """
-        tensors = ipeps.do_evaluation(N=args["ctm_steps"], chi=args["chi"])
-        E = ipeps.get_E(grad=False, tensors=tensors)
-        ipeps.add_data("eval_energy", E.item())
-        ipeps.add_data("eval_projector_mode", ipeps.args["projector_mode"])
-        ipeps.add_data("eval_chi", args["chi"])
-        ipeps.add_data("eval_ctm_steps", args["ctm_steps"])
-        ipeps.add_data("eval_symmetry", ipeps.args["ctm_symmetry"])
-        print(f"chi, E: {ipeps.args['chi'], E.item()}")
+        ipeps.set_data("eval_energies", [])
+        ipeps.set_data("eval_chis", [])
+
+        for chi in args["chi"]:
+            tensors = ipeps.do_evaluation(N=args["ctm_steps"], chi=chi, ctm_symmetry=args["ctm_symmetry"])
+            E = ipeps.get_E(grad=False, tensors=tensors)
+            ipeps.add_data("eval_energies", E.item())
+            ipeps.add_data("eval_chis", chi)
+            print(f"chi, E: {chi, E.item()}")
+
+        ipeps.set_data("eval_projector_mode", args["projector_mode"])
+        ipeps.set_data("eval_ctm_steps", args["ctm_steps"])
+        ipeps.set_data("eval_symmetry", args["ctm_symmetry"])
 
     @staticmethod
     def gauge(ipeps: GeneralIPEPS, args: dict) -> None:
