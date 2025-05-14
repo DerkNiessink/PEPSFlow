@@ -211,12 +211,11 @@ class GeneralIPEPS(iPEPS):
             E_anti_nnn = self.tensors.E_anti_diagonal_nnn_general(A, *C, *T)
             E_nnn = (E_diag_nnn + E_anti_nnn) / 2
             return E_nn + self.args["J2"] * E_nnn
+
         return E_nn
 
     def _forward(self, N: int, grad: bool, tensors: tuple[torch.Tensor, ...] = None) -> tuple:
         A = self.params.detach() if not grad else self.params
-        if self.args.get("gauge", None) != "invertible":
-            A = A / A.norm()
         alg = CtmGeneral(A, self.args["chi"], tensors)
         alg.exe(N)
         return alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
@@ -246,8 +245,6 @@ class MirrorSymmetricIPEPS(GeneralIPEPS):
 
     def _forward(self, N: int, grad: bool, tensors: tuple[torch.Tensor, ...] = None) -> tuple:
         A = self.params.detach() if not grad else self.params
-        if self.args.get("gauge", None) != "invertible":
-            A = A / A.norm()
         alg = CtmMirrorSymmetric(A, self.args["chi"], tensors, projector_mode=self.args["projector_mode"])
         alg.exe(N)
         return alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
