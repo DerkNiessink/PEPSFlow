@@ -21,6 +21,8 @@ class IO:
             return {k: IO.make_json_serializable(v) for k, v in obj.items()}
         elif isinstance(obj, list):
             return [IO.make_json_serializable(v) for v in obj]
+        elif isinstance(obj, tuple):
+            return tuple(IO.make_json_serializable(v) for v in obj)
         elif isinstance(obj, torch.Tensor):
             return obj.tolist()
         else:

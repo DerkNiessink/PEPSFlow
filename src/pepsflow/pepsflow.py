@@ -97,34 +97,17 @@ class Pepsflow:
         Tools.minimize(ipeps, self.optimization_args)
         IO.save(ipeps, write_path)
 
-    def evaluate(self, chi: int, read_filename: str) -> None:
+    def evaluate(self, read_filename: str) -> None:
         """
         Evaluate the energy of a converged iPEPS state using the CTMRG algorithm.
 
         Args:
-            chi (int): Bond dimension for the evaluation.
             read_filename (str): Filename of the converged iPEPS state to evaluate.
         """
-        print(f"PID: {os.getpid()}")
-
-        self.evaluate_args["chi"] = chi
-
-        write_filename = f"chi_{chi}"
         read_path = self._path(self.folders["read"], read_filename)
-        write_path = self._path(self.folders["write"], write_filename)
-
         ipeps = IO.load(read_path)
-
-        # The evaluate args may contain ipeps args that need to be updated
-        original_ipeps_args = ipeps.args.copy()
-        ipeps.args.update(self.evaluate_args)
-        ipeps = make_ipeps(ipeps.args, ipeps)
-
-        self._handle_interrupt(ipeps, write_path)
         Tools.evaluate(ipeps, self.evaluate_args)
-
-        ipeps.args = original_ipeps_args
-        IO.save(ipeps, write_path)
+        IO.save(ipeps, read_path)
 
     def gauge(self, read_filename: str) -> None:
         """
@@ -135,7 +118,6 @@ class Pepsflow:
         """
         read_path = self._path(self.folders["read"], read_filename)
         write_path = self._path(self.folders["write"], read_filename)
-
         ipeps = IO.load(read_path)
         Tools.gauge(ipeps, self.gauge_args)
         IO.save(ipeps, write_path)
@@ -164,24 +146,3 @@ class Pepsflow:
     def _optimize_wrapper(key, value, config_path):
         """Wrapper for the optimize function to be used with multiprocessing."""
         Pepsflow(config_path).optimize(key, value)
-
-    def evaluate_parallel(self, read_filename: str) -> None:
-        """
-        Evaluate multiple iPEPS models in parallel over different values of 'chi'.
-
-        Args:
-            read_filename (str): Filename of the converged iPEPS state to evaluate.
-        """
-        chi_values = self.evaluate_args["chi"]
-        if not isinstance(chi_values, list):
-            chi_values = [chi_values]
-
-        num_processes = len(chi_values)
-
-        with mp.Pool(num_processes) as pool:
-            pool.starmap(Pepsflow._evaluate_wrapper, [(chi, read_filename, self.config_path) for chi in chi_values])
-
-    @staticmethod
-    def _evaluate_wrapper(chi: int, read_filename: str, config_path: str) -> None:
-        """Wrapper for the evaluate function to be used with multiprocessing."""
-        Pepsflow(config_path).evaluate(chi, read_filename)

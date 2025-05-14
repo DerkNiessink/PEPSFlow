@@ -1,12 +1,9 @@
-import torch
-import numpy as np
-
 from pepsflow.models.ctm import CtmSymmetric, CtmGeneral, CtmMirrorSymmetric
 from pepsflow.models.tensors import Tensors
 from pepsflow.models.canonize import canonize
 
-
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 import torch
 import numpy as np
 from typing import Any
@@ -57,6 +54,10 @@ class iPEPS(torch.nn.Module, ABC):
         """Add data to the iPEPS object. If the key already exists, appends the value to the list."""
         self.data.setdefault(key, []).append(value)
 
+    def set_data(self, key: str, value: Any):
+        """Set data in the iPEPS object. If the key already exists, overwrites the value."""
+        self.data[key] = value
+
     def do_warmup_steps(self, N: int) -> tuple[torch.Tensor, ...]:
         """Warmup the iPEPS tensor by performing the CTM algorithm without gradient tracking.
 
@@ -80,18 +81,39 @@ class iPEPS(torch.nn.Module, ABC):
         """
         return self._forward(N, grad=True, tensors=tensors)
 
-    def do_evaluation(self, N: int, chi: int) -> tuple[torch.Tensor, ...]:
+    def do_evaluation(self, N: int, chi: int, ctm_symmetry: str) -> tuple[torch.Tensor, ...]:
         """Evaluate the iPEPS tensor by performing the CTM algorithm without gradient tracking.
 
         args:
             N (int): Number of iterations in the CTM algorithm.
             chi (int): Bond dimension for the evaluation.
+            ctm_symmetry (str): Symmetry of the CTM algorithm.
 
         Returns:
             tuple[torch.Tensor, ...]: Tuple containing the corner and edge tensors of the iPEPS tensor network.
         """
-        self.args["chi"] = chi
-        return self._forward(N, grad=False)
+        # Temporarily override chi and ctm_symmetry for evaluation
+        with self._temporary_args_override(chi=chi, ctm_symmetry=ctm_symmetry):
+            tensors = self._forward(N, grad=False)
+        return tensors
+
+    @contextmanager
+    def _temporary_args_override(self, **overrides):
+        """
+        Context manager to temporarily override arguments in self.args.
+
+        Args:
+            **overrides: Key-value pairs of arguments to temporarily override.
+
+        Yields:
+            None
+        """
+        original_args = {key: self.args[key] for key in overrides}
+        self.args.update(overrides)
+        try:
+            yield
+        finally:
+            self.args.update(original_args)
 
     @abstractmethod
     def _setup_random(self):

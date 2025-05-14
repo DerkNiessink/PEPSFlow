@@ -416,6 +416,15 @@
         ],
         "gauge_seed": [
             5
-        ]
+        ],
+        "eval_energies": [
+            -0.6679309286547555
+        ],
+        "eval_chis": [
+            16
+        ],
+        "eval_projector_mode": "qr",
+        "eval_ctm_steps": 20,
+        "eval_symmetry": null
     }
 }

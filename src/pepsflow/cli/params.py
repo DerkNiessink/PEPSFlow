@@ -61,7 +61,7 @@ def evaluate(filename: str):
 
     FILENAME is the data file to read from.
     """
-    Pepsflow().evaluate_parallel(filename)
+    Pepsflow().evaluate(filename)
 
 
 @params.command()

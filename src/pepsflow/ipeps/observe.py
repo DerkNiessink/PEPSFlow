@@ -66,10 +66,10 @@ class Observer:
         """Get the iPEPS arguments."""
         return self.ipeps.args
 
-    def eval_energy(self) -> float:
-        """Get the evaluation energy."""
-        return self.ipeps.data["eval_energy"][-1] if "eval_energy" in self.ipeps.data else None
+    def eval_energies(self) -> float | None:
+        """Get the evaluation energy if the iPEPS model has been evaluated, otherwise None."""
+        return self.ipeps.data["eval_energies"] if "eval_energies" in self.ipeps.data else None
 
-    def eval_chi(self) -> int:
-        """Get the evaluation bond dimension."""
-        return self.ipeps.data["eval_chi"][-1] if "eval_chi" in self.ipeps.data else None
+    def eval_chis(self) -> int:
+        """Get the evaluation chis if the iPEPS model has been evaluated, otherwise None."""
+        return self.ipeps.data["eval_chis"] if "eval_chis" in self.ipeps.data else None
