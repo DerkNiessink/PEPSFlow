@@ -78,13 +78,13 @@ def log(folder: str, server = False):
 
 @data.command(context_settings={"ignore_unknown_options": True})
 @click.argument("folders", type=click.Path(), nargs=-1)
-@click.option("-e", "--energy", is_flag=True, default=False, help="Plot the energy as a function of lambda")
+@click.option("-e", "--energy", is_flag=True, default=False, help="sPlot the energy as a function of lambda")
 @click.option("-m", "--magnetization", is_flag=True, default=False, help="Plot the magnetization as a function of lambda")
 @click.option("-xi", "--correlation_length", is_flag=True, default=False, help="Plot the correlation length as a function of lambda")
 @click.option("-g", "--gradient", type=str, default=None, help="Plot the gradient as a function of epoch. Has to be a .pth file.")
 @click.option("-n", "--gradient_norm", type=str, default=None, help="Plot the gradient norm as a function of epoch. Has to be a .pth file.")
 @click.option("-c", "--energy_convergence", type=click.Path(), default=None, help="Plot the energy convergence as a function of epoch. Has to be a .pth file.")
-@click.option("-chi", "--energy_chi", is_flag=True, default=False, help="Plot the converged energy as a function of 1/chi of all .pth files in the folder.")
+@click.option("-chi", "--energy_chi", type=str, default=None, help="Plot the converged energy as a function of 1/chi. Has to ba a .json file")
 @click.option("-ctm", "--ctmsteps", type=click.Path(), default=None, help="Plot the number of CTM warmup steps each epoch. Has to be a .pth file.")
 @click.option("-ep", "--epochs", is_flag=True, default=False, help="Plot the number of epochs as a function of the number of gradient steps.")
 @click.option("-f", "--final_energies", is_flag=True, default=False, help="Plot the final energy as a function of the number of gradient and warmup steps")
@@ -148,11 +148,11 @@ def plot(ctx, folders, **kwargs):
         plt.ylabel(r"$\log|E-E_0|$")
         plt.ylabel("$E$")
         plt.xlabel(r"$1/\chi$")
-        #colors = ["k", "C1", "C2",]
-        for i, observers in enumerate(all_observers):
-            data = [(1/observer.eval_chi(), observer.eval_energy()) for observer in observers if observer.eval_energy() is not None]
-            data.sort(reverse=True)
-            inv_chis, energies = zip(*data)
+        for i, file in enumerate(kwargs["energy_chi"].split(",")):
+            ipeps = IO.load(os.path.join(args["data_folder"], folder, file))
+            observer = Observer(ipeps)
+            inv_chis = 1/ np.array(observer.eval_chis())
+            energies = np.array(observer.eval_energies())
             markers = ["-", "^-", "o-", "o-", "x-"]
             widths = [1, 0.4, 0.4, 0.4, 0.4] 
             colors = ["k", "C0", "C1", "C2", "C3", "C4"]

@@ -16,12 +16,12 @@ class TestPepsflow:
         workflow.optimize_parallel()
 
         # Gauge transform the iPEPS state
-        workflow.gauge("D_3")
+        workflow.gauge("D3_test")
 
         # Evaluate the iPEPS state at chi=16
-        workflow.evaluate("D_3")
+        workflow.evaluate("D3_test_minimal_canonical")
 
-        ipeps = IO.load("tests/test_data/D_3")
+        ipeps = IO.load("tests/test_data/D3_test_minimal_canonical")
         Energy = Observer(ipeps).eval_energies()[-1]
         assert Energy == pytest.approx(-0.6681273941483516, abs=1e-3)
 
@@ -31,8 +31,8 @@ class TestPepsflow:
         """
         workflow = Pepsflow(config_path="tests/test_cfgs/test_pepsflow2.cfg")
         workflow.optimize_parallel()
-        workflow.gauge("D_3")
-        workflow.evaluate("D_3")
-        ipeps = IO.load("tests/test_data/D_3")
+        workflow.gauge("D3_test")
+        workflow.evaluate("D3_test_invertible_gauge_seed5")
+        ipeps = IO.load("tests/test_data/D3_test_invertible_gauge_seed5")
         Energy = Observer(ipeps).eval_energies()[-1]
         assert Energy == pytest.approx(-0.6681273941483516, abs=1e-3)

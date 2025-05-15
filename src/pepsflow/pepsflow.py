@@ -86,13 +86,14 @@ class Pepsflow:
         else:
             self.optimization_args[key] = value
 
-        filename = f"{key}_{value}"
+        fn_addition = self.ipeps_args["fn_addition"]
+        fn = f"{key}{value}_{fn_addition}" if fn_addition else f"{key}{value}"
 
         # Load the given iPEPS state and change the parameters to the values in the config file
-        initial_ipeps = IO.load(self._path(self.folders["read"], filename)) if self.folders["read"] else None
+        initial_ipeps = IO.load(self._path(self.folders["read"], fn)) if self.folders["read"] else None
         ipeps = make_ipeps(self.ipeps_args, initial_ipeps)
 
-        write_path = self._path(self.folders["write"], filename)
+        write_path = self._path(self.folders["write"], fn)
         self._handle_interrupt(ipeps, write_path)
         Tools.minimize(ipeps, self.optimization_args)
         IO.save(ipeps, write_path)
@@ -117,7 +118,11 @@ class Pepsflow:
             read_filename (str): Filename of the iPEPS state to transform.
         """
         read_path = self._path(self.folders["read"], read_filename)
-        write_path = self._path(self.folders["write"], read_filename)
+        if self.gauge_args["gauge"] == "minimal_canonical":
+            fn_addition = "_minimal_canonical"
+        else:
+            fn_addition = "_" + self.gauge_args["gauge"] + "_gauge_seed" + str(self.gauge_args["seed"])
+        write_path = self._path(self.folders["write"], read_filename + fn_addition)
         ipeps = IO.load(read_path)
         Tools.gauge(ipeps, self.gauge_args)
         IO.save(ipeps, write_path)

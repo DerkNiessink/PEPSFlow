@@ -83,10 +83,12 @@ class Ctm(ABC):
 
     @abstractmethod
     def _step(self) -> None:
+        """Execute one step of the CTM algorithm."""
         pass
 
     @abstractmethod
     def _converged(self, tol: float) -> bool:
+        """Check if the CTM algorithm has converged."""
         pass
 
 
@@ -455,8 +457,6 @@ class CtmGeneral(Ctm):
 
 
 class CtmMirrorSymmetric(CtmGeneral):
-
-
     def _qr_corners(self):
         ul = torch.einsum("ab,bcd->acd",self.C1, self.T4)
         ur = torch.einsum("ab,bcd->acd",self.C2, self.T1)
@@ -467,7 +467,7 @@ class CtmMirrorSymmetric(CtmGeneral):
         #  T4 --                        |__|_2  3--|__|
         #  |                             |         |  |  
         #                        🡺      3         2  1
-        #                                                    4 x [χ, D², χ]     
+        #                                                   4 x [χ, D², χ]     
         #                               1  2        3
         #                     |         |__|     2__|_
         #                  -- T2        |__|--3  1_|__|
@@ -476,21 +476,21 @@ class CtmMirrorSymmetric(CtmGeneral):
         return ul, ur, lr, ll
     
     def _improved_qr_corners(self):
-        ul = torch.einsum("ab,bcd->acd",self.C1, self.T4)
-        ur = torch.einsum("ab,bcd->acd",self.C2, self.T1)
-        lr = torch.einsum("ab,cad->bdc",self.C3, self.T2)
-        ll = torch.einsum("ab,cdb->acd",self.C4, self.T3)
-        #  C1 --      -- T1-- C2        
-        #  |             |    |          __ _1      __  
-        #  T4 --                        |__|_2  3--|__|
-        #  |                             |         |  |  
-        #                        🡺      3         2  1
-        #                                                    4 x [χ, D², χ]     
-        #                               1  2        3
-        #                     |         |__|     2__|_
-        #                  -- T2        |__|--3  1_|__|
-        #  |     |            |                     
-        #  C4 -- T3 --      --C3   
+        ul = torch.einsum("ab,bcd,de->ace",self.C1, self.T4, self.C4)
+        ur = torch.einsum("ab,bcd,de->ace",self.C2, self.T1, self.C1)
+        lr = torch.einsum("ab,cad,ce->bde",self.C3, self.T2, self.C2)
+        ll = torch.einsum("ab,cdb,ed->ace",self.C4, self.T3, self.C3)
+        #  C1 --    -- C1 -- T1-- C2        
+        #  |                  |    |        __ _1       __  
+        #  T4 --                           |__|_2   3--|__|
+        #  |                                |          |  |  
+        #  C4                         🡺    3          2  1
+        #  |                        |                          4 x [χ, D², χ]     
+        #                          C2       1  2         3
+        #                           |       |__|      2__|_
+        #                       -- T2       |__|--3   1_|__|
+        #  |     |                  |                     
+        #  C4 -- T3 -- C3 --    -- C3   
         return ul, ur, lr, ll
     
     def _svd_corners(self):
@@ -532,11 +532,8 @@ class CtmMirrorSymmetric(CtmGeneral):
 
         # We alreay have these corners in the svd case, so we don't need to recompute them.
         if self.projector_mode == "qr" or self.projector_mode == "improved_qr":
-            ul = torch.einsum("ab,cda,bef,dghe->cghf",self.C1, self.T1, self.T4, self.a)
-            ur = torch.einsum("ab,bdc,aef,dfgh->eghc",self.C2, self.T1, self.T2, self.a)
-            lr = torch.einsum("ab,cbd,eaf,gfch->dhge",self.C3, self.T3, self.T2, self.a)
-            ll = torch.einsum("ab,cdb,efa,ghcf->eghd",self.C4, self.T3, self.T4, self.a)
-
+            ul, ur, lr, ll = self._svd_corners()
+     
         T1 = norm(torch.einsum("abc,dea,efgb,dfh->hgc", P1, self.T1, self.a, P1)) # [χ, D², χ]
         T2 = norm(torch.einsum("abc,ade,befg,dfh->chg", P2, self.T2, self.a, P2)) # [χ, χ, D²]
         T3 = norm(torch.einsum("abc,dea,fgdb,egh->fhc", P3, self.T3, self.a, P3)) # [D², χ, χ]
