@@ -42,7 +42,7 @@ class IO:
         if folder and not os.path.exists(folder):
             os.makedirs(folder)
 
-        data = {"ipeps_args": ipeps.args, "state": ipeps.params, "map": ipeps.map, "data": ipeps.data}
+        data = {"ipeps_args": ipeps.args, "state": ipeps.params, "map": ipeps.map, **ipeps.data}
         data = IO.make_json_serializable(data)
 
         with open(fn, "w") as f:
@@ -59,14 +59,18 @@ class IO:
         """
         fn = fn + ".json" if not fn.endswith(".json") else fn
         with open(fn, "r") as f:
-            data = json.load(f)
+            data: dict = json.load(f)
 
         ipeps_args = data["ipeps_args"]
         ipeps = make_ipeps(ipeps_args)
         ipeps.map = torch.tensor(data["map"]) if data["map"] is not None else None
         dtype = torch.float64 if ipeps_args["dtype"] == "double" else torch.float32
         ipeps.params = torch.nn.Parameter(torch.tensor(data["state"], dtype=dtype))
-        ipeps.data = data["data"]
+        ipeps.data = {
+            "optimization": data.get("optimization", None),
+            "evaluation": data.get("evaluation", None),
+            "gauge": data.get("gauge", None),
+        }
 
         print(f"[green bold] \nData loaded from {fn}")
         return ipeps

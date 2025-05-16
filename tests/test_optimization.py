@@ -2,6 +2,7 @@ import pytest
 
 from pepsflow.ipeps.tools import Tools
 from pepsflow.ipeps.ipeps import make_ipeps
+from pepsflow.ipeps.observe import Observer
 
 
 class TestOptimization:
@@ -41,8 +42,8 @@ class TestOptimization:
         )
         ipeps = make_ipeps(ipeps_args)
         Tools.minimize(ipeps, minimize_args)
-
-        assert ipeps.data["energies"][-1] == pytest.approx(E_exp, abs=1e-3)
+        observer = Observer(ipeps)
+        assert observer.optimization_energy() == pytest.approx(E_exp, abs=1e-3)
 
     def test_general_optimization(self):
         ipeps_args = dict(
@@ -70,4 +71,5 @@ class TestOptimization:
         )
         ipeps = make_ipeps(ipeps_args)
         Tools.minimize(ipeps, minimize_args)
-        assert ipeps.data["energies"][-1] == pytest.approx(-0.49104640975943203, abs=1e-3)
+        observer = Observer(ipeps)
+        assert observer.optimization_energy() == pytest.approx(-0.49104640975943203, abs=1e-3)

@@ -26,7 +26,7 @@ class TestProjectorModes:
         # Check that the projector modes are correct
         assert E == pytest.approx(-0.6602310934799582, abs=1e-8)
 
-    @pytest.mark.parametrize("projector_mode", ["svd", "qr"])
+    @pytest.mark.parametrize("projector_mode", ["svd", "qr", "improved_qr"])
     def test_projector_modes_mirror_symmetric(self, projector_mode):
         """
         Test the projector modes for the symmetric CTM algorithm.

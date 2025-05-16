@@ -22,7 +22,7 @@ class TestPepsflow:
         workflow.evaluate("D3_test_minimal_canonical")
 
         ipeps = IO.load("tests/test_data/D3_test_minimal_canonical")
-        Energy = Observer(ipeps).eval_energies()[-1]
+        Energy = Observer(ipeps).evaluation_energies(i=-1)[-1]
         assert Energy == pytest.approx(-0.6681273941483516, abs=1e-3)
 
     def test_general_workflow_invertible_gauge(self):
@@ -34,5 +34,5 @@ class TestPepsflow:
         workflow.gauge("D3_test")
         workflow.evaluate("D3_test_invertible_gauge_seed5")
         ipeps = IO.load("tests/test_data/D3_test_invertible_gauge_seed5")
-        Energy = Observer(ipeps).eval_energies()[-1]
+        Energy = Observer(ipeps).evaluation_energies(i=-1)[-1]
         assert Energy == pytest.approx(-0.6681273941483516, abs=1e-3)

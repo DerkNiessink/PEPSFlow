@@ -52,6 +52,8 @@ class iPEPS(torch.nn.Module, ABC):
 
     def add_data(self, key: str, value: Any):
         """Add data to the iPEPS object. If the key already exists, appends the value to the list."""
+        if self.data.get(key) is None:
+            self.data[key] = []
         self.data.setdefault(key, []).append(value)
 
     def set_data(self, key: str, value: Any):
@@ -81,7 +83,7 @@ class iPEPS(torch.nn.Module, ABC):
         """
         return self._forward(N, grad=True, tensors=tensors)
 
-    def do_evaluation(self, N: int, chi: int, ctm_symmetry: str) -> tuple[torch.Tensor, ...]:
+    def do_evaluation(self, N: int, chi: int, ctm_symmetry: str, projector_mode: str) -> tuple[torch.Tensor, ...]:
         """Evaluate the iPEPS tensor by performing the CTM algorithm without gradient tracking.
 
         args:
@@ -93,7 +95,7 @@ class iPEPS(torch.nn.Module, ABC):
             tuple[torch.Tensor, ...]: Tuple containing the corner and edge tensors of the iPEPS tensor network.
         """
         # Temporarily override chi and ctm_symmetry for evaluation
-        with self._temporary_args_override(chi=chi, ctm_symmetry=ctm_symmetry):
+        with self._temporary_args_override(chi=chi, ctm_symmetry=ctm_symmetry, projector_mode=projector_mode):
             tensors = self._forward(N, grad=False)
         return tensors
 
@@ -238,7 +240,12 @@ class GeneralIPEPS(iPEPS):
 
     def _forward(self, N: int, grad: bool, tensors: tuple[torch.Tensor, ...] = None) -> tuple:
         A = self.params.detach() if not grad else self.params
-        alg = CtmGeneral(A, self.args["chi"], tensors)
+
+        if self.args["ctm_symmetry"] == "mirror":
+            alg = CtmMirrorSymmetric(A, self.args["chi"], tensors, projector_mode=self.args["projector_mode"])
+        else:
+            alg = CtmGeneral(A, self.args["chi"], tensors)
+
         alg.exe(N)
         return alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
 

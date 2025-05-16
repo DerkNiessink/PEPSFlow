@@ -151,24 +151,21 @@ def plot(ctx, folders, **kwargs):
         for i, file in enumerate(kwargs["energy_chi"].split(",")):
             ipeps = IO.load(os.path.join(args["data_folder"], folder, file))
             observer = Observer(ipeps)
-            inv_chis = 1/ np.array(observer.eval_chis())
-            energies = np.array(observer.eval_energies())
-            markers = ["-", "^-", "o-", "o-", "x-"]
+            markers = ["-", "^-", "o-", "v-", "x-"]
             widths = [1, 0.4, 0.4, 0.4, 0.4] 
-            colors = ["k", "C0", "C1", "C2", "C3", "C4"]
-            #if "D3" in folders[i] else float(args["E0"])
-            #energies = np.array(energies) - float(args["E0"])
-            
-            #line,color =("o-","C1") if "D3" in folders[i] else ("o-","C0")
-            #markersize = 5 if "minimal" in folders[i] else 3
-            #line = "-x" if "minimal" in folders[i] else line
-            plt.plot(inv_chis, energies, markers[i], linewidth=widths[i], label=folders[i], color =colors[i], markersize=6, markeredgecolor='black', markeredgewidth=0.5) 
+            colors = ["k","C0", "C1", "C2", "C3", "C4"]
+            for j in range(len(observer.evaluation_data())):
+
+                inv_chis = 1/ np.array(observer.evaluation_chis(j))
+                energies = np.array(observer.evaluation_energies(j))
+
+                plt.plot(inv_chis, energies, markers[j], linewidth=widths[j], color =colors[j], markersize=6, markeredgecolor='black', markeredgewidth=0.5) 
         plt.grid(linestyle='--', linewidth=0.45)
         #plt.yscale("log")
         #plt.ylim(-0.66810, -0.66782)
         plt.ylabel(r"$E$")
         #plt.legend([ r"$A = \text{Opt}(\mathbf{g_{rand}} \cdot A_0)$",  r"$A = \mathbf{g} \cdot \text{Opt}(\mathbf{g_{rand}} \cdot A_0)$",  r"$A = \text{Opt} \left( \mathbf{g} \cdot \text{Opt}(\mathbf{g_{rand}} \cdot A_0)\right)$"])	
-        plt.legend(["General", "Mirror symmetry", "Mirror symmetry + gauge"])	
+        plt.legend(["General", "SVD", "QR", "Improved QR"])	
 
 
 
@@ -268,7 +265,7 @@ def plot(ctx, folders, **kwargs):
   
     plt.tight_layout()
     #plt.legend()
-    #plt.savefig("figures/meeting/Heis_D4_minimal_canonical_mirror_symmetry_svd.png")
+    #plt.savefig("figures/Heis_D3_mirror_symmetry_projector_comparison.png")
     plt.show()
 
 

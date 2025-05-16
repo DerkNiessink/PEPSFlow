@@ -44,18 +44,21 @@ class Tools:
             return loss
 
         loss = 0
+        energies = []
         for epoch in range(args["epochs"]):
 
             new_loss: torch.Tensor = opt.step(train)
             sys.stdout.flush()
             print(f"epoch, E, Diff: {epoch, new_loss.item(), abs(new_loss - loss).item()}")
-            ipeps.add_data(key="energies", value=new_loss.item())
+            energies.append(new_loss.item())
 
             if abs(new_loss - loss) < args.get("tolerance", 1e-10):
                 sys.stdout.flush()
                 print(f"Converged after {epoch} epochs. Saving and quiting training...")
                 break
             loss = new_loss
+
+        ipeps.add_data("optimization", {"args": args, "energies": energies})
 
     @staticmethod
     def evaluate(ipeps: iPEPS, args: dict) -> None:
@@ -67,19 +70,17 @@ class Tools:
             ipeps (iPEPS): iPEPS model to compute the energies for.
             args (dict): Dictionary containing the iPEPS parameters.
         """
-        ipeps.set_data("eval_energies", [])
-        ipeps.set_data("eval_chis", [])
+        data = {"args": args, "energies": []}
 
         for chi in args["chi"]:
-            tensors = ipeps.do_evaluation(N=args["ctm_steps"], chi=chi, ctm_symmetry=args["ctm_symmetry"])
+            tensors = ipeps.do_evaluation(
+                N=args["ctm_steps"], chi=chi, ctm_symmetry=args["ctm_symmetry"], projector_mode=args["projector_mode"]
+            )
             E = ipeps.get_E(grad=False, tensors=tensors)
-            ipeps.add_data("eval_energies", E.item())
-            ipeps.add_data("eval_chis", chi)
+            data["energies"].append(E.item())
             print(f"chi, E: {chi, E.item()}")
 
-        ipeps.set_data("eval_projector_mode", args["projector_mode"])
-        ipeps.set_data("eval_ctm_steps", args["ctm_steps"])
-        ipeps.set_data("eval_symmetry", args["ctm_symmetry"])
+        ipeps.add_data("evaluation", data)
 
     @staticmethod
     def gauge(ipeps: GeneralIPEPS, args: dict) -> None:
@@ -93,5 +94,4 @@ class Tools:
         if ipeps.map is not None:
             raise ValueError("The given iPEPS is rotationally symmetric. No gauge transformation is needed.")
         ipeps.gauge_transform(which=args["gauge"], tolerance=args["tolerance"])
-        ipeps.add_data("gauge_type", args["gauge"])
-        ipeps.add_data("gauge_seed", args["seed"])
+        ipeps.add_data("gauge", args)
