@@ -32,6 +32,21 @@ class Observer:
             energies = self.ipeps.data["optimization"][i]["energies"]
         return energies
 
+    def optimization_norms(self, i: int = None) -> list[float]:
+        """
+        Get the optimization norms.
+
+        Args:
+            i (int): The index of the optimization data to retrieve. If None, return all norms.
+        """
+        if i is None:
+            norms = []
+            for opt_data in self.ipeps.data["optimization"]:
+                norms.extend(opt_data["norms"])
+        else:
+            norms = self.ipeps.data["optimization"][i]["norms"]
+        return norms
+
     def optimization_energy(self) -> float:
         """Get the last optimization energy."""
         return self.ipeps.data["optimization"][-1]["energies"][-1]
@@ -79,13 +94,13 @@ class Observer:
     def magnetization(self) -> float:
         """Get the magnetization."""
         A = self.ipeps.params[self.ipeps.map]
-        C, T = self.ipeps.do_evaluation()
+        C, T = self.ipeps.do_evaluation(N=20, chi=64, ctm_symmetry="rotational", projector_mode="svd")
         return float(abs(self.tensors.M(A, C, T)[2].cpu()))
 
     # TODO: Fix this function
     def correlation(self) -> float:
         """Get the correlation."""
-        C, T = self.ipeps.do_evaluation()
+        C, T = self.ipeps.do_evaluation(N=20, chi=16, ctm_symmetry="rotational", projector_mode="svd")
         return float(self.tensors.xi(T).cpu())
 
     def evaluation_data(self) -> list[dict]:

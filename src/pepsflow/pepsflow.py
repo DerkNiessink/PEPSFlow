@@ -120,6 +120,8 @@ class Pepsflow:
         read_path = self._path(self.folders["read"], read_filename)
         if self.gauge_args["gauge"] == "minimal_canonical":
             fn_addition = "_minimal_canonical"
+        elif self.gauge_args["gauge"] == "simple_update":
+            fn_addition = "_simple_update"
         else:
             fn_addition = "_" + self.gauge_args["gauge"] + "_gauge_seed" + str(self.gauge_args["seed"])
         write_path = self._path(self.folders["write"], read_filename + fn_addition)

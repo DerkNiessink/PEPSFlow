@@ -89,6 +89,7 @@ def log(folder: str, server = False):
 @click.option("-ep", "--epochs", is_flag=True, default=False, help="Plot the number of epochs as a function of the number of gradient steps.")
 @click.option("-f", "--final_energies", is_flag=True, default=False, help="Plot the final energy as a function of the number of gradient and warmup steps")
 @click.option("-w", "--warmup_steps", is_flag=True, default=False, help="Plot the final energy as a function of the number of warmup steps")
+@click.option("-o", "--norm", type=str, default=None, help="Plot the norm as a function of epoch. Has to be a .pth file.")
 @click.pass_context
 def plot(ctx, folders, **kwargs):
     """
@@ -116,9 +117,11 @@ def plot(ctx, folders, **kwargs):
         plt.ylabel(r"$m_z$", fontsize=12)
         plt.xlabel(r"$\lambda$", fontsize=12)
         symbols = ["^-", "o-"]
-        for i, paths in enumerate(all_observers):
+        for i, observers in enumerate(all_observers):
             lams, mags = zip(*[(observer.lam(), observer.magnetization()) for observer in observers])
-            plt.plot(lams, mags, symbols[i], markersize=5, linewidth=0.5, label=folders[i])
+            lams = sorted(lams)
+            mags = [mags[lams.index(lam)] for lam in lams]
+            plt.plot(lams, mags, symbols[i], markersize=5, linewidth=0.5)
         #plt.xlim(2.95, 3.15)
         #plt.ylim(-0.0025, 0.45)
         #plt.xticks([2.95, 3.0, 3.05, 3.1, 3.15])
@@ -127,6 +130,7 @@ def plot(ctx, folders, **kwargs):
         plt.gca().yaxis.set_minor_locator(plt.MultipleLocator(0.05))
         plt.tick_params(axis='x', which='minor', length=4)
         plt.grid(which='both', linestyle='--', linewidth=0.5)
+
 
     if kwargs["energy"]:
         plt.ylabel(r"$E$")
@@ -140,34 +144,36 @@ def plot(ctx, folders, **kwargs):
         plt.xlabel(r"$\lambda$")
         for i, observers in enumerate(all_observers):
             lams, xis = zip(*[(observer.lam(), observer.correlation()) for observer in observers])
-            plt.plot(lams, xis, "v-", color="C0", markersize=5, linewidth=0.5, label=folders[i])
+            lams = sorted(lams)
+            xis = [xis[lams.index(lam)] for lam in lams]
+            plt.plot(lams, xis, "v-", markersize=5, linewidth=0.5, label=folders[i])
         plt.xlim(2.7, 3.3)
         plt.grid(linestyle='--', linewidth=0.5)
+        plt.legend(["$D=2$", "$D=3$"])
 
     if kwargs["energy_chi"]:
         plt.ylabel(r"$\log|E-E_0|$")
         plt.ylabel("$E$")
         plt.xlabel(r"$1/\chi$")
+        markers = ["-", "^-", "o-", "v-", "x-"]
+        widths = [1,0.4, 0.4, 0.4, 0.4] 
+        colors = ["k","C0", "C1", "C2", "C3", "C4"]
+
         for i, file in enumerate(kwargs["energy_chi"].split(",")):
             ipeps = IO.load(os.path.join(args["data_folder"], folder, file))
             observer = Observer(ipeps)
-            markers = ["-", "^-", "o-", "v-", "x-"]
-            widths = [1, 0.4, 0.4, 0.4, 0.4] 
-            colors = ["k","C0", "C1", "C2", "C3", "C4"]
+   
             for j in range(len(observer.evaluation_data())):
 
                 inv_chis = 1/ np.array(observer.evaluation_chis(j))
-                energies = np.array(observer.evaluation_energies(j))
-
-                plt.plot(inv_chis, energies, markers[j], linewidth=widths[j], color =colors[j], markersize=6, markeredgecolor='black', markeredgewidth=0.5) 
+                energies = np.array(observer.evaluation_energies(j)) # - float(args["E0"])
+                plt.plot(inv_chis, energies, markers[i+j], linewidth=widths[i+j], color =colors[i+j], markersize=6, markeredgecolor='black', markeredgewidth=0.5) 
         plt.grid(linestyle='--', linewidth=0.45)
         #plt.yscale("log")
         #plt.ylim(-0.66810, -0.66782)
         plt.ylabel(r"$E$")
         #plt.legend([ r"$A = \text{Opt}(\mathbf{g_{rand}} \cdot A_0)$",  r"$A = \mathbf{g} \cdot \text{Opt}(\mathbf{g_{rand}} \cdot A_0)$",  r"$A = \text{Opt} \left( \mathbf{g} \cdot \text{Opt}(\mathbf{g_{rand}} \cdot A_0)\right)$"])	
-        plt.legend(["General", "SVD", "QR", "Improved QR"])	
-
-
+        plt.legend(["Without gauge", "Minimal canonical", "Simple update"])	
 
     if kwargs["gradient"]:
         plt.ylabel(r"$\log|E-E_0|$")
@@ -175,9 +181,27 @@ def plot(ctx, folders, **kwargs):
         for file in kwargs["gradient"].split(","):
             ipeps = IO.load(os.path.join(args["data_folder"], folder, file))
             observer = Observer(ipeps)
-            losses = np.array(observer.losses())
-            losses = abs(losses - float(args["E0"])) 
-            plt.plot(range(len(losses)), losses, linewidth=1, label=file)
+            energies = np.array(observer.optimization_energies())
+            energies = abs(energies - float(args["E0"])) 
+            plt.plot(range(len(energies)), energies, linewidth=1, label=file)
+        #plt.ylim( -0.4911, -0.4909)
+        #plt.xlim(60, 142)
+        #plt.ylim(10**(-10), 10**(0))
+        #plt.xticks(range(0, len(losses) + 1, 2))
+        #plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(1))
+        plt.yscale("log")
+        plt.grid(linestyle='--', linewidth=0.35, which='both')
+        plt.legend()
+
+    
+    if kwargs["norm"]:
+        plt.ylabel(r"$norm$")
+        plt.xlabel(r"Epoch")
+        for file in kwargs["norm"].split(","):
+            ipeps = IO.load(os.path.join(args["data_folder"], folder, file))
+            observer = Observer(ipeps)
+            norms = np.array(observer.optimization_norms())
+            plt.plot(range(len(norms)), norms, linewidth=1, label=file)
         #plt.ylim( -0.4911, -0.4909)
         #plt.xlim(60, 142)
         #plt.ylim(10**(-10), 10**(0))
@@ -265,7 +289,7 @@ def plot(ctx, folders, **kwargs):
   
     plt.tight_layout()
     #plt.legend()
-    #plt.savefig("figures/Heis_D3_mirror_symmetry_projector_comparison.png")
+    plt.savefig("figures/Heis_D3_seed5_gauge_comparison.png")
     plt.show()
 
 

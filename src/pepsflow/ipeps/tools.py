@@ -37,20 +37,21 @@ class Tools:
             tensors = ipeps.do_gradient_steps(N=args["gradient_steps"], tensors=tensors)
             loss = ipeps.get_E(grad=True, tensors=tensors)
             loss.backward()
-
-            for p in ipeps.parameters():
-                if p.grad is not None and not p.grad.is_contiguous():
-                    p.grad = p.grad.contiguous()
             return loss
 
         loss = 0
-        energies = []
+        energies, norms = [], []
         for epoch in range(args["epochs"]):
+            if args["gauge"] is not None and epoch % args["regauge_every"] == 0:
+                ipeps.gauge_transform(which=args["gauge"], tolerance=args["gauge_tolerance"])
+                print(f"Gauge transformed after {epoch} epochs with {args['gauge']} gauge.")
 
             new_loss: torch.Tensor = opt.step(train)
+            norm = ipeps.norm().item()
             sys.stdout.flush()
-            print(f"epoch, E, Diff: {epoch, new_loss.item(), abs(new_loss - loss).item()}")
+            print(f"epoch, E, Diff, norm: {epoch, new_loss.item(), abs(new_loss - loss).item(),norm}")
             energies.append(new_loss.item())
+            norms.append(norm)
 
             if abs(new_loss - loss) < args.get("tolerance", 1e-10):
                 sys.stdout.flush()
@@ -58,7 +59,7 @@ class Tools:
                 break
             loss = new_loss
 
-        ipeps.add_data("optimization", {"args": args, "energies": energies})
+        ipeps.add_data("optimization", {"args": args, "energies": energies, "norms": norms})
 
     @staticmethod
     def evaluate(ipeps: iPEPS, args: dict) -> None:
