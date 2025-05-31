@@ -65,7 +65,7 @@ class IO:
         ipeps = make_ipeps(ipeps_args)
         ipeps.map = torch.tensor(data["map"]) if data["map"] is not None else None
         dtype = torch.float64 if ipeps_args["dtype"] == "double" else torch.float32
-        ipeps.params = torch.nn.Parameter(torch.tensor(data["state"], dtype=dtype))
+        ipeps.params = torch.nn.Parameter(torch.tensor(data["state"], dtype=dtype, device=ipeps_args["device"]))
         ipeps.data = {
             "optimization": data.get("optimization", None),
             "evaluation": data.get("evaluation", None),

@@ -42,7 +42,7 @@ class Tools:
         loss = 0
         energies, norms = [], []
         for epoch in range(args["epochs"]):
-            if args["gauge"] is not None and epoch % args["regauge_every"] == 0:
+            if args["gauge"] is not None and ipeps.norm().item() > 1e-2:  # epoch % args["regauge_every"] == 0:
                 ipeps.gauge_transform(which=args["gauge"], tolerance=args["gauge_tolerance"])
                 print(f"Gauge transformed after {epoch} epochs with {args['gauge']} gauge.")
 
