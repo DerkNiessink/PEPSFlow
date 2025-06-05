@@ -1,8 +1,4 @@
 import torch
-import matplotlib.pyplot as plt
-
-from pepsflow.models.tensors import Tensors
-from pepsflow.models.ctm import CtmGeneral
 
 
 def apply_minimal_canonical(A: torch.Tensor, tolerance: float = 1e-16) -> torch.Tensor:
@@ -63,7 +59,6 @@ def apply_minimal_canonical(A: torch.Tensor, tolerance: float = 1e-16) -> torch.
         diff2 = rho_21 - rho_22.T
 
         f = (1 / trace_rho) * (diff1.norm() ** 2 + diff2.norm() ** 2)
-        print(f"norm: {f.item()}")
         if f < tolerance:
             break
 
@@ -71,6 +66,21 @@ def apply_minimal_canonical(A: torch.Tensor, tolerance: float = 1e-16) -> torch.
         g2 = torch.linalg.matrix_exp((-1 / (8 * trace_rho)) * diff2)
 
     return A
+
+
+def minimal_canonical_criterion(A: torch.Tensor) -> torch.Tensor:
+    """
+    Compute the minimal canonical criterion for a PEPS state.
+    """
+    rho = torch.einsum("purdl,pURDL->urdlURDL", A, A)
+    rho_11 = torch.einsum("urdluRdl->rR", rho)
+    rho_12 = torch.einsum("urdlurdL->lL", rho)
+    rho_21 = torch.einsum("urdlUrdl->uU", rho)
+    rho_22 = torch.einsum("urdlurDl->dD", rho)
+    trace_rho = torch.einsum("urdlurdl->", rho)
+    diff1 = rho_11 - rho_12.T
+    diff2 = rho_21 - rho_22.T
+    return (1 / trace_rho) * (diff1.norm() ** 2 + diff2.norm() ** 2)
 
 
 def apply_simple_update(
@@ -140,9 +150,7 @@ def apply_simple_update(
         norm = lambda M: (M / M.max() - torch.eye(D, dtype=M.dtype, device=M.device)).norm() ** 2
         f = norm(Vl_T) + norm(Vr) + norm(Vu) + norm(Vd_T)
 
-        print(f"simultaneous norm = {f.item()}")
         if f < tolerance:
-            print(f"condtions: {Vl_T, Vr, Vu, Vd_T}")
             break
 
     if separated:

@@ -26,7 +26,14 @@ class TestMinimizer:
             projector_mode="eig",
         )
         minimize_args = dict(
-            optimizer="lbfgs", learning_rate=1, epochs=3, threads=1, line_search=True, warmup_steps=2, gradient_steps=4
+            optimizer="lbfgs",
+            learning_rate=1,
+            epochs=3,
+            threads=1,
+            line_search=True,
+            warmup_steps=2,
+            gradient_steps=4,
+            gauge=None,
         )
         ipeps = make_ipeps(ipeps_args)
         Tools.minimize(ipeps, minimize_args)

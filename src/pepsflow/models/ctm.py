@@ -151,7 +151,6 @@ class CtmSymmetric(Ctm):
         #    | |--  [χ, D², χ]
         #  --|/
         #
-        
         self.C = symm(norm(torch.einsum("abc,abfe,fed->cd", U, M, U)))
         #  o -- o --|\
         #  |    |   | |--
@@ -239,7 +238,7 @@ class CtmSymmetric(Ctm):
         # We also use this iterative_eig mode for the case when we have to grow the chi in qr mode.
         elif self.projector_mode == "iterative_eig" or (self.projector_mode == "qr" and previous_chi != self.max_chi):
             s, U = scipy.sparse.linalg.eigsh(M.cpu().detach().numpy(), k=self.chi)
-            s, U = torch.from_numpy(s), torch.from_numpy(U)
+            s, U = torch.from_numpy(s).to(M.device), torch.from_numpy(U).to(M.device)  
         elif self.projector_mode == "eig":
             s, U = torch.linalg.eigh(M)
         elif self.projector_mode == "svd":
@@ -580,11 +579,15 @@ class CtmMirrorSymmetric(CtmGeneral):
             #   --o--   🡺  --<|---|>--  [χD², χ], [χ, χ]
         else:
             C = C.reshape(self.chi*self.D**2, self.chi*self.D**2)       
-            U, s, V = truncated_svd_gesdd(C, grown_chi)
-            #   S
+            s, U = torch.linalg.eigh(C)
             #   o---|>--   🡺   [χD², χ], [χ], [χ, χD²]
             #   |    U
             #  /_\ 
-            #   | V^dag 
+            #   | U^dag 
+            U = U[:, torch.argsort(torch.abs(s), descending=True)[: grown_chi]] 
+            #  🡺  [χD², χ] 
+            s = s[torch.argsort(torch.abs(s), descending=True)[: grown_chi]]
+            #  🡺  [χ] 
+            #   S
 
         return U.view(self.chi, self.D**2, grown_chi), torch.sum(s)

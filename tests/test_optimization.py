@@ -39,6 +39,7 @@ class TestOptimization:
             line_search=True,
             warmup_steps=2,
             gradient_steps=N,
+            gauge=None,
         )
         ipeps = make_ipeps(ipeps_args)
         Tools.minimize(ipeps, minimize_args)
@@ -58,7 +59,6 @@ class TestOptimization:
             split=False,
             seed=2,
             chi=8,
-            gauge=None,
         )
         minimize_args = dict(
             optimizer="lbfgs",
@@ -68,6 +68,7 @@ class TestOptimization:
             line_search=True,
             warmup_steps=2,
             gradient_steps=5,
+            gauge=None,
         )
         ipeps = make_ipeps(ipeps_args)
         Tools.minimize(ipeps, minimize_args)

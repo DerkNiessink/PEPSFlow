@@ -11,6 +11,8 @@ from rich import box
 from fabric import Connection
 import subprocess
 import numpy as np
+from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes, mark_inset
+import matplotlib.ticker as ticker
 
 from pepsflow.ipeps.io import IO
 from pepsflow.ipeps.observe import Observer
@@ -114,23 +116,44 @@ def plot(ctx, folders, **kwargs):
     plt.figure(figsize=(6, 4))
 
     if kwargs["magnetization"]:
-        plt.ylabel(r"$m_z$", fontsize=12)
-        plt.xlabel(r"$\lambda$", fontsize=12)
-        symbols = ["^-", "o-"]
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.set_ylabel(r"$m_z$", fontsize=16)
+        ax.set_xlabel(r"$\lambda$", fontsize=16)
+        symbols = ["^-", "v-"]
+
         for i, observers in enumerate(all_observers):
             lams, mags = zip(*[(observer.lam(), observer.magnetization()) for observer in observers])
             lams = sorted(lams)
             mags = [mags[lams.index(lam)] for lam in lams]
-            plt.plot(lams, mags, symbols[i], markersize=5, linewidth=0.5)
-        #plt.xlim(2.95, 3.15)
-        #plt.ylim(-0.0025, 0.45)
-        #plt.xticks([2.95, 3.0, 3.05, 3.1, 3.15])
-        plt.minorticks_on()
-        plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(0.025))
-        plt.gca().yaxis.set_minor_locator(plt.MultipleLocator(0.05))
-        plt.tick_params(axis='x', which='minor', length=4)
-        plt.grid(which='both', linestyle='--', linewidth=0.5)
+            ax.plot(lams, mags, symbols[i], markersize=6, linewidth=0.5)
 
+        ax.set_xlim(2.7, 3.2)
+        ax.minorticks_on()
+        ax.xaxis.set_minor_locator(ticker.MultipleLocator(0.025))
+        ax.yaxis.set_minor_locator(ticker.MultipleLocator(0.05))
+        ax.tick_params(axis='x', which='minor', length=4)
+        ax.tick_params(axis='both', labelsize=13)
+        ax.legend(["$D=2$", "$D=3$"], fontsize=14)
+
+        # Inset axes
+        axins = zoomed_inset_axes(ax, zoom=2.5, loc='lower left', borderpad=4)
+        for i, observers in enumerate(all_observers):
+            lams, mags = zip(*[(observer.lam(), observer.magnetization()) for observer in observers])
+            lams = sorted(lams)
+            mags = [mags[lams.index(lam)] for lam in lams]
+            axins.plot(lams, mags, symbols[i], markersize=6, linewidth=1)
+
+        # Define zoom region
+        x1, x2 = 3.04, 3.11
+        axins.set_xlim(x1, x2)
+        y1, y2 = -0.01, 0.13
+        axins.set_ylim(-0.01, 0.13)
+
+        import matplotlib.patches as patches
+
+        rect = patches.Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=1, edgecolor='gray', facecolor='none', zorder=0)
+        ax.add_patch(rect)
+    
 
     if kwargs["energy"]:
         plt.ylabel(r"$E$")
@@ -140,23 +163,25 @@ def plot(ctx, folders, **kwargs):
             plt.plot(lams, energies, "v-", markersize=5, linewidth=0.5, label=folders[i])
 
     if kwargs["correlation_length"]:
-        plt.ylabel(r"$\xi$")
-        plt.xlabel(r"$\lambda$")
+        plt.ylabel(r"$\xi$", fontsize=16)
+        plt.xlabel(r"$\lambda$", fontsize=16)
         for i, observers in enumerate(all_observers):
             lams, xis = zip(*[(observer.lam(), observer.correlation()) for observer in observers])
             lams = sorted(lams)
             xis = [xis[lams.index(lam)] for lam in lams]
-            plt.plot(lams, xis, "v-", markersize=5, linewidth=0.5, label=folders[i])
-        plt.xlim(2.7, 3.3)
-        plt.grid(linestyle='--', linewidth=0.5)
-        plt.legend(["$D=2$", "$D=3$"])
+            plt.plot(lams, xis, "v-", markersize=6, linewidth=1, label=folders[i])
+        plt.xlim(3.017, 3.103)
+        plt.legend(["$D=2$", "$D=3$"], fontsize=14)
+        plt.xticks(fontsize=13)
+        plt.yticks(fontsize=13)
+
 
     if kwargs["energy_chi"]:
         plt.ylabel(r"$\log|E-E_0|$")
-        plt.ylabel("$E$")
-        plt.xlabel(r"$1/\chi$")
-        markers = ["-", "^-", "o-", "v-", "x-"]
-        widths = [1,0.4, 0.4, 0.4, 0.4] 
+        plt.ylabel("$E$", fontsize=14)
+        plt.xlabel(r"$1/\chi$", fontsize=14)
+        markers = ["-","^-", "v-", "v-", "x-"]
+        widths = [1.2,0.4, 0.4, 0.4, 0.4] 
         colors = ["k","C0", "C1", "C2", "C3", "C4"]
 
         for i, file in enumerate(kwargs["energy_chi"].split(",")):
@@ -173,43 +198,47 @@ def plot(ctx, folders, **kwargs):
         #plt.ylim(-0.66810, -0.66782)
         plt.ylabel(r"$E$")
         #plt.legend([ r"$A = \text{Opt}(\mathbf{g_{rand}} \cdot A_0)$",  r"$A = \mathbf{g} \cdot \text{Opt}(\mathbf{g_{rand}} \cdot A_0)$",  r"$A = \text{Opt} \left( \mathbf{g} \cdot \text{Opt}(\mathbf{g_{rand}} \cdot A_0)\right)$"])	
-        plt.legend(["Without gauge", "Minimal canonical", "Simple update"])	
+        plt.legend(["General", "Mirror symmetry", "Mirror symmetry + gauge"], fontsize=14)
+        plt.xticks(fontsize=13)
+        plt.yticks(fontsize=13)
 
     if kwargs["gradient"]:
-        plt.ylabel(r"$\log|E-E_0|$")
-        plt.xlabel(r"Epoch")
+        plt.ylabel(r"$\log|E-E_0|$", fontsize=14)
+        plt.xlabel(r"Epoch", fontsize=14)
         for file in kwargs["gradient"].split(","):
             ipeps = IO.load(os.path.join(args["data_folder"], folder, file))
             observer = Observer(ipeps)
             energies = np.array(observer.optimization_energies())
             energies = abs(energies - float(args["E0"])) 
-            plt.plot(range(len(energies)), energies, linewidth=1, label=file)
+            plt.plot(range(len(energies)), energies, linewidth=1.2, label=file)
         #plt.ylim( -0.4911, -0.4909)
         #plt.xlim(60, 142)
         #plt.ylim(10**(-10), 10**(0))
         #plt.xticks(range(0, len(losses) + 1, 2))
         #plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(1))
         plt.yscale("log")
-        plt.grid(linestyle='--', linewidth=0.35, which='both')
-        plt.legend()
+        plt.grid(linestyle='--', linewidth=0.3)
+        plt.xticks(fontsize=13)
+        plt.yticks(fontsize=13)
+        #plt.legend()
+        plt.legend(["With gauge", "Without gauge"], fontsize=14)	
+
 
     
     if kwargs["norm"]:
-        plt.ylabel(r"$norm$")
-        plt.xlabel(r"Epoch")
+        plt.ylabel(r"$f/\text{tr}(\rho)$", fontsize=14)
+        plt.xlabel(r"Epoch", fontsize=14)
         for file in kwargs["norm"].split(","):
             ipeps = IO.load(os.path.join(args["data_folder"], folder, file))
             observer = Observer(ipeps)
             norms = np.array(observer.optimization_norms())
-            plt.plot(range(len(norms)), norms, linewidth=1, label=file)
-        #plt.ylim( -0.4911, -0.4909)
-        #plt.xlim(60, 142)
-        #plt.ylim(10**(-10), 10**(0))
-        #plt.xticks(range(0, len(losses) + 1, 2))
-        #plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(1))
+            plt.plot(range(len(norms)), norms, linewidth=1.2, label=file)
         plt.yscale("log")
-        plt.grid(linestyle='--', linewidth=0.35, which='both')
-        plt.legend()
+        plt.grid(linestyle='--', linewidth=0.3)
+        plt.xticks(fontsize=13)
+        plt.yticks(fontsize=13)
+        plt.legend(["No gauge", "With regauging"], fontsize=14)
+        plt.ylim(1e-6)	
 
     if kwargs["final_energies"]:
         heatmap_data = np.zeros((41, 17))
@@ -289,7 +318,7 @@ def plot(ctx, folders, **kwargs):
   
     plt.tight_layout()
     #plt.legend()
-    plt.savefig("figures/Heis_D3_seed5_gauge_comparison.png")
+    plt.savefig("figures/Ising_m.pdf")
     plt.show()
 
 

@@ -94,13 +94,13 @@ class Observer:
     def magnetization(self) -> float:
         """Get the magnetization."""
         A = self.ipeps.params[self.ipeps.map]
-        C, T = self.ipeps.do_evaluation(N=20, chi=64, ctm_symmetry="rotational", projector_mode="svd")
+        C, T = self.ipeps.do_evaluation(N=20, chi=32, ctm_symmetry="rotational", projector_mode="qr")
         return float(abs(self.tensors.M(A, C, T)[2].cpu()))
 
     # TODO: Fix this function
     def correlation(self) -> float:
         """Get the correlation."""
-        C, T = self.ipeps.do_evaluation(N=20, chi=16, ctm_symmetry="rotational", projector_mode="svd")
+        C, T = self.ipeps.do_evaluation(N=20, chi=32, ctm_symmetry="rotational", projector_mode="qr")
         return float(self.tensors.xi(T).cpu())
 
     def evaluation_data(self) -> list[dict]:

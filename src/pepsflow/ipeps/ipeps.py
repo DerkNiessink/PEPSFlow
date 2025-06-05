@@ -1,6 +1,6 @@
 from pepsflow.models.ctm import CtmSymmetric, CtmGeneral, CtmMirrorSymmetric
 from pepsflow.models.tensors import Tensors
-from pepsflow.models.canonize import apply_minimal_canonical, apply_simple_update
+from pepsflow.models.canonize import apply_minimal_canonical, apply_simple_update, minimal_canonical_criterion
 
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
@@ -268,18 +268,10 @@ class GeneralIPEPS(iPEPS):
         with torch.no_grad():
             self.params.data.copy_(A)
 
-    def norm(self) -> float:
+    def minimal_canonical_criterion(self) -> float:
         """Compute the norm of the iPEPS state."""
         A = self.params.detach()
-        rho = torch.einsum("purdl,pURDL->urdlURDL", A, A)
-        rho_11 = torch.einsum("urdluRdl->rR", rho)
-        rho_12 = torch.einsum("urdlurdL->lL", rho)
-        rho_21 = torch.einsum("urdlUrdl->uU", rho)
-        rho_22 = torch.einsum("urdlurDl->dD", rho)
-        trace_rho = torch.einsum("urdlurdl->", rho)
-        diff1 = rho_11 - rho_12.T
-        diff2 = rho_21 - rho_22.T
-        return (1 / trace_rho) * (diff1.norm() ** 2 + diff2.norm() ** 2)
+        return minimal_canonical_criterion(A).item()
 
 
 class MirrorSymmetricIPEPS(GeneralIPEPS):

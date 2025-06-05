@@ -40,16 +40,26 @@ class Tools:
             return loss
 
         loss = 0
-        energies, norms = [], []
+        energies, norms = [], [ipeps.minimal_canonical_criterion() if ipeps.map is None else None]
         for epoch in range(args["epochs"]):
-            if args["gauge"] is not None and ipeps.norm().item() > 1e-2:  # epoch % args["regauge_every"] == 0:
+            if args["gauge"] == "minimal_canonical" and ipeps.map is None:
+                regauge = (
+                    ipeps.minimal_canonical_criterion() > args["gauge_criterion"] or epoch % args["regauge_every"] == 0
+                )
+            elif args["gauge"] == "simple_update" and ipeps.map is None:
+                regauge = epoch % args["regauge_every"] == 0 or epoch == 0
+            else:
+                regauge = False
+
+            if regauge:
                 ipeps.gauge_transform(which=args["gauge"], tolerance=args["gauge_tolerance"])
-                print(f"Gauge transformed after {epoch} epochs with {args['gauge']} gauge.")
+                ipeps.gauge_transform(which="minimal_canonical", tolerance=args["gauge_tolerance"])
+                print(f"Gauge transformed with {args['gauge']} gauge.")
 
             new_loss: torch.Tensor = opt.step(train)
-            norm = ipeps.norm().item()
+            norm = ipeps.minimal_canonical_criterion() if ipeps.map is None else None
             sys.stdout.flush()
-            print(f"epoch, E, Diff, norm: {epoch, new_loss.item(), abs(new_loss - loss).item(),norm}")
+            print(f"epoch, E, Diff, norm: {epoch, new_loss.item(), abs(new_loss - loss).item(), norm}")
             energies.append(new_loss.item())
             norms.append(norm)
 
