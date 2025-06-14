@@ -44,7 +44,7 @@ class Tensors:
             (D, D, chi, chi),
             (chi, chi),
             optimize="auto-hq",
-            memory_limit=4 * 1024**3,  # 4 GB memory limit
+            memory_limit=None,
         )
 
     def gauges(self, D: int, which: str) -> tuple[torch.Tensor, torch.Tensor]:
