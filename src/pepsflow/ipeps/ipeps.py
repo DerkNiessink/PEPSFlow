@@ -38,7 +38,7 @@ class iPEPS(torch.nn.Module, ABC):
         self.args = args
         self.set_seed(args["seed"])
         self.initial_ipeps = initial_ipeps
-        self.tensors = Tensors(args["dtype"], args["device"])
+        self.tensors = Tensors(args["dtype"], args["device"], self.args["chi"], args["D"])
         self.data = {}
         self.to(args["device"])
         self.H = self.tensors.Hamiltonian(args["model"], lam=args["lam"])
@@ -179,9 +179,10 @@ class RotationalSymmetricIPEPS(iPEPS):
         A = self.params[self.map] if self.map is not None else self.params
         A = A.detach() if not grad else A
         C, T = tensors
-        E_nn = self.tensors.E_nn(A, self.H, C, T)
+        rho = self.tensors.rho_symmetric(A, C, T)
+        E_nn = self.tensors.E(rho, self.H, which="horizontal")
         if self.args["model"] == "J1J2":
-            return E_nn + self.args["J2"] * self.tensors.E_nnn(A, C, T)
+            return E_nn + self.args["J2"] * self.tensors.E(rho, self.tensors.H_Heis(), which="diagonal")
         return E_nn
 
     def _forward(self, N: int, grad: bool, tensors: tuple[torch.Tensor, ...] = None) -> tuple:
@@ -226,14 +227,15 @@ class GeneralIPEPS(iPEPS):
         A = self.params.detach() if not grad else self.params
 
         C, T = tensors[:4], tensors[4:]
-        E_h = self.tensors.E_horizontal_nn_general(A, self.H, *C, *T)
-        E_v = self.tensors.E_vertical_nn_general(A, self.H, *C, *T)
-        E_nn = (E_h + E_v) / 2
+        rho = self.tensors.rho_general(A, *C, *T)
+        Eh = self.tensors.E(rho, self.H, which="horizontal")
+        Ev = self.tensors.E(rho, self.H, which="vertical")
+        E_nn = (Eh + Ev) / 2
 
         if self.args["model"] == "J1J2":
-            E_diag_nnn = self.tensors.E_diagonal_nnn_general(A, *C, *T)
-            E_anti_nnn = self.tensors.E_anti_diagonal_nnn_general(A, *C, *T)
-            E_nnn = (E_diag_nnn + E_anti_nnn) / 2
+            Ed = self.tensors.E(rho, self.tensors.H_Heis(), which="diagonal")
+            Ead = self.tensors.E(rho, self.tensors.H_Heis(), which="antidiagonal")
+            E_nnn = (Ed + Ead) / 2
             return E_nn + self.args["J2"] * E_nnn
 
         return E_nn

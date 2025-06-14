@@ -92,6 +92,7 @@ def log(folder: str, server = False):
 @click.option("-f", "--final_energies", is_flag=True, default=False, help="Plot the final energy as a function of the number of gradient and warmup steps")
 @click.option("-w", "--warmup_steps", is_flag=True, default=False, help="Plot the final energy as a function of the number of warmup steps")
 @click.option("-o", "--norm", type=str, default=None, help="Plot the norm as a function of epoch. Has to be a .pth file.")
+@click.option("-d", "--energy_diffs", type=str, default=None, help="Plot the energy differences as a function of epoch. Has to be a .pth file.")
 @click.pass_context
 def plot(ctx, folders, **kwargs):
     """
@@ -154,6 +155,20 @@ def plot(ctx, folders, **kwargs):
         rect = patches.Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=1, edgecolor='gray', facecolor='none', zorder=0)
         ax.add_patch(rect)
     
+    if kwargs["energy_diffs"]:
+        plt.ylabel(r"$|E_1-E_2|$", fontsize=14)
+        plt.xlabel(r"Epoch", fontsize=14)
+        for file in kwargs["energy_diffs"].split(","):
+            ipeps = IO.load(os.path.join(args["data_folder"], folder, file))
+            observer = Observer(ipeps)
+            E_diffs_nn = np.array(observer.optimization_E_diffs_nn(1)[:-1])
+            E_diffs_nnn = np.array(observer.optimization_E_diffs_nnn(1)[:-1])
+            plt.plot(range(len(E_diffs_nn)), E_diffs_nn, "-", linewidth=1, label="NN")
+            plt.plot(range(len(E_diffs_nnn)), E_diffs_nnn, "-", linewidth=1, label="NNN")
+        plt.xticks(fontsize=13)
+        plt.yticks(fontsize=13)
+        plt.legend(fontsize=14)
+
 
     if kwargs["energy"]:
         plt.ylabel(r"$E$")
@@ -180,51 +195,59 @@ def plot(ctx, folders, **kwargs):
         plt.ylabel(r"$\log|E-E_0|$")
         plt.ylabel("$E$", fontsize=14)
         plt.xlabel(r"$1/\chi$", fontsize=14)
-        markers = ["-","^-", "v-", "v-", "x-"]
-        widths = [1.2,0.4, 0.4, 0.4, 0.4] 
-        colors = ["k","C0", "C1", "C2", "C3", "C4"]
-
+        markers = ["-^","-v", "-", "-", "-"]
+        widths = [1.3, 1.3,0.4, 0.4, 0.4, 0.4] 
+        colors = ["C0", "C1", "k", "k", "k"]
+        alphas = [1,1, 0.5, 0.5, 0.5, 1.0]
+        handles = []
         for i, file in enumerate(kwargs["energy_chi"].split(",")):
             ipeps = IO.load(os.path.join(args["data_folder"], folder, file))
             observer = Observer(ipeps)
-   
             for j in range(len(observer.evaluation_data())):
-
                 inv_chis = 1/ np.array(observer.evaluation_chis(j))
-                energies = np.array(observer.evaluation_energies(j)) # - float(args["E0"])
-                plt.plot(inv_chis, energies, markers[i+j], linewidth=widths[i+j], color =colors[i+j], markersize=6, markeredgecolor='black', markeredgewidth=0.5) 
-        plt.grid(linestyle='--', linewidth=0.45)
+            energies = np.array(observer.evaluation_energies(j)) #- float(args["E0"])
+            #line, = plt.plot(inv_chis, energies, markers[i], linewidth=widths[i], color=colors[i], markersize=6, markeredgecolor='black', markeredgewidth=0.5, alpha=alphas[i+j])
+            # Save the handle for the last plotted line (with gauge)
+            #if i + j == len(kwargs["energy_chi"].split(",")) - 1:
+                #with_gauge_handle = line
+            #handles.append(line)
+            plt.plot(inv_chis, energies, markers[i], linewidth=widths[i], color =colors[i], markersize=6, markeredgecolor='black', markeredgewidth=0.5) 
+        #plt.grid(linestyle='--', linewidth=0.45)
         #plt.yscale("log")
         #plt.ylim(-0.66810, -0.66782)
-        plt.ylabel(r"$E$")
+        #plt.ylabel(r"$E$")
         #plt.legend([ r"$A = \text{Opt}(\mathbf{g_{rand}} \cdot A_0)$",  r"$A = \mathbf{g} \cdot \text{Opt}(\mathbf{g_{rand}} \cdot A_0)$",  r"$A = \text{Opt} \left( \mathbf{g} \cdot \text{Opt}(\mathbf{g_{rand}} \cdot A_0)\right)$"])	
-        plt.legend(["General", "Mirror symmetry", "Mirror symmetry + gauge"], fontsize=14)
+        plt.legend(["With gauge", "Without gauge"], fontsize=14)
         plt.xticks(fontsize=13)
         plt.yticks(fontsize=13)
 
     if kwargs["gradient"]:
         plt.ylabel(r"$\log|E-E_0|$", fontsize=14)
+        plt.ylabel(r"$E$", fontsize=14)
         plt.xlabel(r"Epoch", fontsize=14)
         for file in kwargs["gradient"].split(","):
             ipeps = IO.load(os.path.join(args["data_folder"], folder, file))
             observer = Observer(ipeps)
             energies = np.array(observer.optimization_energies())
             energies = abs(energies - float(args["E0"])) 
-            plt.plot(range(len(energies)), energies, linewidth=1.2, label=file)
+            plt.plot(range(len(energies)), energies, linewidth=1.5, label="optimization")
         #plt.ylim( -0.4911, -0.4909)
         #plt.xlim(60, 142)
         #plt.ylim(10**(-10), 10**(0))
         #plt.xticks(range(0, len(losses) + 1, 2))
         #plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(1))
         plt.yscale("log")
+        #plt.xlim(114,161)
+        #plt.ylim(-0.592, -0.58)
+        #plt.xlim(0, len(energies)+2)
+        plt.hlines(float(args["E0"]), 0, len(energies)+2, colors='black', linestyles='dashed', linewidth=0.7, label="$E_0(J_2/J_1=0.2)$")
         plt.grid(linestyle='--', linewidth=0.3)
         plt.xticks(fontsize=13)
         plt.yticks(fontsize=13)
-        #plt.legend()
-        plt.legend(["With gauge", "Without gauge"], fontsize=14)	
+        plt.legend(fontsize=14)
+        plt.legend(["Optimization", "$E_0(J_2/J_1=0.2, D=3)$"], fontsize=14)	
 
 
-    
     if kwargs["norm"]:
         plt.ylabel(r"$f/\text{tr}(\rho)$", fontsize=14)
         plt.xlabel(r"Epoch", fontsize=14)
@@ -238,7 +261,7 @@ def plot(ctx, folders, **kwargs):
         plt.xticks(fontsize=13)
         plt.yticks(fontsize=13)
         plt.legend(["No gauge", "With regauging"], fontsize=14)
-        plt.ylim(1e-6)	
+        #plt.ylim(1e-6)	
 
     if kwargs["final_energies"]:
         heatmap_data = np.zeros((41, 17))

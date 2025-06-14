@@ -1,5 +1,6 @@
 import torch
 from scipy.stats import ortho_group
+import opt_einsum as oe
 
 
 class Tensors:
@@ -9,13 +10,42 @@ class Tensors:
     Args:
         dtype (str): Data type of the tensors, either 'half', 'single' or 'double'.
         device (str): Device where the tensors, either 'cpu' or 'cuda'.
+        chi (int): Bond dimension of the CTM tensors.
+        D (int): Bond dimension of the bulk PEPS tensors.
+        d (int): Physical dimension of the tensors, default is 2.
     """
 
-    def __init__(self, dtype: str, device: str):
+    def __init__(self, dtype: str, device: str, chi: int, D: int, d: int = 2):
         dtype_map = {"half": torch.float16, "single": torch.float32, "double": torch.float64}
         device_map = {"cpu": torch.device("cpu"), "cuda": torch.device("cuda")}
         self.dtype = dtype_map[dtype]
         self.dev = device_map[device]
+        expr = "ab,bcde,fgha,kgijc,nhlmd,rjopq,vmstu,equw,ptxy,wy,zA,zBCD,AEFf,HECGi,JFDIl,MGKLo,PINOs,BQKN,LORx,QR->knrvHJMP"
+        self.rho_expr = oe.contract_expression(
+            expr,
+            (chi, chi),
+            (chi, D, D, chi),
+            (chi, D, D, chi),
+            (d, D, D, D, D),
+            (d, D, D, D, D),
+            (d, D, D, D, D),
+            (d, D, D, D, D),
+            (chi, D, D, chi),
+            (D, D, chi, chi),
+            (chi, chi),
+            (chi, chi),
+            (chi, chi, D, D),
+            (chi, D, D, chi),
+            (d, D, D, D, D),
+            (d, D, D, D, D),
+            (d, D, D, D, D),
+            (d, D, D, D, D),
+            (chi, chi, D, D),
+            (D, D, chi, chi),
+            (chi, chi),
+            optimize="auto-hq",
+            memory_limit=4 * 1024**3,  # 4 GB memory limit
+        )
 
     def gauges(self, D: int, which: str) -> tuple[torch.Tensor, torch.Tensor]:
         """
@@ -162,392 +192,132 @@ class Tensors:
         H = 0.25 * torch.kron(sz, sz) + 0.5 * (torch.kron(sp, sm) + torch.kron(sm, sp))
         return 2 * H.reshape(4, 4)
 
-    def rho_nn(self, A: torch.Tensor, C: torch.Tensor, E: torch.Tensor) -> torch.Tensor:
+    def double(self, A: torch.Tensor) -> torch.Tensor:
         """
-        Compute the reduced density matrix of a PEPS state.
+        Compute the double layer of tensor A.
 
         Args:
-            A (torch.Tensor): Symmetric A tensor of the PEPS state.
-            C (torch.Tensor): Corner tensor obtained in CTMRG algorithm.
-            E (torch.Tensor): Edge tensor obtained in CTMRG algorithm.
+            A (torch.Tensor): Bulk A tensor of the PEPS state.
 
         Returns:
-            torch.Tensor: Reduced density (ρ) matrix of the PEPS state.
+            torch.Tensor: Double layer of the tensor A, which is a rank 6 tensor.
         """
-
-        #           /
-        #  A =  -- o --  [d, D, D, D, D]
-        #         /|
-        #
-        #  C =  o --  [χ, χ]
-        #       |
-        #
-        #       |
-        #  E =  o --  [χ, D², χ]
-        #       |
-
         d, D = A.size(0), A.size(1)
-        a = torch.einsum("mefgh,nabcd->eafbgchdmn", (A, A)).view(D**2, D**2, D**2, D**2, d, d)
         #      /        /              /
         #  -- o --  -- o --   🡺   -- o --  [D², D², D², D², d, d]
         #    /|       /|             /||
+        return torch.einsum("mefgh,nabcd->eafbgchdmn", (A, A)).reshape(D**2, D**2, D**2, D**2, d, d)
 
-        b = torch.einsum("abcde,afghi->bfcidheg", A, A).reshape(D**2, D**2, D**2, D**2)
-        #      /
-        #  -- o --
-        #    /|             |
-        #     |/     🡺  -- o --  [D², D², D², D²]
-        #  -- o --          |
-        #    /
-
-        Rho = torch.einsum(
-            "ab,acd,bef,echgij,hmlk,dmn,olp,no,qr,qst,fur,ugvsyz,vkxw,twB,pxA,AB->iyjz",
-            (C, E, E, a, b, E, E, C, C, E, E, a, b, E, E, C),
-        ).reshape(d**2, d**2)
-        #  o -- o -- o -- o
-        #  |    |    |    |
-        #  o -- o -- o -- o                        ___
-        #  |    |\\  |\\  |   [d, d, d, d]   🡺   |___|   [d², d²]
-        #  o -- o -- o -- o                       |   |
-        #  |    |    |    |
-        #  o -- o -- o -- o
-
-        return 0.5 * (Rho + Rho.t())
-
-    def rho_nnn(self, A: torch.Tensor, C: torch.Tensor, E: torch.Tensor) -> torch.Tensor:
+    def rho_symmetric(self, A: torch.Tensor, C: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
         """
-        Compute the reduced density matrix of a PEPS state with next-nearest neighbors
+        Compute the reduced density matrix of a PEPS state with symmetric tensors.
 
         Args:
             A (torch.Tensor): Symmetric A tensor of the PEPS state.
-            C (torch.Tensor): Corner tensor obtained in CTMRG algorithm.
-            E (torch.Tensor): Edge tensor obtained in CTMRG algorithm.
-
-        Returns:
-            torch.Tensor: Next-nearest neighbor reduced density (ρ) matrix of the PEPS state.
-        """
-
-        #           /
-        #  A =  -- o --  [d, D, D, D, D]
-        #         /|
-        #
-        #  C =  o --  [χ, χ]
-        #       |
-        #
-        #       |
-        #  E =  o --  [χ, D², χ]
-        #       |
-
-        d, D = A.size(0), A.size(1)
-        a = torch.einsum("mefgh,nabcd->eafbgchdmn", (A, A)).view(D**2, D**2, D**2, D**2, d, d)
-        #      /        /              /
-        #  -- o --  -- o --   🡺   -- o --  [D², D², D², D², d, d]
-        #    /|       /|             /||
-
-        b = torch.einsum("abcde,afghi->bfcidheg", A, A).reshape(D**2, D**2, D**2, D**2)
-        #      /
-        #  -- o --
-        #    /|             |
-        #     |/     🡺  -- o --  [D², D², D², D²]
-        #  -- o --          |
-        #    /
-
-        Rho = torch.einsum(
-            "ab,acd,bef,eghcij,hklm,dmn,olp,no,qr,qst,fur,usvg,vwxkyz,twB,pxA,AB->iyjz",
-            (C, E, E, a, b, E, E, C, C, E, E, b, a, E, E, C),
-        ).reshape(d**2, d**2)
-        #  o -- o -- o -- o
-        #  |    |    |    |
-        #  o -- o -- o -- o                        ___
-        #  |    |\\  |    |   [d, d, d, d]   🡺   |___|   [d², d²]
-        #  o -- o -- o -- o                       |   |
-        #  |    |    |\\  |
-        #  o -- o -- o -- o
-
-        return 0.5 * (Rho + Rho.t())
-
-    def rho_horizontal_nn_general(
-        self,
-        A: torch.Tensor,
-        C1: torch.Tensor,
-        C2: torch.Tensor,
-        C3: torch.Tensor,
-        C4: torch.Tensor,
-        T1: torch.Tensor,
-        T2: torch.Tensor,
-        T3: torch.Tensor,
-        T4: torch.Tensor,
-    ) -> torch.Tensor:
-
-        d, D = A.size(0), A.size(1)
-        a = torch.einsum("mefgh,nabcd->eafbgchdmn", (A, A)).view(D**2, D**2, D**2, D**2, d, d)
-        #      /        /              /
-        #  -- o --  -- o --   🡺   -- o --  [D², D², D², D², d, d]
-        #    /|       /|             /||
-
-        Rho = torch.einsum(
-            "ab,cda,efc,ge,bhi,djkhlm,fnojpq,grn,is,kts,out,ru->lpmq",
-            (C1, T1, T1, C2, T4, a, a, T2, C4, T3, T3, C3),
-        ).reshape(d**2, d**2)
-        #  C1 -- T1 -- T1 -- C2
-        #  |     |     |     |
-        #  T4 -- a --- a --- T2                        ___
-        #  |     |\\   |\\   |    [d, d, d, d]   🡺   |___|   [d², d²]
-        #  C4 -- T3 -- T3 -- C3                       |   |
-
-        return 0.5 * (Rho + Rho.t())
-
-    def rho_vertical_nn_general(
-        self,
-        A: torch.Tensor,
-        C1: torch.Tensor,
-        C2: torch.Tensor,
-        C3: torch.Tensor,
-        C4: torch.Tensor,
-        T1: torch.Tensor,
-        T2: torch.Tensor,
-        T3: torch.Tensor,
-        T4: torch.Tensor,
-    ) -> torch.Tensor:
-        d, D = A.size(0), A.size(1)
-        a = torch.einsum("mefgh,nabcd->eafbgchdmn", (A, A)).view(D**2, D**2, D**2, D**2, d, d)
-        #      /        /              /
-        #  -- o --  -- o --   🡺   -- o --  [D², D², D², D², d, d]
-        #    /|       /|             /||
-
-        Rho = torch.einsum(
-            "ab,cda,ec,bfg,dhifjk,elh,gmn,iopmqr,lso,nt,put,su->jqkr",
-            (C1, T1, C2, T4, a, T2, T4, a, T2, C4, T3, C3),
-        ).reshape(d**2, d**2)
-        #  C1 -- T1 -- C2
-        #  |     |     |
-        #  T4 -- a --- T2                        ___
-        #  |     |\\   |    [d, d, d, d]   🡺   |___|   [d², d²]
-        #  T4 -- a --- T2                        |   |
-        #  |     |\\   |
-        #  C4 -- T3 -- C3
-
-        return 0.5 * (Rho + Rho.t())
-
-    def rho_diagonal_nnn_general(
-        self,
-        A: torch.Tensor,
-        C1: torch.Tensor,
-        C2: torch.Tensor,
-        C3: torch.Tensor,
-        C4: torch.Tensor,
-        T1: torch.Tensor,
-        T2: torch.Tensor,
-        T3: torch.Tensor,
-        T4: torch.Tensor,
-    ) -> torch.Tensor:
-
-        d, D = A.size(0), A.size(1)
-        a = torch.einsum("mefgh,nabcd->eafbgchdmn", (A, A)).view(D**2, D**2, D**2, D**2, d, d)
-        #      /        /              /
-        #  -- o --  -- o --   🡺   -- o --  [D², D², D², D², d, d]
-        #    /|       /|             /||
-
-        b = torch.einsum("abcde,afghi->bfcidheg", A, A).reshape(D**2, D**2, D**2, D**2)
-        #      /
-        #  -- o --
-        #    /|             |
-        #     |/     🡺  -- o --  [D², D², D², D²]
-        #  -- o --          |
-        #    /
-
-        Rho = torch.einsum(
-            "ab,bcd,efa,fghcij,hklm,dmn,lop,np,qr,qst,rue,utvg,vxykzA,sBx,yCo,BC->izjA",
-            (C1, T4, T1, a, b, T4, T3, C4, C2, T2, T1, b, a, T2, T3, C3),
-        ).reshape(d**2, d**2)
-        #  C1 -- T1 -- T1 -- C2
-        #  |     |     |     |
-        #  T4 -- a --- b --- T2                        ___
-        #  |     |\\   |     |    [d, d, d, d]   🡺   |___|   [d², d²]
-        #  T4 -- b --- a --- T2                       |   |
-        #  |     |     |\\   |
-        #  C4 -- T3 -- T3 -- C3
-
-        return 0.5 * (Rho + Rho.t())
-
-    def rho_anti_diagonal_nnn_general(
-        self,
-        A: torch.Tensor,
-        C1: torch.Tensor,
-        C2: torch.Tensor,
-        C3: torch.Tensor,
-        C4: torch.Tensor,
-        T1: torch.Tensor,
-        T2: torch.Tensor,
-        T3: torch.Tensor,
-        T4: torch.Tensor,
-    ) -> torch.Tensor:
-        d, D = A.size(0), A.size(1)
-        a = torch.einsum("mefgh,nabcd->eafbgchdmn", (A, A)).view(D**2, D**2, D**2, D**2, d, d)
-        #      /        /              /
-        #  -- o --  -- o --   🡺   -- o --  [D², D², D², D², d, d]
-        #    /|       /|             /||
-
-        b = torch.einsum("abcde,afghi->bfcidheg", A, A).reshape(D**2, D**2, D**2, D**2)
-        #      /
-        #  -- o --
-        #    /|             |
-        #     |/     🡺  -- o --  [D², D², D², D²]
-        #  -- o --          |
-        #    /
-
-        Rho = torch.einsum(
-            "ab,bcd,efa,fghc,hklmij,dmn,lop,np,qr,qst,rue,utvgzA,vxyk,sBx,yCo,BC->izjA",
-            (C1, T4, T1, b, a, T4, T3, C4, C2, T2, T1, a, b, T2, T3, C3),
-        ).reshape(d**2, d**2)
-        #  C1 -- T1 -- T1 -- C2
-        #  |     |     |     |
-        #  T4 -- b --- a --- T2                        ___
-        #  |     |     |\\   |    [d, d, d, d]   🡺   |___|   [d², d²]
-        #  T4 -- a --- b --- T2                       |   |
-        #  |     |\\   |     |
-        #  C4 -- T3 -- T3 -- C3
-
-        return 0.5 * (Rho + Rho.t())
-
-    def E_nn(self, A: torch.Tensor, H: torch.Tensor, C: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
-        """
-        Compute the energy of a PEPS state with nearest neighbors.
-
-        Args:
-            A (torch.Tensor): Symmetric A tensor of the PEPS state.
-            H (torch.Tensor): Hamiltonian operator.
             C (torch.Tensor): Corner tensor obtained in CTMRG algorithm.
             T (torch.Tensor): Edge tensor obtained in CTMRG algorithm.
-            nnn (bool): Wether it is a next-nearest neighbor interaction (Default is False, i.e. nearest neighbor interaction).
-        """
-        #           /
-        #  A =  -- o --  [d, D, D, D, D]
-        #         /|
-        #
-        #        _|_
-        #  H =  |___|  [d², d²]
-        #         |
-        #
-        #  C =  o --  [χ, χ]
-        #       |
-        #
-        #       |
-        #  T =  o --  [χ, D², χ]
-        #       |
 
-        Rho = self.rho_nn(A, C, T)
-        E = torch.einsum("ab,ab", Rho, H) / Rho.trace()
-        #   ___
-        #  |___|        ___
-        #  _|_|_   /   |___|
-        #  |___|
-        return E
-
-    def E_nnn(self, A: torch.Tensor, C: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
+        Returns:
+            torch.Tensor: Reduced density matrix of the PEPS state.
         """
-        Compute the energy of a PEPS state with next-nearest neighbors. The Hamiltonian is always the Heisenberg model.
+        D, chi = A.size(1), C.size(0)
+        #   o -- o -- o -- o
+        #   |   ||    ||   |
+        #   o== oo == oo ==o        ||_||
+        #   |   ||\\  ||\\ |    🡺  |___|   [d, d, d, d, d, d, d, d]
+        #   o== oo == oo ==o        || ||
+        #   |   ||\\  ||\\ |
+        #   o -- o -- o -- o
+        return self.rho_expr(
+            C,
+            T.view(chi, D, D, chi),
+            T.view(chi, D, D, chi),
+            A,
+            A,
+            A,
+            A,
+            T.view(chi, D, D, chi),
+            T.view(chi, D, D, chi).permute(1, 2, 0, 3),
+            C,
+            C,
+            T.view(chi, D, D, chi).permute(0, 3, 1, 2),
+            T.view(chi, D, D, chi),
+            A,
+            A,
+            A,
+            A,
+            T.view(chi, D, D, chi).permute(0, 3, 1, 2),
+            T.view(chi, D, D, chi).permute(1, 2, 0, 3),
+            C,
+        )
+
+    def rho_general(
+        self,
+        A: torch.Tensor,
+        C1: torch.Tensor,
+        C2: torch.Tensor,
+        C3: torch.Tensor,
+        C4: torch.Tensor,
+        T1: torch.Tensor,
+        T2: torch.Tensor,
+        T3: torch.Tensor,
+        T4: torch.Tensor,
+    ):
+        """
+        Compute the reduced density matrix of a PEPS state with general tensors.
 
         Args:
-            A (torch.Tensor): Symmetric A tensor of the PEPS state.
-            C (torch.Tensor): Corner tensor obtained in CTMRG algorithm.
-            T (torch.Tensor): Edge tensor obtained in CTMRG algorithm
+            A (torch.Tensor): Symmetric A tensor of the PEPS state of shape [d, D, D, D, D].
+            C1, C2, C3, C4 (torch.Tensor): Corner tensors obtained in CTMRG algorithm of shape [χ, χ].
+            T1, T2, T3, T4 (torch.Tensor): Edge tensors obtained in CTMRG algorithm of shapes [χ, D^2, χ], [χ, χ, D^2],
+            [D^2, χ, χ], [χ, D^2, χ] respectively.
+
+        Returns:
+            torch.Tensor: Reduced density matrix of the PEPS state.
         """
+        D, chi = A.size(1), C1.size(0)
+        return self.rho_expr(
+            C1,
+            T4.view(chi, D, D, chi),
+            T1.view(chi, D, D, chi),
+            A,
+            A,
+            A,
+            A,
+            T4.view(chi, D, D, chi),
+            T3.view(D, D, chi, chi),
+            C4,
+            C2,
+            T2.view(chi, chi, D, D),
+            T1.view(chi, D, D, chi),
+            A,
+            A,
+            A,
+            A,
+            T2.view(chi, chi, D, D),
+            T3.view(D, D, chi, chi),
+            C3,
+        )
 
-        #           /
-        #  A =  -- o --  [d, D, D, D, D]
-        #         /|
-        #
-        #        _|_
-        #  H =  |___|  [d², d²]
-        #         |
-        #
-        #  C =  o --  [χ, χ]
-        #       |
-        #
-        #       |
-        #  T =  o --  [χ, D², χ]
-        #       |
-
-        Rho = self.rho_nnn(A, C, T)
-        H = self.H_Heis()
-        E = torch.einsum("ab,ab", Rho, H) / Rho.trace()
-        #   ___
-        #  |___|        ___
-        #  _|_|_   /   |___|
-        #  |___|
-        return E
-
-    def E_horizontal_nn_general(
-        self,
-        A: torch.Tensor,
-        H: torch.Tensor,
-        C1: torch.Tensor,
-        C2: torch.Tensor,
-        C3: torch.Tensor,
-        C4: torch.Tensor,
-        T1: torch.Tensor,
-        T2: torch.Tensor,
-        T3: torch.Tensor,
-        T4: torch.Tensor,
-    ) -> torch.Tensor:
-
-        Rho = self.rho_horizontal_nn_general(A, C1, C2, C3, C4, T1, T2, T3, T4)
-        E = torch.einsum("ab,ab", Rho, H) / Rho.trace()
-        return E
-
-    def E_vertical_nn_general(
-        self,
-        A: torch.Tensor,
-        H: torch.Tensor,
-        C1: torch.Tensor,
-        C2: torch.Tensor,
-        C3: torch.Tensor,
-        C4: torch.Tensor,
-        T1: torch.Tensor,
-        T2: torch.Tensor,
-        T3: torch.Tensor,
-        T4: torch.Tensor,
-    ) -> torch.Tensor:
-
-        Rho = self.rho_vertical_nn_general(A, C1, C2, C3, C4, T1, T2, T3, T4)
-        E = torch.einsum("ab,ab", Rho, H) / Rho.trace()
-        return E
-
-    def E_diagonal_nnn_general(
-        self,
-        A: torch.Tensor,
-        C1: torch.Tensor,
-        C2: torch.Tensor,
-        C3: torch.Tensor,
-        C4: torch.Tensor,
-        T1: torch.Tensor,
-        T2: torch.Tensor,
-        T3: torch.Tensor,
-        T4: torch.Tensor,
-    ) -> torch.Tensor:
-
-        Rho = self.rho_diagonal_nnn_general(A, C1, C2, C3, C4, T1, T2, T3, T4)
-        H = self.H_Heis()
-        E = torch.einsum("ab,ab", Rho, H) / Rho.trace()
-        return E
-
-    def E_anti_diagonal_nnn_general(
-        self,
-        A: torch.Tensor,
-        C1: torch.Tensor,
-        C2: torch.Tensor,
-        C3: torch.Tensor,
-        C4: torch.Tensor,
-        T1: torch.Tensor,
-        T2: torch.Tensor,
-        T3: torch.Tensor,
-        T4: torch.Tensor,
-    ) -> torch.Tensor:
-
-        Rho = self.rho_anti_diagonal_nnn_general(A, C1, C2, C3, C4, T1, T2, T3, T4)
-        H = self.H_Heis()
-        E = torch.einsum("ab,ab", Rho, H) / Rho.trace()
+    def E(self, rho: torch.Tensor, H: torch.Tensor, which: str) -> torch.Tensor:
+        """
+        Compute the energy of a PEPS state with general interactions.
+        Args:
+            rho (torch.Tensor): Reduced density matrix of the PEPS state.
+            which (str): Type of energy to compute. Can be 'horizontal', 'vertical', 'diagonal' or 'antidiagonal'.
+        """
+        exprs = {
+            "horizontal": "abccdeff->adbe",
+            "vertical": "abcdeeff->acbd",
+            "diagonal": "abccddef->aebf",
+            "antidiagonal": "aabcdeff->bdce",
+        }
+        if which not in exprs:
+            raise ValueError(f"Unknown energy type: {which}")
+        d2 = H.size(0)
+        rho = torch.einsum(exprs[which], rho).reshape(d2, d2)
+        rho = Methods.symmetrize(rho)
+        E = torch.einsum("ab,ab", rho, H) / rho.trace()
         return E
 
     def M(self, A: torch.Tensor, C: torch.Tensor, T: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:

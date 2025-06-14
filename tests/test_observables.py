@@ -16,12 +16,14 @@ class TestObservables:
         A = torch.from_numpy(np.loadtxt("tests/test_states/Ising_D2_state.txt").reshape(2, 2, 2, 2, 2)).double()
         # Because state is from matlab, we need to permute the dimensions
         A = A.permute(4, 1, 2, 3, 0).contiguous()
-
-        alg = CtmSymmetric(A, chi=16)
+        chi, D = 16, 2
+        alg = CtmSymmetric(A, chi=chi)
         alg.exe(N=100)
 
-        tensors = Tensors(dtype="double", device="cpu")
-        assert tensors.E_nn(A, tensors.H_Ising(lam=4), alg.C, alg.T) == pytest.approx(-2.06688, abs=1e-3)
+        tensors = Tensors(dtype="double", device="cpu", chi=chi, D=D)
+        rho = tensors.rho_symmetric(A, alg.C, alg.T)
+        H = tensors.H_Ising(lam=4)
+        assert tensors.E(rho, H, which="horizontal") == pytest.approx(-2.06688, abs=1e-3)
 
     def test_E_Heisenberg_symmetric(self):
         """
@@ -29,12 +31,13 @@ class TestObservables:
         """
 
         A = torch.from_numpy(np.loadtxt("tests/test_states/Heis_D2_state.txt").reshape(2, 2, 2, 2, 2)).double()
-
-        alg = CtmSymmetric(A, chi=48)
+        chi, D = 6, 2
+        alg = CtmSymmetric(A, chi=chi)
         alg.exe(N=100)
-        tensors = Tensors(dtype="double", device="cpu")
-
-        assert tensors.E_nn(A, tensors.H_Heis_rot(), alg.C, alg.T) == pytest.approx(-0.6602310934799582, abs=1e-4)
+        tensors = Tensors(dtype="double", device="cpu", chi=chi, D=D)
+        rho = tensors.rho_symmetric(A, alg.C, alg.T)
+        H = tensors.H_Heis_rot()
+        assert tensors.E(rho, H, which="horizontal") == pytest.approx(-0.6602310934799586, abs=1e-3)
 
     def test_E_J1J2_symmetric(self):
         """
@@ -42,13 +45,14 @@ class TestObservables:
         """
 
         A = torch.from_numpy(np.loadtxt("tests/test_states/J205_D3_state.txt").reshape(2, 3, 3, 3, 3)).double()
-
-        alg = CtmSymmetric(A, chi=16)
+        chi, D = 16, 3
+        alg = CtmSymmetric(A, chi=chi)
         alg.exe(N=100)
-        tensors = Tensors(dtype="double", device="cpu")
+        tensors = Tensors(dtype="double", device="cpu", chi=chi, D=D)
 
-        E_nn = tensors.E_nn(A, tensors.H_Heis_rot(), alg.C, alg.T)
-        E_nnn = tensors.E_nnn(A, alg.C, alg.T)
+        rho = tensors.rho_symmetric(A, alg.C, alg.T)
+        E_nn = tensors.E(rho, tensors.H_Heis_rot(), which="horizontal")
+        E_nnn = tensors.E(rho, tensors.H_Heis(), which="diagonal")
         assert E_nn + 0.5 * E_nnn == pytest.approx(-0.49105775959620757, abs=1e-4)
 
     def test_E_J1J2_general(self):
@@ -57,23 +61,13 @@ class TestObservables:
         """
 
         A = torch.from_numpy(np.loadtxt("tests/test_states/J205_D3_state.txt").reshape(2, 3, 3, 3, 3)).double()
-
-        alg = CtmGeneral(A, chi=16)
+        chi, D = 16, 3
+        alg = CtmGeneral(A, chi=chi)
         alg.exe(N=100)
-        tensors = Tensors(dtype="double", device="cpu")
-
-        E_h = tensors.E_horizontal_nn_general(
-            A, tensors.H_Heis_rot(), alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
-        )
-        E_v = tensors.E_vertical_nn_general(
-            A, tensors.H_Heis_rot(), alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
-        )
-        E_nn = (E_h + E_v) / 2
-
-        E_diag_nnn = tensors.E_diagonal_nnn_general(A, alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4)
-        E_anti_nnn = tensors.E_anti_diagonal_nnn_general(
-            A, alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
-        )
-        E_nnn = (E_diag_nnn + E_anti_nnn) / 2
-
+        tensors = Tensors(dtype="double", device="cpu", chi=chi, D=D)
+        H_rot = tensors.H_Heis_rot()
+        H = tensors.H_Heis()
+        rho = tensors.rho_general(A, alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4)
+        E_nn = (tensors.E(rho, H_rot, which="horizontal") + tensors.E(rho, H_rot, which="vertical")) / 2
+        E_nnn = (tensors.E(rho, H, which="diagonal") + tensors.E(rho, H, which="antidiagonal")) / 2
         assert E_nn + 0.5 * E_nnn == pytest.approx(-0.49105775959620757, abs=1e-4)

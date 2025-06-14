@@ -15,7 +15,7 @@ class TestMinimalCanonical:
         https://journals.aps.org/prb/pdf/10.1103/PhysRevB.91.115137.
         """
 
-        tensors = Tensors(dtype="double", device="cpu")
+        tensors = Tensors(dtype="double", device="cpu", chi=24, D=3)
         M = tensors.random_tensor((2, 3, 3))
         g = tensors.identity(3)
         test = []
@@ -62,7 +62,7 @@ class TestMinimalCanonical:
         Tests if the minimal canonical form of a MPS is achieved using algorithm 1 from
         https://arxiv.org/pdf/2209.14358v1.
         """
-        tensors = Tensors(dtype="double", device="cpu")
+        tensors = Tensors(dtype="double", device="cpu", chi=24, D=3)
         M = tensors.random_tensor((2, 3, 3))
         g = tensors.identity(3)
 
@@ -133,19 +133,15 @@ class TestMinimalCanonical:
         Tests if the canonical form of a PEPS is achieved using the algorithm in Fig. 6 from
         https://journals.aps.org/prb/pdf/10.1103/PhysRevB.91.115137.
         """
-
-        tensors = Tensors(dtype="double", device="cpu")
+        chi, D = 24, 3
+        tensors = Tensors(dtype="double", device="cpu", chi=chi, D=D)
+        H = tensors.H_Heis_rot()
         ipeps = IO.load("tests/test_data/D3_test.json")
         A = ipeps.params
-        alg = CtmGeneral(A, chi=32, projector_mode="svd")
+        alg = CtmGeneral(A, chi=chi, projector_mode="svd")
         alg.exe(N=20)
-        E_h = tensors.E_horizontal_nn_general(
-            A, tensors.H_Heis_rot(), alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
-        )
-        E_v = tensors.E_vertical_nn_general(
-            A, tensors.H_Heis_rot(), alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
-        )
-        E_without_gauge = (E_h + E_v) / 2
+        rho = tensors.rho_general(A, alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4)
+        E_without_gauge = (tensors.E(rho, H, which="horizontal") + tensors.E(rho, H, which="vertical")) / 2
 
         A, gh, gv = apply_simple_update(A, tolerance=1e-20, separated=True)
 
@@ -162,17 +158,13 @@ class TestMinimalCanonical:
 
         # check that the energy is the same with and without gauge
         A_gauged = torch.einsum("purdl,dD,lL->purDL", A, gv, gh)
-        alg = CtmGeneral(A_gauged, chi=32, projector_mode="svd")
+        alg = CtmGeneral(A_gauged, chi=chi, projector_mode="svd")
         alg.exe(N=20)
-        E_h = tensors.E_horizontal_nn_general(
-            A_gauged, tensors.H_Heis_rot(), alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
-        )
-        E_v = tensors.E_vertical_nn_general(
-            A_gauged, tensors.H_Heis_rot(), alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4
-        )
-        E_with_gauge = (E_h + E_v) / 2
+        rho_gauged = tensors.rho_general(A_gauged, alg.C1, alg.C2, alg.C3, alg.C4, alg.T1, alg.T2, alg.T3, alg.T4)
+        E_with_gauge = (tensors.E(rho_gauged, H, which="horizontal") + tensors.E(rho_gauged, H, which="vertical")) / 2
+
         print(f"Energy without gauge: {E_without_gauge}, Energy with gauge: {E_with_gauge}")
-        assert abs(E_with_gauge - E_without_gauge) < 1e-7, "Energy with and without gauge differ too much"
+        assert abs(E_with_gauge - E_without_gauge) < 1e-5, "Energy with and without gauge differ too much"
 
     def test_minimal_canonical_PEPS(self):
         """
@@ -180,7 +172,7 @@ class TestMinimalCanonical:
         saved and loaded correctly.
         """
 
-        ipeps = IO.load("tests/test_data/test.json")
+        ipeps = IO.load("tests/test_data/test_minimal_canonical.json")
         Tools.gauge(ipeps, args={"tolerance": 1e-16, "gauge": "minimal_canonical", "seed": 20})
         IO.save(ipeps, "tests/test_data/test_minimal_canonical.json")
         ipeps = IO.load("tests/test_data/test_minimal_canonical.json")

@@ -1,7 +1,6 @@
 import torch
 
 from pepsflow.ipeps.ipeps import iPEPS
-from pepsflow.models.tensors import Tensors
 
 
 class Observer:
@@ -9,9 +8,6 @@ class Observer:
 
     def __init__(self, ipeps: iPEPS):
         self.ipeps = ipeps
-        dtype = self.ipeps.args.get("dtype", "double")
-        device = self.ipeps.args.get("device", "cpu")
-        self.tensors = Tensors(dtype=dtype, device=device)
 
     def lam(self) -> float:
         """Get the lambda value (field strength of Ising model)."""
@@ -95,13 +91,13 @@ class Observer:
         """Get the magnetization."""
         A = self.ipeps.params[self.ipeps.map]
         C, T = self.ipeps.do_evaluation(N=20, chi=32, ctm_symmetry="rotational", projector_mode="qr")
-        return float(abs(self.tensors.M(A, C, T)[2].cpu()))
+        return float(abs(self.ipeps.tensors.M(A, C, T)[2].cpu()))
 
     # TODO: Fix this function
     def correlation(self) -> float:
         """Get the correlation."""
         C, T = self.ipeps.do_evaluation(N=20, chi=32, ctm_symmetry="rotational", projector_mode="qr")
-        return float(self.tensors.xi(T).cpu())
+        return float(self.ipeps.tensors.xi(T).cpu())
 
     def evaluation_data(self) -> list[dict]:
         """Get all evaluation data"""
