@@ -1,6 +1,6 @@
 import torch
 from scipy.stats import ortho_group
-import opt_einsum as oe
+import cotengra as ctg
 
 
 class Tensors:
@@ -21,7 +21,7 @@ class Tensors:
         self.dtype = dtype_map[dtype]
         self.dev = device_map[device]
         expr = "ab,bcde,fgha,kgijc,nhlmd,rjopq,vmstu,equw,ptxy,wy,zA,zBCD,AEFf,HECGi,JFDIl,MGKLo,PINOs,BQKN,LORx,QR->knrvHJMP"
-        self.rho_expr = oe.contract_expression(
+        self.rho_expr = ctg.einsum_expression(
             expr,
             (chi, chi),
             (chi, D, D, chi),
@@ -43,8 +43,8 @@ class Tensors:
             (chi, chi, D, D),
             (D, D, chi, chi),
             (chi, chi),
-            optimize="auto-hq",
-            memory_limit=None,
+            optimize="auto",
+            autojit=True,
         )
 
     def gauges(self, D: int, which: str) -> tuple[torch.Tensor, torch.Tensor]:
