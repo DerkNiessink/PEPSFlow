@@ -192,12 +192,11 @@ def plot(ctx, folders, **kwargs):
 
 
     if kwargs["energy_chi"]:
-        plt.ylabel(r"$\log|E-E_0|$")
         plt.ylabel("$E$", fontsize=14)
         plt.xlabel(r"$1/\chi$", fontsize=14)
-        markers = ["-^","-v", "-", "-", "-"]
-        widths = [1.3, 1.3,0.4, 0.4, 0.4, 0.4] 
-        colors = ["C0", "C1", "k", "k", "k"]
+        markers = ["-o","-^", "-v", "-", "-"]
+        widths = [1.3, 1.3,1.3, 0.4, 0.4, 0.4] 
+        colors = ["C0", "C2", "C2", "k", "k"]
         alphas = [1,1, 0.5, 0.5, 0.5, 1.0]
         handles = []
         for i, file in enumerate(kwargs["energy_chi"].split(",")):
@@ -205,47 +204,61 @@ def plot(ctx, folders, **kwargs):
             observer = Observer(ipeps)
             for j in range(len(observer.evaluation_data())):
                 inv_chis = 1/ np.array(observer.evaluation_chis(j))
-            energies = np.array(observer.evaluation_energies(j)) #- float(args["E0"])
-            #line, = plt.plot(inv_chis, energies, markers[i], linewidth=widths[i], color=colors[i], markersize=6, markeredgecolor='black', markeredgewidth=0.5, alpha=alphas[i+j])
-            # Save the handle for the last plotted line (with gauge)
-            #if i + j == len(kwargs["energy_chi"].split(",")) - 1:
-                #with_gauge_handle = line
-            #handles.append(line)
-            plt.plot(inv_chis, energies, markers[i], linewidth=widths[i], color =colors[i], markersize=6, markeredgecolor='black', markeredgewidth=0.5) 
-        #plt.grid(linestyle='--', linewidth=0.45)
-        #plt.yscale("log")
-        #plt.ylim(-0.66810, -0.66782)
-        #plt.ylabel(r"$E$")
-        #plt.legend([ r"$A = \text{Opt}(\mathbf{g_{rand}} \cdot A_0)$",  r"$A = \mathbf{g} \cdot \text{Opt}(\mathbf{g_{rand}} \cdot A_0)$",  r"$A = \text{Opt} \left( \mathbf{g} \cdot \text{Opt}(\mathbf{g_{rand}} \cdot A_0)\right)$"])	
-        plt.legend(["With gauge", "Without gauge"], fontsize=14)
-        plt.xticks(fontsize=13)
+                energies = np.array(observer.evaluation_energies(j)) #- float(args["E0"])
+                plt.plot(inv_chis, energies, markers[i+j], linewidth=widths[i], color =colors[i+j], markersize=6, markeredgecolor='black', markeredgewidth=0.5) 
+        plt.legend(["Single Precision", "Double Precision"], fontsize=14)
+        import matplotlib.ticker as ticker
+        x_min = 0.005
+        x_max = 0.035
+        num_ticks = 7
+        ticks = np.linspace(x_min, x_max, num=num_ticks)
+        ax = plt.gca()
+        ax.set_xscale("log")
+        ax.xaxis.set_major_locator(ticker.FixedLocator(ticks))
+        ax.set_xticks(ticks)
+        ax.xaxis.set_major_formatter(ticker.ScalarFormatter(useMathText=True))
+        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
         plt.yticks(fontsize=13)
+        minor_ticks = []
+        for i in range(len(ticks) - 1):
+            minor_ticks += list(np.linspace(ticks[i], ticks[i+1], 6)[1:-1])
+        ax.xaxis.set_minor_locator(ticker.FixedLocator(minor_ticks))
+        ax.xaxis.set_minor_formatter(ticker.NullFormatter())
+        plt.xticks(fontsize=13)
+        plt.xlim(min(inv_chis)-0.0003, max(inv_chis)+0.0015)
 
     if kwargs["gradient"]:
-        plt.ylabel(r"$\log|E-E_0|$", fontsize=14)
+        #plt.ylabel(r"$\log|E-E_0|$", fontsize=14)
         plt.ylabel(r"$E$", fontsize=14)
         plt.xlabel(r"Epoch", fontsize=14)
-        for file in kwargs["gradient"].split(","):
+        last_energy = []
+        last_index = []
+        colors = ["C2", "C0"]
+        for i, file in enumerate(kwargs["gradient"].split(",")):
             ipeps = IO.load(os.path.join(args["data_folder"], folder, file))
             observer = Observer(ipeps)
             energies = np.array(observer.optimization_energies())
-            energies = abs(energies - float(args["E0"])) 
-            plt.plot(range(len(energies)), energies, linewidth=1.5, label="optimization")
+            #energies = abs(energies - float(args["E0"]))
+            plt.plot(range(len(energies)), energies, linewidth=1.3, label="optimization", color=colors[i])
+            last_energy.append((energies[-1]))
+            last_index.append(len(energies)-1)
         #plt.ylim( -0.4911, -0.4909)
         #plt.xlim(60, 142)
         #plt.ylim(10**(-10), 10**(0))
         #plt.xticks(range(0, len(losses) + 1, 2))
         #plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(1))
-        plt.yscale("log")
+        #plt.yscale("log")
         #plt.xlim(114,161)
         #plt.ylim(-0.592, -0.58)
         #plt.xlim(0, len(energies)+2)
-        plt.hlines(float(args["E0"]), 0, len(energies)+2, colors='black', linestyles='dashed', linewidth=0.7, label="$E_0(J_2/J_1=0.2)$")
+        plt.hlines(y=last_energy, xmin=0, xmax=last_index, colors=colors, linestyles='dashed', linewidth=1, label="Final Energy")
         plt.grid(linestyle='--', linewidth=0.3)
         plt.xticks(fontsize=13)
         plt.yticks(fontsize=13)
+        # plt.ylim(-0.49555, -0.49545)
+        # plt.xlim(300, 498)
         plt.legend(fontsize=14)
-        plt.legend(["Optimization", "$E_0(J_2/J_1=0.2, D=3)$"], fontsize=14)	
+        plt.legend(["Double Precision", "Single Precision"], fontsize=14)	
 
 
     if kwargs["norm"]:
@@ -341,7 +354,7 @@ def plot(ctx, folders, **kwargs):
   
     plt.tight_layout()
     #plt.legend()
-    plt.savefig("figures/Ising_m.pdf")
+    plt.savefig("figures/new_figure.pdf")
     plt.show()
 
 

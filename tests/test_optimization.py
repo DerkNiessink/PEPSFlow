@@ -30,6 +30,7 @@ class TestOptimization:
             chi=chi,
             gauge=None,
             projector_mode="eig",
+            use_checkpoint=False,
         )
         minimize_args = dict(
             optimizer="lbfgs",
@@ -59,6 +60,7 @@ class TestOptimization:
             split=False,
             seed=2,
             chi=8,
+            use_checkpoint=False,
         )
         minimize_args = dict(
             optimizer="lbfgs",

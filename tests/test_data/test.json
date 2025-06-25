@@ -13,7 +13,8 @@
         "chi": 12,
         "noise": 0,
         "gauge": null,
-        "projector_mode": "eig"
+        "projector_mode": "eig",
+        "use_checkpoint": false
     },
     "state": [
         [

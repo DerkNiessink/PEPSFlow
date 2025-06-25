@@ -13,7 +13,8 @@
         "chi": 8,
         "split": false,
         "projector_mode": "qr",
-        "fn_addition": "test"
+        "fn_addition": "test",
+        "use_checkpoint": false
     },
     "state": [
         [

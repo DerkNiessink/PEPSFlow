@@ -13,7 +13,8 @@
         "chi": 8,
         "split": false,
         "projector_mode": "qr",
-        "fn_addition": "test"
+        "fn_addition": "test",
+        "use_checkpoint": false
     },
     "state": [
         [
@@ -503,7 +504,7 @@
                 "ctm_symmetry": null
             },
             "energies": [
-                -0.6679553227151072
+                -0.6679553227151086
             ]
         }
     ],

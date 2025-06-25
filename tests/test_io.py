@@ -24,6 +24,7 @@ class TestMinimizer:
             noise=0,
             gauge=None,
             projector_mode="eig",
+            use_checkpoint=False,
         )
         minimize_args = dict(
             optimizer="lbfgs",

@@ -20,6 +20,7 @@ class Tensors:
         device_map = {"cpu": torch.device("cpu"), "cuda": torch.device("cuda")}
         self.dtype = dtype_map[dtype]
         self.dev = device_map[device]
+
         expr = "ab,bcde,fgha,kgijc,nhlmd,rjopq,vmstu,equw,ptxy,wy,zA,zBCD,AEFf,HECGi,JFDIl,MGKLo,PINOs,BQKN,LORx,QR->knrvHJMP"
         self.rho_expr = ctg.einsum_expression(
             expr,

@@ -303,6 +303,26 @@
             "tolerance": 1e-16,
             "gauge": "minimal_canonical",
             "seed": 20
+        },
+        {
+            "tolerance": 1e-16,
+            "gauge": "minimal_canonical",
+            "seed": 20
+        },
+        {
+            "tolerance": 1e-16,
+            "gauge": "minimal_canonical",
+            "seed": 20
+        },
+        {
+            "tolerance": 1e-16,
+            "gauge": "minimal_canonical",
+            "seed": 20
+        },
+        {
+            "tolerance": 1e-16,
+            "gauge": "minimal_canonical",
+            "seed": 20
         }
     ]
 }

@@ -2,6 +2,7 @@ from pepsflow.models.ctm import CtmSymmetric, CtmGeneral, CtmMirrorSymmetric
 from pepsflow.models.tensors import Tensors
 from pepsflow.models.canonize import apply_minimal_canonical, apply_simple_update, minimal_canonical_criterion
 
+import torch.utils.checkpoint as checkpoint
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 import torch
@@ -81,21 +82,24 @@ class iPEPS(torch.nn.Module, ABC):
         Returns:
             tuple[torch.Tensor, ...]: Tuple containing the corner and edge tensors of the iPEPS tensor network.
         """
-        return self._forward(N, grad=True, tensors=tensors)
+        if self.args["use_checkpoint"]:
+            return checkpoint.checkpoint(self._forward, N, grad=True, tensors=tensors, use_reentrant=False)
+        else:
+            return self._forward(N, grad=True, tensors=tensors)
 
-    def do_evaluation(self, N: int, chi: int, ctm_symmetry: str, projector_mode: str) -> tuple[torch.Tensor, ...]:
+    def do_evaluation(self, N: int, **kwargs: Any) -> tuple[torch.Tensor, ...]:
         """Evaluate the iPEPS tensor by performing the CTM algorithm without gradient tracking.
 
         args:
             N (int): Number of iterations in the CTM algorithm.
-            chi (int): Bond dimension for the evaluation.
-            ctm_symmetry (str): Symmetry of the CTM algorithm.
+            kwargs (dict): Additional arguments to override the iPEPS parameters, such as chi, ctm_symmetry,
+            and projector_mode.
 
         Returns:
             tuple[torch.Tensor, ...]: Tuple containing the corner and edge tensors of the iPEPS tensor network.
         """
         # Temporarily override chi and ctm_symmetry for evaluation
-        with self._temporary_args_override(chi=chi, ctm_symmetry=ctm_symmetry, projector_mode=projector_mode):
+        with self._temporary_args_override(**kwargs):
             tensors = self._forward(N, grad=False)
         return tensors
 

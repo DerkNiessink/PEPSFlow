@@ -85,7 +85,10 @@ class Tools:
 
         for chi in args["chi"]:
             tensors = ipeps.do_evaluation(
-                N=args["ctm_steps"], chi=chi, ctm_symmetry=args["ctm_symmetry"], projector_mode=args["projector_mode"]
+                N=args["ctm_steps"],
+                chi=chi,
+                ctm_symmetry=args["ctm_symmetry"],
+                projector_mode=args["projector_mode"],
             )
             E = ipeps.get_E(grad=False, tensors=tensors)
             data["energies"].append(E.item())
