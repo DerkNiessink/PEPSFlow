@@ -193,22 +193,6 @@ class Tensors:
         H = 0.25 * torch.kron(sz, sz) + 0.5 * (torch.kron(sp, sm) + torch.kron(sm, sp))
         return 2 * H.reshape(4, 4)
 
-    def double(self, A: torch.Tensor) -> torch.Tensor:
-        """
-        Compute the double layer of tensor A.
-
-        Args:
-            A (torch.Tensor): Bulk A tensor of the PEPS state.
-
-        Returns:
-            torch.Tensor: Double layer of the tensor A, which is a rank 6 tensor.
-        """
-        d, D = A.size(0), A.size(1)
-        #      /        /              /
-        #  -- o --  -- o --   🡺   -- o --  [D², D², D², D², d, d]
-        #    /|       /|             /||
-        return torch.einsum("mefgh,nabcd->eafbgchdmn", (A, A)).reshape(D**2, D**2, D**2, D**2, d, d)
-
     def rho_symmetric(self, A: torch.Tensor, C: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
         """
         Compute the reduced density matrix of a PEPS state with symmetric tensors.

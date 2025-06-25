@@ -228,7 +228,7 @@ def plot(ctx, folders, **kwargs):
         plt.xlim(min(inv_chis)-0.0003, max(inv_chis)+0.0015)
 
     if kwargs["gradient"]:
-        #plt.ylabel(r"$\log|E-E_0|$", fontsize=14)
+        plt.ylabel(r"$\log|E-E_0|$", fontsize=14)
         plt.ylabel(r"$E$", fontsize=14)
         plt.xlabel(r"Epoch", fontsize=14)
         last_energy = []
@@ -238,7 +238,7 @@ def plot(ctx, folders, **kwargs):
             ipeps = IO.load(os.path.join(args["data_folder"], folder, file))
             observer = Observer(ipeps)
             energies = np.array(observer.optimization_energies())
-            #energies = abs(energies - float(args["E0"]))
+            energies = abs(energies - float(args["E0"]))
             plt.plot(range(len(energies)), energies, linewidth=1.3, label="optimization", color=colors[i])
             last_energy.append((energies[-1]))
             last_index.append(len(energies)-1)
@@ -247,7 +247,7 @@ def plot(ctx, folders, **kwargs):
         #plt.ylim(10**(-10), 10**(0))
         #plt.xticks(range(0, len(losses) + 1, 2))
         #plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(1))
-        #plt.yscale("log")
+        plt.yscale("log")
         #plt.xlim(114,161)
         #plt.ylim(-0.592, -0.58)
         #plt.xlim(0, len(energies)+2)
