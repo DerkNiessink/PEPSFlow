@@ -48,7 +48,11 @@ def optimize(server: bool = False):
         with Connection(args['server_address']) as c:
             print("Running the optimization...")
             c.run(f"mkdir -p PEPSFlow/{data}/{write}")
-            c.run(f"cd PEPSFlow && source .venv/bin/activate && nohup pepsflow params optimize > {data}/{write}/{write}.out 2>&1 & disown", pty=False)
+            c.run(
+                f"cd PEPSFlow && source .venv/bin/activate && "
+                f"mkdir -p {data}/{write} && "
+                f"sh -c 'nohup pepsflow params optimize > {data}/{write}/{write}_$$.out 2>&1 & disown'"
+            )
     else: 
         Pepsflow().optimize_parallel()
 
