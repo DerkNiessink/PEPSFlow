@@ -51,7 +51,7 @@ def optimize(server: bool = False):
             c.run(
                 f"cd PEPSFlow && source .venv/bin/activate && "
                 f"mkdir -p {data}/{write} && "
-                f"sh -c 'nohup pepsflow params optimize > {data}/{write}/{write}_$$.out 2>&1 & disown'"
+                f"bash -c 'nohup pepsflow params optimize > {data}/{write}/{write}_$$.out 2>&1 & disown'"
             )
     else: 
         Pepsflow().optimize_parallel()

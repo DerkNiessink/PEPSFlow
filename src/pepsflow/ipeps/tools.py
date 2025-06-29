@@ -53,7 +53,6 @@ class Tools:
 
             if regauge:
                 ipeps.gauge_transform(which=args["gauge"], tolerance=args["gauge_tolerance"])
-                ipeps.gauge_transform(which="minimal_canonical", tolerance=args["gauge_tolerance"])
                 print(f"Gauge transformed with {args['gauge']} gauge.")
 
             new_loss: torch.Tensor = opt.step(train)

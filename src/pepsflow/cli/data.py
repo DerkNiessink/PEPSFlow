@@ -205,7 +205,7 @@ def plot(ctx, folders, **kwargs):
             for j in range(len(observer.evaluation_data())):
                 inv_chis = 1/ np.array(observer.evaluation_chis(j))
                 energies = np.array(observer.evaluation_energies(j)) #- float(args["E0"])
-                plt.plot(inv_chis, energies, markers[i+j], linewidth=widths[i], color =colors[i+j], markersize=6, markeredgecolor='black', markeredgewidth=0.5) 
+                plt.plot(inv_chis, energies, markers[i+j], linewidth=widths[i], color =colors[i+j], markersize=7, markeredgecolor='black', markeredgewidth=0.5) 
         plt.legend(["Single Precision", "Double Precision"], fontsize=14)
         import matplotlib.ticker as ticker
         x_min = 0.005
@@ -213,6 +213,7 @@ def plot(ctx, folders, **kwargs):
         num_ticks = 7
         ticks = np.linspace(x_min, x_max, num=num_ticks)
         ax = plt.gca()
+        
         ax.set_xscale("log")
         ax.xaxis.set_major_locator(ticker.FixedLocator(ticks))
         ax.set_xticks(ticks)
@@ -225,7 +226,9 @@ def plot(ctx, folders, **kwargs):
         ax.xaxis.set_minor_locator(ticker.FixedLocator(minor_ticks))
         ax.xaxis.set_minor_formatter(ticker.NullFormatter())
         plt.xticks(fontsize=13)
-        plt.xlim(min(inv_chis)-0.0003, max(inv_chis)+0.0015)
+        #plt.xlim(min(inv_chis)-0.0003, max(inv_chis)+0.0015)
+        plt.xlim(0)
+
 
     if kwargs["gradient"]:
         plt.ylabel(r"$\log|E-E_0|$", fontsize=14)
@@ -233,13 +236,13 @@ def plot(ctx, folders, **kwargs):
         plt.xlabel(r"Epoch", fontsize=14)
         last_energy = []
         last_index = []
-        colors = ["C2", "C0"]
+        colors = ["C0", "C1", "C2"]
         for i, file in enumerate(kwargs["gradient"].split(",")):
             ipeps = IO.load(os.path.join(args["data_folder"], folder, file))
             observer = Observer(ipeps)
             energies = np.array(observer.optimization_energies())
             energies = abs(energies - float(args["E0"]))
-            plt.plot(range(len(energies)), energies, linewidth=1.3, label="optimization", color=colors[i])
+            plt.plot(range(len(energies)), energies, linewidth=1.5, label="optimization", color=colors[i])
             last_energy.append((energies[-1]))
             last_index.append(len(energies)-1)
         #plt.ylim( -0.4911, -0.4909)
@@ -251,14 +254,16 @@ def plot(ctx, folders, **kwargs):
         #plt.xlim(114,161)
         #plt.ylim(-0.592, -0.58)
         #plt.xlim(0, len(energies)+2)
-        plt.hlines(y=last_energy, xmin=0, xmax=last_index, colors=colors, linestyles='dashed', linewidth=1, label="Final Energy")
+        plt.hlines(y=last_energy, xmin=0, xmax=last_index, colors=colors, linestyles='dashed', linewidth=0.8, label="Final Energy")
         plt.grid(linestyle='--', linewidth=0.3)
         plt.xticks(fontsize=13)
         plt.yticks(fontsize=13)
         # plt.ylim(-0.49555, -0.49545)
         # plt.xlim(300, 498)
+        plt.xlim(0)
         plt.legend(fontsize=14)
-        plt.legend(["Double Precision", "Single Precision"], fontsize=14)	
+        plt.gca().yaxis.set_major_locator(plt.MaxNLocator(6))
+        plt.legend(["Single Precision", "Double Precision"], fontsize=14)
 
 
     if kwargs["norm"]:
