@@ -71,6 +71,4 @@ class IO:
             "evaluation": data.get("evaluation", None),
             "gauge": data.get("gauge", None),
         }
-
-        print(f"[green bold] \nData loaded from {fn}")
         return ipeps

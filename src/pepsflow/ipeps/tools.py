@@ -29,7 +29,14 @@ class Tools:
         """
         torch.set_num_threads(args["threads"])
         ls = "strong_wolfe" if args["line_search"] else None
-        opt = Optimizer(args["optimizer"], ipeps.parameters(), lr=args["learning_rate"], line_search_fn=ls)
+
+        opt = Optimizer(
+            args["optimizer"],
+            ipeps.parameters(),
+            lr=args["learning_rate"],
+            line_search_fn=ls,
+            hist_size=args["hist_size"],
+        )
 
         def train() -> torch.Tensor:
             opt.zero_grad()

@@ -194,40 +194,47 @@ def plot(ctx, folders, **kwargs):
     if kwargs["energy_chi"]:
         plt.ylabel("$E$", fontsize=14)
         plt.xlabel(r"$1/\chi$", fontsize=14)
-        markers = ["-o","-^", "-v", "-", "-"]
-        widths = [1.3, 1.3,1.3, 0.4, 0.4, 0.4] 
-        colors = ["C0", "C2", "C2", "k", "k"]
-        alphas = [1,1, 0.5, 0.5, 0.5, 1.0]
-        handles = []
+        markers = ["-o","-v","-*", "-*","-+"]
+        widths = [1, 1,1,1,1] 
+        colors = ["C0", "C1", "C2","C0", "k"]
+        alphas = [1, 1, 1, 0.8, 0.8]
+        sizes = [7, 7, 7, 7, 7, 7]
         for i, file in enumerate(kwargs["energy_chi"].split(",")):
             ipeps = IO.load(os.path.join(args["data_folder"], folder, file))
             observer = Observer(ipeps)
             for j in range(len(observer.evaluation_data())):
                 inv_chis = 1/ np.array(observer.evaluation_chis(j))
                 energies = np.array(observer.evaluation_energies(j)) #- float(args["E0"])
-                plt.plot(inv_chis, energies, markers[i+j], linewidth=widths[i], color =colors[i+j], markersize=7, markeredgecolor='black', markeredgewidth=0.5) 
-        plt.legend(["Single Precision", "Double Precision"], fontsize=14)
-        import matplotlib.ticker as ticker
-        x_min = 0.005
-        x_max = 0.035
-        num_ticks = 7
-        ticks = np.linspace(x_min, x_max, num=num_ticks)
-        ax = plt.gca()
-        
-        ax.set_xscale("log")
-        ax.xaxis.set_major_locator(ticker.FixedLocator(ticks))
-        ax.set_xticks(ticks)
-        ax.xaxis.set_major_formatter(ticker.ScalarFormatter(useMathText=True))
-        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-        plt.yticks(fontsize=13)
-        minor_ticks = []
-        for i in range(len(ticks) - 1):
-            minor_ticks += list(np.linspace(ticks[i], ticks[i+1], 6)[1:-1])
-        ax.xaxis.set_minor_locator(ticker.FixedLocator(minor_ticks))
-        ax.xaxis.set_minor_formatter(ticker.NullFormatter())
+                plt.plot(inv_chis, energies, markers[i+j], linewidth=widths[i+j], color =colors[i+j], markersize=sizes[i+j], markeredgecolor='black', markeredgewidth=0.5, alpha=alphas[i+j]) 
+        plt.legend(["No gauge", "Minimal Canonical", "Simple Update"], fontsize=14, loc='center right', bbox_to_anchor=(1.0, 0.7))
         plt.xticks(fontsize=13)
-        #plt.xlim(min(inv_chis)-0.0003, max(inv_chis)+0.0015)
-        plt.xlim(0)
+        plt.yticks(fontsize=13)
+        
+        import matplotlib.ticker as ticker
+        plt.xticks([0.0, 0.02,0.04,0.06,0.08],fontsize=13)
+        #plt.xlim(0, 0.065)
+        plt.yticks(plt.gca().get_yticks()[::2],fontsize=13)
+        #plt.ylim(-0.494106, -0.493936)
+        # x_min = 0.005
+        # x_max = 0.05
+        # num_ticks = 7
+        # ticks = np.linspace(x_min, x_max, num=num_ticks)
+        # ax = plt.gca()
+        
+        # ax.set_xscale("log")
+        # ax.xaxis.set_major_locator(ticker.FixedLocator(ticks))
+        # ax.set_xticks(ticks)
+        # ax.xaxis.set_major_formatter(ticker.ScalarFormatter(useMathText=True))
+        # ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+        # plt.yticks(fontsize=13)
+        # minor_ticks = []
+        # for i in range(len(ticks) - 1):
+        #     minor_ticks += list(np.linspace(ticks[i], ticks[i+1], 6)[1:-1])
+        # ax.xaxis.set_minor_locator(ticker.FixedLocator(minor_ticks))
+        # ax.xaxis.set_minor_formatter(ticker.NullFormatter())
+        # plt.xticks(fontsize=13)
+        # plt.xlim(min(inv_chis)-0.0003, max(inv_chis)+0.0015)
+        # plt.xlim(0)
 
 
     if kwargs["gradient"]:
@@ -241,7 +248,7 @@ def plot(ctx, folders, **kwargs):
             ipeps = IO.load(os.path.join(args["data_folder"], folder, file))
             observer = Observer(ipeps)
             energies = np.array(observer.optimization_energies())
-            energies = abs(energies - float(args["E0"]))
+            #energies = abs(energies - float(args["E0"]))
             plt.plot(range(len(energies)), energies, linewidth=1.5, label="optimization", color=colors[i])
             last_energy.append((energies[-1]))
             last_index.append(len(energies)-1)
@@ -250,7 +257,7 @@ def plot(ctx, folders, **kwargs):
         #plt.ylim(10**(-10), 10**(0))
         #plt.xticks(range(0, len(losses) + 1, 2))
         #plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(1))
-        plt.yscale("log")
+        #plt.yscale("log")
         #plt.xlim(114,161)
         #plt.ylim(-0.592, -0.58)
         #plt.xlim(0, len(energies)+2)
@@ -262,8 +269,8 @@ def plot(ctx, folders, **kwargs):
         # plt.xlim(300, 498)
         plt.xlim(0)
         plt.legend(fontsize=14)
-        plt.gca().yaxis.set_major_locator(plt.MaxNLocator(6))
-        plt.legend(["Single Precision", "Double Precision"], fontsize=14)
+        plt.gca().xaxis.set_major_locator(plt.MaxNLocator(6))
+        plt.legend(["No gauge", "Minimal Canonical"], fontsize=14)
 
 
     if kwargs["norm"]:

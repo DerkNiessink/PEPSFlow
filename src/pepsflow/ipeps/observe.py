@@ -86,12 +86,16 @@ class Observer:
         """Get the iPEPS state from the iPEPS model. These values are NOT mapped to their original positions."""
         return self.ipeps.params.detach().cpu()
 
-    # TODO: Fix this function
-    def magnetization(self) -> float:
+    def magnetization(self, dir: str) -> float:
         """Get the magnetization."""
         A = self.ipeps.params[self.ipeps.map]
         C, T = self.ipeps.do_evaluation(N=20, chi=32, ctm_symmetry="rotational", projector_mode="qr")
-        return float(abs(self.ipeps.tensors.M(A, C, T)[2].cpu()))
+        if dir == "x":
+            return float(abs(self.ipeps.tensors.M(A, C, T)[0].cpu()))
+        elif dir == "y":
+            return float(abs(self.ipeps.tensors.M(A, C, T)[1].cpu()))
+        elif dir == "z":
+            return float(abs(self.ipeps.tensors.M(A, C, T)[2].cpu()))
 
     # TODO: Fix this function
     def correlation(self) -> float:

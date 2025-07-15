@@ -328,8 +328,11 @@ class Tensors:
         #  T =  o --  [χ, D², χ]
         #       |
 
-        Rho = self.rho_nn(A, C, T)
-        M = lambda pauli_op: torch.mm(Rho, torch.kron(self.I(), pauli_op)).trace() / Rho.trace()
+        rho = self.rho_symmetric(A, C, T)
+        d = A.size(0)
+        rho = torch.einsum("abccdeff->adbe", rho).reshape(d**2, d**2)
+        rho = Methods.symmetrize(rho)
+        M = lambda pauli_op: torch.mm(rho, torch.kron(self.I(), pauli_op)).trace() / rho.trace()
         #   ___
         #  |___|        ___
         #  _|_|_   /   |___|

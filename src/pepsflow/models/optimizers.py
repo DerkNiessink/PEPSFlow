@@ -12,7 +12,7 @@ class Optimizer:
                 self.optimizer = torch.optim.Adam(params, kwargs["lr"])
             case "lbfgs":
                 self.optimizer = torch.optim.LBFGS(
-                    params, kwargs["lr"], 1, line_search_fn=kwargs["line_search_fn"], history_size=20
+                    params, kwargs["lr"], 1, line_search_fn=kwargs["line_search_fn"], history_size=kwargs["hist_size"]
                 )
             case _:
                 raise ValueError(f"Optimizer {optimizer} not recognized.")
