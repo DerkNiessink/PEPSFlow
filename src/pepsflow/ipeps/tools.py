@@ -61,6 +61,9 @@ class Tools:
             if regauge:
                 ipeps.gauge_transform(which=args["gauge"], tolerance=args["gauge_tolerance"])
                 print(f"Gauge transformed with {args['gauge']} gauge.")
+                if args["reset_hist"]:
+                    print("Resetting optimizer history.")
+                    opt.optimizer.state.clear()
 
             new_loss: torch.Tensor = opt.step(train)
             norm = ipeps.minimal_canonical_criterion() if ipeps.map is None else None
