@@ -1,0 +1,16 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: PEPSFlow
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Derk
+    family-names: Niessink
+    email: derk@niessink.com
+    affiliation: Institute of Theoretical Physics Amsterdam
+repository-code: 'https://github.com/DerkNiessink/PEPSFlow'
+license: MIT
