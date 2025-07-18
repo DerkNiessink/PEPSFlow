@@ -41,6 +41,8 @@ class iPEPS(torch.nn.Module, ABC):
         self.initial_ipeps = initial_ipeps
         self.tensors = Tensors(args["dtype"], args["device"], self.args["chi"], args["D"])
         self.data = {}
+
+        
         self.to(args["device"])
         self.H = self.tensors.Hamiltonian(args["model"], lam=args["lam"])
         self.params, self.map = None, None
